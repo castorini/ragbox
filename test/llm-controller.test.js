@@ -64,7 +64,7 @@ class MockWorker {
   }
 }
 
-function createHarness(capability = { supported: true }) {
+function createHarness(capability = { supported: true }, storage) {
   const worker = new MockWorker();
   const document = fakeDocument();
   const answers = {
@@ -80,7 +80,7 @@ function createHarness(capability = { supported: true }) {
   };
   const workerFactory = vi.fn(() => worker);
   const detectWebGPU = vi.fn(async () => capability);
-  const controller = new LLMController({ workerFactory, elements, detectWebGPU });
+  const controller = new LLMController({ workerFactory, elements, detectWebGPU, storage });
   return { answers, controller, detectWebGPU, elements, worker, workerFactory };
 }
 
@@ -149,6 +149,32 @@ describe('LLMController', () => {
     expect(workerFactory).toHaveBeenCalledOnce();
     expect(worker.messages.filter(message => message.type === 'generate')).toHaveLength(2);
     expect(elements.loadButton.disabled).toBe(true);
+  });
+
+  it('restores a successfully loaded model after refresh', async () => {
+    const saved = new Map();
+    const storage = {
+      getItem: key => saved.get(key) ?? null,
+      setItem: (key, value) => saved.set(key, value),
+      removeItem: key => saved.delete(key),
+    };
+    const first = createHarness({ supported: true }, storage);
+    await first.controller.initializeCapability();
+    await first.controller.load();
+    expect(saved.size).toBe(0);
+    first.worker.emit({ type: 'ready' });
+    first.controller.dispose();
+
+    const refreshed = createHarness({ supported: true }, storage);
+    await refreshed.controller.initializeCapability();
+    expect(refreshed.worker.messages).toEqual([{ type: 'load' }]);
+    expect(refreshed.controller.state).toBe('loading');
+    expect(refreshed.elements.loadButton.disabled).toBe(true);
+    refreshed.worker.emit({ type: 'error', operation: 'load', message: 'retry failed' });
+    expect(saved.size).toBe(0);
+    const anotherRefresh = createHarness({ supported: true }, storage);
+    await anotherRefresh.controller.initializeCapability();
+    expect(anotherRefresh.workerFactory).not.toHaveBeenCalled();
   });
 
   it('routes output to the request destination, links only fitted evidence, and ignores stale cross-corpus output', async () => {

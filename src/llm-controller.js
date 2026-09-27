@@ -14,6 +14,8 @@ function defaultWorkerFactory() {
   return new Worker(new URL('./llm-worker.js', import.meta.url), { type: 'module' });
 }
 
+const AUTO_LOAD_KEY = 'ragbox.local-llm.autoload';
+
 function progressPercent(progress) {
   if (Number.isFinite(progress?.progress)) return Math.min(100, Math.max(0, progress.progress));
   if (Number.isFinite(progress?.loaded) && Number.isFinite(progress?.total) && progress.total > 0) {
@@ -61,10 +63,12 @@ export class LLMController {
     elements,
     workerFactory = defaultWorkerFactory,
     detectWebGPU: capabilityDetector = detectWebGPU,
+    storage,
   }) {
     this.elements = elements;
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
+    this.storage = storage;
     this.worker = null;
     this.capability = null;
     this.state = 'checking';
@@ -75,6 +79,24 @@ export class LLMController {
 
   get ready() {
     return this.state === 'ready' || this.state === 'generating';
+  }
+
+  autoLoadEnabled() {
+    try {
+      return (this.storage ?? globalThis.localStorage)?.getItem(AUTO_LOAD_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  setAutoLoad(enabled) {
+    try {
+      const storage = this.storage ?? globalThis.localStorage;
+      if (enabled) storage?.setItem(AUTO_LOAD_KEY, '1');
+      else storage?.removeItem(AUTO_LOAD_KEY);
+    } catch {
+      // Model loading still works when browser storage is unavailable.
+    }
   }
 
   async initializeCapability() {
@@ -96,6 +118,7 @@ export class LLMController {
     this.state = 'idle';
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
+    if (this.autoLoadEnabled()) await this.load();
     return this.capability;
   }
 
@@ -210,6 +233,7 @@ export class LLMController {
     }
     if (message.type === 'ready') {
       this.state = 'ready';
+      this.setAutoLoad(true);
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
@@ -273,6 +297,7 @@ export class LLMController {
     if (message.type === 'error') {
       if (message.operation === 'load') {
         this.state = 'error';
+        this.setAutoLoad(false);
         this.elements.progress.hidden = true;
         this.elements.loadButton.disabled = false;
         this.elements.status.textContent = `Model load failed: ${message.message}. You can retry.`;
