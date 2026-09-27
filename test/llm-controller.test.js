@@ -64,7 +64,7 @@ class MockWorker {
   }
 }
 
-function createHarness(capability = { supported: true }, storage) {
+function createHarness(capability = { supported: true }, cached = false) {
   const worker = new MockWorker();
   const document = fakeDocument();
   const answers = {
@@ -80,7 +80,8 @@ function createHarness(capability = { supported: true }, storage) {
   };
   const workerFactory = vi.fn(() => worker);
   const detectWebGPU = vi.fn(async () => capability);
-  const controller = new LLMController({ workerFactory, elements, detectWebGPU, storage });
+  const detectCachedModel = vi.fn(async () => cached);
+  const controller = new LLMController({ workerFactory, elements, detectWebGPU, detectCachedModel });
   return { answers, controller, detectWebGPU, elements, worker, workerFactory };
 }
 
@@ -127,7 +128,7 @@ describe('LLMController', () => {
     expect(workerFactory).not.toHaveBeenCalled();
 
     await controller.load();
-    expect(worker.messages).toContainEqual({ type: 'load' });
+    expect(worker.messages).toContainEqual({ type: 'load', cachedOnly: false });
     worker.emit({ type: 'progress', progress: { progress: 50, total: 100, file: 'model.onnx' } });
     expect(elements.status.textContent).toMatch(/50|model\.onnx|download/i);
     worker.emit({ type: 'ready' });
@@ -151,30 +152,19 @@ describe('LLMController', () => {
     expect(elements.loadButton.disabled).toBe(true);
   });
 
-  it('restores a successfully loaded model after refresh', async () => {
-    const saved = new Map();
-    const storage = {
-      getItem: key => saved.get(key) ?? null,
-      setItem: (key, value) => saved.set(key, value),
-      removeItem: key => saved.delete(key),
-    };
-    const first = createHarness({ supported: true }, storage);
-    await first.controller.initializeCapability();
-    await first.controller.load();
-    expect(saved.size).toBe(0);
-    first.worker.emit({ type: 'ready' });
-    first.controller.dispose();
+  it('loads automatically only while the model is actually cached', async () => {
+    const cached = createHarness({ supported: true }, true);
+    await cached.controller.initializeCapability();
+    expect(cached.worker.messages).toEqual([{ type: 'load', cachedOnly: true }]);
+    expect(cached.controller.state).toBe('loading');
+    expect(cached.elements.loadButton.disabled).toBe(true);
+    cached.worker.emit({ type: 'ready' });
+    expect(cached.controller.ready).toBe(true);
 
-    const refreshed = createHarness({ supported: true }, storage);
-    await refreshed.controller.initializeCapability();
-    expect(refreshed.worker.messages).toEqual([{ type: 'load' }]);
-    expect(refreshed.controller.state).toBe('loading');
-    expect(refreshed.elements.loadButton.disabled).toBe(true);
-    refreshed.worker.emit({ type: 'error', operation: 'load', message: 'retry failed' });
-    expect(saved.size).toBe(0);
-    const anotherRefresh = createHarness({ supported: true }, storage);
-    await anotherRefresh.controller.initializeCapability();
-    expect(anotherRefresh.workerFactory).not.toHaveBeenCalled();
+    const evicted = createHarness({ supported: true }, false);
+    await evicted.controller.initializeCapability();
+    expect(evicted.workerFactory).not.toHaveBeenCalled();
+    expect(evicted.elements.loadButton.disabled).toBe(false);
   });
 
   it('routes output to the request destination, links only fitted evidence, and ignores stale cross-corpus output', async () => {

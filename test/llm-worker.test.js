@@ -68,6 +68,18 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
+  it('restores an automatically detected model from local files only', async () => {
+    const harness = await createHarness();
+    harness.send({ type: 'load', cachedOnly: true });
+
+    await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
+    expect(mocks.pipeline).toHaveBeenCalledWith(
+      'text-generation',
+      'Mike0021/MiniCPM5-2B-ONNX',
+      expect.objectContaining({ local_files_only: true }),
+    );
+  });
+
   it('uses the direct-answer template for both budgeting and generation, and streams immediately', async () => {
     const harness = await createHarness({ chunks: ['A useful ', 'fact [MED-14].'] });
     const finish = deferred();

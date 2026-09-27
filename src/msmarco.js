@@ -175,6 +175,19 @@ export function setupMSMarco(run = task => task(), llm) {
   updateButtons();
   return {
     setBlocked(value) { blocked = value; updateButtons(); },
+    async restore() {
+      if (!supported) return;
+      try {
+        const root = await navigator.storage.getDirectory();
+        await root.getFileHandle(PREBUILT_NAME);
+      } catch (error) {
+        if (error.name !== 'NotFoundError') {
+          status.textContent = `Unable to check for a saved index: ${error.message}`;
+        }
+        return;
+      }
+      await reopenButton.onclick();
+    },
     async close() {
       await closePrebuilt();
       output.replaceChildren();

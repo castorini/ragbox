@@ -88,6 +88,31 @@ describe('MS MARCO result conversion', () => {
 });
 
 describe('MS MARCO search UI', () => {
+  it('reopens a saved index automatically at startup', async () => {
+    const { prebuilt } = searchablePrebuilt([]);
+    openPrebuilt.mockResolvedValue(prebuilt);
+    const root = { getFileHandle: vi.fn().mockResolvedValue({}) };
+    navigator.storage.getDirectory.mockResolvedValue(root);
+    const controller = setupMSMarco(task => task(), createLLM());
+
+    await controller.restore();
+
+    expect(root.getFileHandle).toHaveBeenCalledWith('msmarco-prebuilt.duckdb');
+    expect(openPrebuilt).toHaveBeenCalledOnce();
+    expect(elements.get('#marco-search').disabled).toBe(false);
+  });
+
+  it('does not open or download an absent saved index', async () => {
+    const root = { getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) };
+    navigator.storage.getDirectory.mockResolvedValue(root);
+    const controller = setupMSMarco(task => task(), createLLM());
+
+    await controller.restore();
+
+    expect(openPrebuilt).not.toHaveBeenCalled();
+    expect(elements.get('#marco-search').disabled).toBe(true);
+  });
+
   it('renders stable anchors, then generates from normalized passages with matching citations', async () => {
     const rows = [
       { id: '12', contents: '<script>text</script>', score: 3 },

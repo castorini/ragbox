@@ -1,3 +1,5 @@
+import { isModelCached } from './llm-model.js';
+
 export async function detectWebGPU() {
   if (!globalThis.navigator?.gpu) {
     return { supported: false, reason: 'WebGPU is unavailable in this browser.' };
@@ -13,8 +15,6 @@ export async function detectWebGPU() {
 function defaultWorkerFactory() {
   return new Worker(new URL('./llm-worker.js', import.meta.url), { type: 'module' });
 }
-
-const AUTO_LOAD_KEY = 'ragbox.local-llm.autoload';
 
 function progressPercent(progress) {
   if (Number.isFinite(progress?.progress)) return Math.min(100, Math.max(0, progress.progress));
@@ -63,12 +63,12 @@ export class LLMController {
     elements,
     workerFactory = defaultWorkerFactory,
     detectWebGPU: capabilityDetector = detectWebGPU,
-    storage,
+    detectCachedModel = isModelCached,
   }) {
     this.elements = elements;
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
-    this.storage = storage;
+    this.detectCachedModel = detectCachedModel;
     this.worker = null;
     this.capability = null;
     this.state = 'checking';
@@ -79,24 +79,6 @@ export class LLMController {
 
   get ready() {
     return this.state === 'ready' || this.state === 'generating';
-  }
-
-  autoLoadEnabled() {
-    try {
-      return (this.storage ?? globalThis.localStorage)?.getItem(AUTO_LOAD_KEY) === '1';
-    } catch {
-      return false;
-    }
-  }
-
-  setAutoLoad(enabled) {
-    try {
-      const storage = this.storage ?? globalThis.localStorage;
-      if (enabled) storage?.setItem(AUTO_LOAD_KEY, '1');
-      else storage?.removeItem(AUTO_LOAD_KEY);
-    } catch {
-      // Model loading still works when browser storage is unavailable.
-    }
   }
 
   async initializeCapability() {
@@ -115,10 +97,18 @@ export class LLMController {
       this.elements.loadButton.disabled = true;
       return this.capability;
     }
+    this.elements.status.textContent = 'Checking for a cached local model…';
+    try {
+      if (await this.detectCachedModel()) {
+        await this.load({ cachedOnly: true });
+        return this.capability;
+      }
+    } catch {
+      // A cache check failure leaves manual loading available.
+    }
     this.state = 'idle';
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
-    if (this.autoLoadEnabled()) await this.load();
     return this.capability;
   }
 
@@ -138,7 +128,7 @@ export class LLMController {
     return this.worker;
   }
 
-  async load() {
+  async load({ cachedOnly = false } = {}) {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
@@ -146,8 +136,10 @@ export class LLMController {
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
-    this.elements.status.textContent = 'Starting the local model download…';
-    this.ensureWorker().postMessage({ type: 'load' });
+    this.elements.status.textContent = cachedOnly
+      ? 'Restoring the cached local model…'
+      : 'Starting the local model download…';
+    this.ensureWorker().postMessage({ type: 'load', cachedOnly });
     return true;
   }
 
@@ -233,7 +225,6 @@ export class LLMController {
     }
     if (message.type === 'ready') {
       this.state = 'ready';
-      this.setAutoLoad(true);
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
@@ -297,7 +288,6 @@ export class LLMController {
     if (message.type === 'error') {
       if (message.operation === 'load') {
         this.state = 'error';
-        this.setAutoLoad(false);
         this.elements.progress.hidden = true;
         this.elements.loadButton.disabled = false;
         this.elements.status.textContent = `Model load failed: ${message.message}. You can retry.`;

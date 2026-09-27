@@ -27,6 +27,10 @@ export function setupNFCorpus(db, conn, run, llm) {
     WHERE table_catalog = current_database()
       AND table_schema = 'main' AND table_name = 'nfcorpus'
   `)).toArray()[0].n > 0;
+  const indexExists = async () => Number((await conn.query(`
+    SELECT count(*) AS n FROM information_schema.schemata
+    WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()
+  `)).toArray()[0].n) > 0;
 
   async function action(task) {
     return run(async () => {
@@ -78,9 +82,7 @@ export function setupNFCorpus(db, conn, run, llm) {
     llm.beginRetrieval('nfcorpus');
     return action(async () => {
       await loadExtension();
-      const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
-        WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
-      if (!await exists() || Number(index.toArray()[0].n) === 0) {
+      if (!await exists() || !await indexExists()) {
         status.textContent = 'Click “Load NFCorpus & build FTS index” before searching.';
         return null;
       }
@@ -136,5 +138,16 @@ export function setupNFCorpus(db, conn, run, llm) {
         llm.showRetrievalMessage('nfcorpus', 'Retrieval failed, so answer generation was skipped.');
       }
     });
+  };
+  return {
+    async restore() {
+      try {
+        if (!await exists() || !await indexExists()) return;
+        await loadExtension();
+        status.textContent = 'Saved NFCorpus index ready to search.';
+      } catch (error) {
+        status.textContent = `Unable to open the saved NFCorpus index: ${error.message}`;
+      }
+    },
   };
 }

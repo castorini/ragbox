@@ -10,9 +10,8 @@ import {
   streamedAnswer,
   stripThinking,
 } from './rag.js';
+import { MODEL_ID, MODEL_REVISION } from './llm-model.js';
 
-const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
-const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
 const MAX_INPUT_TOKENS = 3500;
 
 let generator;
@@ -25,13 +24,14 @@ function report(type, details = {}) {
   self.postMessage({ type, ...details });
 }
 
-async function loadModel() {
+async function loadModel(cachedOnly = false) {
   if (generator) return generator;
   if (!loading) {
     loading = pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
       dtype: 'q4f16',
       revision: MODEL_REVISION,
+      local_files_only: cachedOnly,
       progress_callback(progress) {
         report('progress', { progress });
       },
@@ -143,7 +143,7 @@ async function generate({ requestId, question, documents }) {
 self.onmessage = event => {
   const message = event.data;
   if (message.type === 'load') {
-    loadModel().catch(() => {});
+    loadModel(message.cachedOnly).catch(() => {});
     return;
   }
   if (message.type === 'cancel') {

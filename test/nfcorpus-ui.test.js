@@ -59,6 +59,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('NFCorpus shared LLM integration', () => {
+  it('opens a saved index at startup without rebuilding it', async () => {
+    const { conn } = createConnection([]);
+    const controller = setupNFCorpus({}, conn, task => task(), createLLM());
+
+    await controller.restore();
+
+    expect(conn.query).toHaveBeenCalledWith('LOAD fts');
+    expect(conn.query).not.toHaveBeenCalledWith(expect.stringContaining('create_fts_index'));
+    expect(elements.get('#fts-status').textContent).toBe('Saved NFCorpus index ready to search.');
+  });
+
+  it('leaves an absent index for an explicit first-time build', async () => {
+    const { conn } = createConnection([]);
+    conn.query.mockImplementation(async sql => resultSet([{ n: sql.includes('information_schema.tables') ? 0 : 1 }]));
+    const controller = setupNFCorpus({}, conn, task => task(), createLLM());
+
+    await controller.restore();
+
+    expect(conn.query).not.toHaveBeenCalledWith('INSTALL fts');
+    expect(elements.get('#fts-status').textContent).toBe('');
+  });
+
   it('preserves NFCorpus anchors and sends its ranked evidence to the shared controller', async () => {
     const rows = [{
       id: 'MED-14',

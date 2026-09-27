@@ -176,11 +176,11 @@ The page can generate a cited answer locally from either corpus's BM25 results. 
 
 Click **Load local LLM (~1.84 GB)** to download the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). The model runs in a Web Worker through [Transformers.js](https://huggingface.co/docs/transformers.js) with WebGPU and `q4f16` weights. The first download is large and requires a desktop browser whose WebGPU adapter exposes `shader-f16`; Chrome with a supported GPU is the tested target. The model is cached by the browser for later visits, subject to normal browser cache eviction and storage quotas.
 
-After the first successful load, the page automatically restores the model on later visits when WebGPU is available. A refresh still creates a new worker and initializes the model again, using cached files when they remain available. If restoration fails, the page shows the error and leaves the load button available for a manual retry.
+When all files for this model revision are in the browser's Transformers.js cache and WebGPU is available, the page loads the model automatically. A refresh still creates a new worker and initializes the model again. If the cache is incomplete or unavailable, the page leaves the load button available; it never starts an automatic model download.
 
 The application loads one shared model worker. When the model is ready, submit an NFCorpus or MS MARCO search as usual. The application passes the highest-ranked retrieved evidence that fits the fixed prompt budget to the model and streams the answer into that corpus's panel. Factual claims should cite IDs such as `[MED-14]` or `[MARCO-123]`; links are enabled only for evidence included in the fitted model context and jump to the corresponding result. Starting a new search cancels any active generation, while late worker output is ignored. Retrieved text is treated as quoted evidence, not instructions, and answer rendering uses text nodes rather than HTML. If WebGPU is unavailable, both BM25 searches remain usable without downloading the model.
 
-The model runs entirely on the device. No API key, inference server, or document upload is used. **Reset all data** removes the DuckDB database and demo Parquet files but does not clear browser-cached model files or the automatic loading preference. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
+The model runs entirely on the device. No API key, inference server, or document upload is used. **Reset all data** removes the DuckDB database and demo Parquet files but does not clear browser-cached model files. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
 
 ## Publish on GitHub Pages
 
@@ -207,7 +207,7 @@ The page reloads after deletion. Startup creates a fresh `transactions` table wi
 1. Open the app in a supported desktop browser, such as Chrome.
 2. Click **Download & open index (3.35 GB)** and wait for it to finish. Keep the tab open while downloading.
 3. Enter a query and click **Search** to see up to ten matching passages. If the shared local model is loaded, a cited answer appears above them using `[MARCO-…]` citations.
-4. After reloading or returning later, click **Reopen saved index** before searching. No second download is needed while the saved file remains in browser storage.
+4. After reloading or returning later, the page automatically opens the saved index. If opening fails, use **Reopen saved index** to retry. No second download is needed while the saved file remains in browser storage.
 
 The index is stored in the browser’s Origin Private File System (OPFS), not the Downloads folder. Localhost and the public site have separate storage. Clearing browser storage removes the saved index. Downloads can be cancelled but cannot resume across reloads. Allow sufficient free disk space; replacing an existing index can temporarily require additional space.
 
