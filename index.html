@@ -2,27 +2,21 @@
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RAGbox</title></head>
 <body>
-<h1>RAGbox</h1>
-<p>Each page load inserts one transaction and checkpoints it. Reload to test persistence.</p>
-<p id="status" role="status">Opening database…</p>
-<section aria-labelledby="llm-heading">
-<h2 id="llm-heading">Local answer model</h2>
-<p>Load one local model to generate cited answers for either search collection.</p>
-<div id="llm-controls">
-<button id="llm-load" type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
-<button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
-<progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
-<p id="llm-status" role="status">Checking WebGPU support…</p>
-</div>
-</section>
-<section aria-labelledby="fts-heading">
-<h2 id="fts-heading">NFCorpus full-text search</h2>
-<p>Search 3,633 documents with DuckDB BM25. Import and indexing run in your browser.</p>
-<button id="fts-index" disabled>Load NFCorpus & build FTS index</button>
+<a class="skip-link" href="#collections">Skip to search</a>
+<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav aria-label="Main navigation"><a href="#collections">Collections</a><a href="#model">Answer model</a><a href="#lab">Storage lab</a></nav><span class="local-badge">Runs in your browser</span></header>
+<main>
+<div class="hero"><div class="eyebrow">LOCAL SEARCH · GROUNDED ANSWERS</div><h1>Your browser.<br>Your research space.</h1><p>Explore millions of passages. Find the evidence.<br>Add a local model for answers with citations.</p><a class="hero-link" href="#collections">Explore the collections <span aria-hidden="true">↓</span></a></div>
+<div class="workspace-label" id="collections"><h2>Choose your collection</h2><span>Two collections. One workspace.</span></div>
+
+<section class="collection" aria-labelledby="fts-heading">
+<div class="collection-meta"><span class="eyebrow">01 / HEALTH & NUTRITION</span><span class="pill">3,633 documents</span></div>
+<h2 id="fts-heading">NFCorpus</h2>
+<p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
+<div class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" disabled>Prepare NFCorpus</button></div>
 <form id="fts-form">
 <label for="fts-query">Search title and document text</label>
-<input id="fts-query" type="search" placeholder="Search" required maxlength="500">
-<button id="fts-search" disabled>Search NFCorpus</button>
+<div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
+<button id="fts-search" class="primary" disabled>Search NFCorpus <span aria-hidden="true">↗</span></button></div>
 </form>
 <p id="fts-status" role="status">Build the index once, then search. Saved indexes can be reused after reload.</p>
 <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading">
@@ -31,11 +25,12 @@
 </article>
 <ol id="fts-results" aria-label="NFCorpus search results"></ol>
 </section>
-<section aria-labelledby="marco-heading">
-<h2 id="marco-heading">MS MARCO search</h2>
+<section class="collection" aria-labelledby="marco-heading">
+<div class="collection-meta"><span class="eyebrow">02 / WEB PASSAGES</span><span class="pill">8.8 million passages</span></div>
+<h2 id="marco-heading">MS MARCO</h2>
 <p>Search 8.8 million passages in your browser.</p>
-<div>
-<h3>Open the search index</h3>
+<div class="setup-box">
+<span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
 <p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, reopen the saved index.</p>
 <button data-marco-control id="marco-fetch" type="button" disabled>Download & open index (3.35 GB)</button>
 <button data-marco-control id="marco-reopen" type="button" disabled>Reopen saved index</button>
@@ -44,8 +39,8 @@
 </div>
 <form id="marco-form">
 <label for="marco-query">Search MS MARCO passages</label>
-<input id="marco-query" type="search" placeholder="Search" required maxlength="500">
-<button data-marco-control id="marco-search" disabled>Search</button>
+<div class="search-row"><input id="marco-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
+<button data-marco-control id="marco-search" class="primary" disabled>Search MS MARCO <span aria-hidden="true">↗</span></button></div>
 </form>
 <p id="marco-status" role="status">Download or reopen the index to start searching.</p>
 <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
@@ -54,7 +49,17 @@
 </article>
 <ol id="marco-results" aria-label="Search results"></ol>
 </section>
-<h2>OPFS experiments</h2>
+<section id="model" class="model-card" aria-labelledby="llm-heading">
+<div class="eyebrow">OPTIONAL · GENERATE ANSWERS</div><h2 id="llm-heading">Go from results to answers.</h2>
+<p>Load one local model to generate cited answers for either search collection.</p>
+<div id="llm-controls">
+<button id="llm-load" type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
+<button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
+<progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
+<p id="llm-status" role="status">Checking WebGPU support…</p>
+</div>
+</section>
+<details id="lab" class="lab"><summary><span>Storage lab</span><span class="summary-note">Persistence, exports & database tools</span></summary><div class="lab-content"><p>Explore how browser storage persists between visits. Each page load adds one sample transaction.</p><p id="status" role="status">Opening database…</p><div class="lab-actions">
 <button id="reload" disabled>Reload page</button>
 <button id="orders" disabled>Load orders & cache monthly totals</button>
 <button id="local-orders" disabled>Query saved orders (local only)</button>
@@ -62,6 +67,7 @@
 <button id="export" disabled>Download analytics.duckdb</button>
 <button id="close" disabled>Checkpoint & close</button>
 <button id="reset" disabled>Reset all data</button>
-<h2>Results</h2><pre id="output"></pre>
+</div><h3>Stored data</h3><pre id="output"></pre></div></details>
+</main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
 <script type="module" src="/src/main.js"></script>
 </body></html>
