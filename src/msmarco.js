@@ -1,7 +1,15 @@
 import { openPrebuilt, PREBUILT_NAME } from './prebuilt-msmarco.js';
 import { downloadPrebuilt } from './download-prebuilt.js';
 
-export function setupMSMarco(run = task => task()) {
+export function normalizeMSMarcoResults(rows) {
+  return rows.map(row => ({
+    id: `MARCO-${String(row.id)}`,
+    title: `Passage ${String(row.id)}`,
+    text: String(row.contents ?? ''),
+  }));
+}
+
+export function setupMSMarco(run = task => task(), llm) {
   const status = document.querySelector('#marco-status');
   const output = document.querySelector('#marco-results');
   const fetchButton = document.querySelector('#marco-fetch');
@@ -26,18 +34,27 @@ export function setupMSMarco(run = task => task()) {
     if (busy || blocked || !supported) return;
     busy = true;
     updateButtons();
-    try { await run(task); }
-    catch (error) {
-      status.textContent = error.name === 'NotFoundError'
-        ? 'No saved index found. Download the index first.'
-        : `Unable to complete the request: ${error.message}`;
-      console.error(error);
+    try {
+      return await run(async () => {
+        try {
+          return await task();
+        } catch (error) {
+          status.textContent = error.name === 'NotFoundError'
+            ? 'No saved index found. Download the index first.'
+            : `Unable to complete the request: ${error.message}`;
+          console.error(error);
+          throw error;
+        }
+      });
+    } catch {
+      return undefined;
     } finally {
       busy = false;
       updateButtons();
     }
   }
   async function closePrebuilt() {
+    llm?.showRetrievalMessage('msmarco', '');
     const previous = prebuilt;
     prebuilt = undefined;
     if (previous) await previous.close();
@@ -103,11 +120,13 @@ export function setupMSMarco(run = task => task()) {
     event.preventDefault();
     const query = document.querySelector('#marco-query').value.trim();
     if (!query) return;
+    llm?.beginRetrieval('msmarco');
+    if (!prebuilt) {
+      status.textContent = 'Download or reopen the index before searching.';
+      llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
+      return;
+    }
     return action(async () => {
-      if (!prebuilt) {
-        status.textContent = 'Download or reopen the index before searching.';
-        return;
-      }
       output.replaceChildren();
       status.textContent = 'Searching…';
       const stmt = await prebuilt.conn.prepare(`SELECT id, contents,
@@ -118,6 +137,8 @@ export function setupMSMarco(run = task => task()) {
       finally { await stmt.close(); }
       for (const row of rows) {
         const item = document.createElement('li');
+        item.id = `marco-result-${encodeURIComponent(String(row.id))}`;
+        item.tabIndex = -1;
         const heading = document.createElement('strong');
         heading.textContent = `Passage ${row.id}`;
         const text = document.createElement('p');
@@ -128,6 +149,26 @@ export function setupMSMarco(run = task => task()) {
       status.textContent = rows.length
         ? `Showing ${rows.length} results for “${query}”.`
         : `No results for “${query}”. Try different search words.`;
+      return rows;
+    }).then(rows => {
+      if (rows?.length) {
+        const documents = normalizeMSMarcoResults(rows);
+        llm?.generate({
+          corpus: 'msmarco',
+          question: query,
+          documents,
+          citationTargets: new Map(rows.map(row => [
+            `MARCO-${String(row.id)}`,
+            `#marco-result-${encodeURIComponent(String(row.id))}`,
+          ])),
+          evidenceLabel: 'passages',
+        });
+      } else if (rows) {
+        llm?.showRetrievalMessage('msmarco', 'No retrieved passages support an answer for this query.');
+      } else {
+        llm?.showRetrievalMessage('msmarco', 'Retrieval failed, so answer generation was skipped.');
+      }
+      return rows;
     });
   };
   if (!supported) status.textContent = 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.';

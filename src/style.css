@@ -14,12 +14,13 @@ label { display: block; margin-top: 1rem; }
 #llm-progress { display: block; width: min(100%, 32rem); margin-top: .6rem; }
 #llm-progress[hidden] { display: none; }
 #llm-status { margin: .5rem 0 0; }
-#llm-answer-panel { margin-top: 1rem; padding: 1rem; background: #f7f8fa; border-left: .3rem solid #65758b; }
-#llm-answer-panel h3 { margin-top: 0; }
-#llm-answer { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-#llm-answer a { font-weight: 650; }
+.llm-answer-panel { margin-top: 1rem; padding: 1rem; background: #f7f8fa; border-left: .3rem solid #65758b; }
+.llm-answer-panel h3 { margin-top: 0; }
+.llm-answer { margin-bottom: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.llm-answer a { font-weight: 650; }
 #fts-results li { border-top: 1px solid #d5d9df; padding: 1rem 0; }
-#fts-results li:target { outline: .2rem solid #65758b; outline-offset: .25rem; background: #f1f5f9; }
+#fts-results li:target,
+#marco-results li:target { outline: .2rem solid #65758b; outline-offset: .25rem; background: #f1f5f9; }
 #fts-results h3 { margin: 0; }
 #fts-results p { overflow-wrap: anywhere; }
 

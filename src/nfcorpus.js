@@ -40,6 +40,7 @@ export function setupNFCorpus(db, conn, run, llm) {
   }
 
   document.querySelector('#fts-index').onclick = () => action(async () => {
+    llm.showRetrievalMessage('nfcorpus', '');
     await loadExtension();
     if (!await exists()) {
       status.textContent = 'Loading NFCorpus documents…';
@@ -74,14 +75,14 @@ export function setupNFCorpus(db, conn, run, llm) {
     event.preventDefault();
     const query = document.querySelector('#fts-query').value.trim();
     if (!query) return;
-    llm.cancel(true);
+    llm.beginRetrieval('nfcorpus');
     return action(async () => {
       await loadExtension();
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
       if (!await exists() || Number(index.toArray()[0].n) === 0) {
         status.textContent = 'Click “Load NFCorpus & build FTS index” before searching.';
-        return;
+        return null;
       }
       status.textContent = 'Searching saved NFCorpus documents…';
       const start = performance.now();
@@ -113,8 +114,27 @@ export function setupNFCorpus(db, conn, run, llm) {
         : `No matches for “${query}”. Try different terms; common stopwords are excluded.`;
       return rows;
     }).then(rows => {
-      if (rows?.length) llm.generate(query, rows);
-      else if (rows) llm.showRetrievalMessage('No retrieved documents support a grounded answer for this query.');
+      if (rows?.length) {
+        llm.generate({
+          corpus: 'nfcorpus',
+          question: query,
+          documents: rows,
+          citationTargets: new Map(rows.map(row => [
+            String(row.id),
+            `#fts-result-${encodeURIComponent(String(row.id))}`,
+          ])),
+          evidenceLabel: 'documents',
+        });
+      } else if (rows) {
+        llm.showRetrievalMessage(
+          'nfcorpus',
+          'No retrieved documents support an answer for this query.',
+        );
+      } else if (rows === null) {
+        llm.showRetrievalMessage('nfcorpus', 'Build the NFCorpus index before generating an answer.');
+      } else {
+        llm.showRetrievalMessage('nfcorpus', 'Retrieval failed, so answer generation was skipped.');
+      }
     });
   };
 }

@@ -19,6 +19,7 @@ let generator;
 let loading;
 let activeGeneration;
 let generationQueue = Promise.resolve();
+const cancelledRequestIds = new Set();
 
 function report(type, details = {}) {
   self.postMessage({ type, ...details });
@@ -63,6 +64,10 @@ function generatedText(output, streamed) {
 }
 
 async function generate({ requestId, question, documents }) {
+  if (cancelledRequestIds.delete(requestId)) {
+    report('cancelled', { requestId });
+    return;
+  }
   const stoppingCriteria = new InterruptableStoppingCriteria();
   const state = { requestId, stoppingCriteria, cancelled: false };
   activeGeneration = state;
@@ -81,6 +86,10 @@ async function generate({ requestId, question, documents }) {
     }
     if (!fitted.length) throw new Error('The retrieved documents do not fit in the model context window.');
 
+    report('context', {
+      requestId,
+      documentIds: fitted.map(document => document.id),
+    });
     const messages = buildMessages(question, fitted);
     let streamed = '';
     let visibleLength = 0;
@@ -126,6 +135,7 @@ async function generate({ requestId, question, documents }) {
     if (state.cancelled) report('cancelled', { requestId });
     else report('error', { operation: 'generate', requestId, message: error.message });
   } finally {
+    cancelledRequestIds.delete(requestId);
     if (activeGeneration === state) activeGeneration = undefined;
   }
 }
@@ -137,6 +147,7 @@ self.onmessage = event => {
     return;
   }
   if (message.type === 'cancel') {
+    cancelledRequestIds.add(message.requestId);
     if (activeGeneration?.requestId === message.requestId) {
       activeGeneration.cancelled = true;
       activeGeneration.stoppingCriteria.interrupt();

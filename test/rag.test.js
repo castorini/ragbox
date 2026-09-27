@@ -43,6 +43,24 @@ describe('buildMessages', () => {
     expect(messages[1].content).toContain('Question with <angle brackets> & symbols');
     expect(messages[1].content).toContain('ignore the question');
   });
+
+  it('describes evidence generically and preserves MS MARCO citation IDs', () => {
+    const passages = [
+      { id: 'MARCO-123', title: 'Passage 123', text: 'A corporation is a legal entity.' },
+      { id: 'MARCO-456', title: 'Passage 456', text: 'Corporations can own property.' },
+    ];
+
+    const messages = buildMessages('corporation definition', passages);
+    const prompt = messages.map(message => message.content).join('\n');
+
+    expect(prompt).toMatch(/retrieved evidence/i);
+    expect(prompt).not.toMatch(/NFCorpus/i);
+    expect(messages[1].content).toContain('MARCO-123');
+    expect(messages[1].content).toContain('MARCO-456');
+    expect(messages[1].content.indexOf('MARCO-123')).toBeLessThan(
+      messages[1].content.indexOf('MARCO-456'),
+    );
+  });
 });
 
 describe('fitDocumentsToTokenBudget', () => {
@@ -93,6 +111,32 @@ describe('fitDocumentsToTokenBudget', () => {
     expect(first.map(document => document.id)).toEqual(['MED-1', 'MED-2']);
     expect(first[1].text.length).toBeLessThan(longDocuments[1].text.length);
     expect(await countTokens(buildMessages('q', first))).toBeLessThanOrEqual(budget);
+  });
+
+  it('enforces the budget for ranked MS MARCO passages without changing their order', async () => {
+    const passages = [
+      { id: 'MARCO-11', title: 'Passage 11', text: 'A'.repeat(500) },
+      { id: 'MARCO-22', title: 'Passage 22', text: 'B'.repeat(500) },
+      { id: 'MARCO-33', title: 'Passage 33', text: 'C'.repeat(500) },
+    ];
+    const countTokens = async messages => messages
+      .map(message => message.content)
+      .join('')
+      .length;
+    const firstTwoCount = await countTokens(buildMessages('corporation', passages.slice(0, 2)));
+    const budget = firstTwoCount + 250;
+
+    const fitted = await fitDocumentsToTokenBudget(
+      'corporation',
+      passages,
+      countTokens,
+      budget,
+    );
+
+    expect(fitted.map(document => document.id)).toEqual(['MARCO-11', 'MARCO-22', 'MARCO-33']);
+    expect(fitted[2].text.length).toBeGreaterThan(0);
+    expect(fitted[2].text.length).toBeLessThan(passages[2].text.length);
+    expect(await countTokens(buildMessages('corporation', fitted))).toBeLessThanOrEqual(budget);
   });
 });
 

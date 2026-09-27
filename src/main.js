@@ -150,7 +150,7 @@ async function main() {
   });
   conn = await db.connect();
   setupNFCorpus(db, conn, run, llm);
-  marco = setupMSMarco(run);
+  marco = setupMSMarco(run, llm);
   await conn.query(`CREATE TABLE IF NOT EXISTS transactions (
     id BIGINT, ts TIMESTAMP, merchant VARCHAR, category VARCHAR, amount DECIMAL(10, 2)
   )`);

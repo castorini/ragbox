@@ -5,27 +5,31 @@
 <h1>DuckDB + OPFS lab</h1>
 <p>Each page load inserts one transaction and checkpoints it. Reload to test persistence.</p>
 <p id="status" role="status">Opening database…</p>
-<section aria-labelledby="fts-heading">
-<h2 id="fts-heading">NFCorpus full-text search</h2>
-<p>Search 3,633 documents with DuckDB BM25. Import and indexing run in your browser.</p>
-<button id="fts-index" disabled>Load NFCorpus & build FTS index</button>
+<section aria-labelledby="llm-heading">
+<h2 id="llm-heading">Local answer model</h2>
+<p>Load one local model to generate cited answers for either search collection.</p>
 <div id="llm-controls">
 <button id="llm-load" type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
 <button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
 <progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
 <p id="llm-status" role="status">Checking WebGPU support…</p>
 </div>
+</section>
+<section aria-labelledby="fts-heading">
+<h2 id="fts-heading">NFCorpus full-text search</h2>
+<p>Search 3,633 documents with DuckDB BM25. Import and indexing run in your browser.</p>
+<button id="fts-index" disabled>Load NFCorpus & build FTS index</button>
 <form id="fts-form">
 <label for="fts-query">Search title and document text</label>
 <input id="fts-query" type="search" placeholder="Search" required maxlength="500">
 <button id="fts-search" disabled>Search NFCorpus</button>
 </form>
 <p id="fts-status" role="status">Build the index once, then search. Saved indexes can be reused after reload.</p>
-<article id="llm-answer-panel" aria-labelledby="llm-answer-heading">
-<h3 id="llm-answer-heading">Grounded answer</h3>
-<p id="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add cited answers.</p>
+<article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading">
+<h3 id="fts-answer-heading">Cited answer</h3>
+<p id="fts-answer" class="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add a cited answer.</p>
 </article>
-<ol id="fts-results"></ol>
+<ol id="fts-results" aria-label="NFCorpus search results"></ol>
 </section>
 <section aria-labelledby="marco-heading">
 <h2 id="marco-heading">MS MARCO search</h2>
@@ -44,6 +48,10 @@
 <button data-marco-control id="marco-search" disabled>Search</button>
 </form>
 <p id="marco-status" role="status">Download or reopen the index to start searching.</p>
+<article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
+<h3 id="marco-answer-heading">Cited answer</h3>
+<p id="marco-answer" class="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add a cited answer.</p>
+</article>
 <ol id="marco-results" aria-label="Search results"></ol>
 </section>
 <h2>OPFS experiments</h2>

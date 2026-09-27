@@ -22,9 +22,16 @@ function progressPercent(progress) {
   return null;
 }
 
-export function renderAnswer(container, text, allowedIds = []) {
+function citationTargetMap(citationTargets) {
+  if (citationTargets instanceof Map) {
+    return new Map([...citationTargets].map(([id, target]) => [String(id), String(target)]));
+  }
+  return new Map(Object.entries(citationTargets ?? {}).map(([id, target]) => [String(id), String(target)]));
+}
+
+export function renderAnswer(container, text, citationTargets = new Map()) {
   const value = String(text ?? '');
-  const allowed = new Set(allowedIds.map(String));
+  const targets = citationTargetMap(citationTargets);
   if (!container.ownerDocument || typeof container.replaceChildren !== 'function') {
     container.textContent = value;
     return;
@@ -34,11 +41,11 @@ export function renderAnswer(container, text, allowedIds = []) {
   for (const match of value.matchAll(/\[([A-Za-z0-9_.:-]+)\]/g)) {
     if (match.index > position) nodes.push(container.ownerDocument.createTextNode(value.slice(position, match.index)));
     const id = match[1];
-    if (allowed.has(id)) {
+    if (targets.has(id)) {
       const link = container.ownerDocument.createElement('a');
-      link.href = `#fts-result-${encodeURIComponent(id)}`;
+      link.href = targets.get(id);
       link.textContent = match[0];
-      link.title = `Jump to retrieved document ${id}`;
+      link.title = `Jump to retrieved evidence ${id}`;
       nodes.push(link);
     } else {
       nodes.push(container.ownerDocument.createTextNode(match[0]));
@@ -61,10 +68,9 @@ export class LLMController {
     this.worker = null;
     this.capability = null;
     this.state = 'checking';
-    this.activeRequestId = null;
+    this.activeRequest = null;
     this.requestNumber = 0;
-    this.answerText = '';
-    this.allowedIds = [];
+    this.answers = elements.answers ?? { nfcorpus: elements.answer };
   }
 
   get ready() {
@@ -88,7 +94,7 @@ export class LLMController {
       return this.capability;
     }
     this.state = 'idle';
-    this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want grounded answers.';
+    this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
     return this.capability;
   }
@@ -102,7 +108,7 @@ export class LLMController {
       this.handleMessage({
         type: 'error',
         operation: this.state === 'loading' ? 'load' : 'generate',
-        requestId: this.activeRequestId,
+        requestId: this.activeRequest?.id,
         message: event.message || 'The LLM worker stopped unexpectedly.',
       });
     };
@@ -122,26 +128,46 @@ export class LLMController {
     return true;
   }
 
-  generate(question, documents) {
+  answerFor(corpus) {
+    const answer = this.answers[corpus];
+    if (!answer) throw new Error(`No answer destination is configured for ${corpus}.`);
+    return answer;
+  }
+
+  beginRetrieval(corpus) {
+    if (this.activeRequest) this.cancel(true);
+    renderAnswer(this.answerFor(corpus), '');
+  }
+
+  generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }) {
+    const answer = this.answerFor(corpus);
     if (!this.ready || this.state === 'loading') {
       const message = this.state === 'unsupported'
         ? 'BM25 results are ready. Local answer generation is unavailable on this device.'
-        : 'BM25 results are ready. Load the local LLM to generate a grounded answer.';
-      renderAnswer(this.elements.answer, message);
+        : 'BM25 results are ready. Load the local LLM to generate an answer from the retrieved evidence.';
+      renderAnswer(answer, message);
       return false;
     }
-    if (this.activeRequestId) this.cancel(true);
+    if (this.activeRequest) this.cancel(true);
     const requestId = `rag-${++this.requestNumber}`;
-    this.activeRequestId = requestId;
+    this.activeRequest = {
+      id: requestId,
+      corpus,
+      answer,
+      answerText: '',
+      citationTargets: citationTargetMap(citationTargets),
+      includedTargets: new Map(),
+      evidenceLabel,
+    };
     this.state = 'generating';
-    this.answerText = '';
-    this.allowedIds = documents.map(document => String(document.id));
-    renderAnswer(this.elements.answer, '');
-    this.elements.status.textContent = 'Generating a grounded answer locally…';
+    renderAnswer(answer, '');
+    const corpusName = corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
+    this.elements.status.textContent = `Generating an answer from ${corpusName} evidence locally…`;
     this.elements.stopButton.disabled = false;
     this.ensureWorker().postMessage({
       type: 'generate',
       requestId,
+      corpus,
       question,
       documents: documents.map(document => ({
         id: String(document.id),
@@ -152,16 +178,16 @@ export class LLMController {
     return true;
   }
 
-  showRetrievalMessage(message) {
-    if (this.activeRequestId) this.cancel(true);
-    renderAnswer(this.elements.answer, message);
+  showRetrievalMessage(corpus, message) {
+    if (this.activeRequest?.corpus === corpus) this.cancel(true);
+    renderAnswer(this.answerFor(corpus), message);
   }
 
   cancel(quiet = false) {
-    if (!this.activeRequestId || !this.worker) return false;
-    const requestId = this.activeRequestId;
+    if (!this.activeRequest || !this.worker) return false;
+    const requestId = this.activeRequest.id;
     this.worker.postMessage({ type: 'cancel', requestId });
-    this.activeRequestId = null;
+    this.activeRequest = null;
     this.state = 'ready';
     this.elements.stopButton.disabled = true;
     if (!quiet) this.elements.status.textContent = 'Generation stopped. BM25 results remain available.';
@@ -187,13 +213,29 @@ export class LLMController {
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
-      this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate grounded answers.';
+      this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate cited answers.';
       return;
     }
-    if (message.requestId && message.requestId !== this.activeRequestId) return;
+    if (message.requestId && message.requestId !== this.activeRequest?.id) return;
+    if (message.type === 'context') {
+      const included = new Set((message.documentIds ?? []).map(String));
+      this.activeRequest.includedTargets = new Map(
+        [...this.activeRequest.citationTargets].filter(([id]) => included.has(id)),
+      );
+      renderAnswer(
+        this.activeRequest.answer,
+        this.activeRequest.answerText,
+        this.activeRequest.includedTargets,
+      );
+      return;
+    }
     if (message.type === 'answer-delta') {
-      this.answerText += message.text;
-      renderAnswer(this.elements.answer, this.answerText, this.allowedIds);
+      this.activeRequest.answerText += message.text;
+      renderAnswer(
+        this.activeRequest.answer,
+        this.activeRequest.answerText,
+        this.activeRequest.includedTargets,
+      );
       return;
     }
     if (message.type === 'complete') {
@@ -206,16 +248,23 @@ export class LLMController {
         });
         return;
       }
-      this.answerText = message.answer;
-      renderAnswer(this.elements.answer, this.answerText, this.allowedIds);
-      this.activeRequestId = null;
+      const request = this.activeRequest;
+      const included = new Set((message.documentIds ?? []).map(String));
+      request.includedTargets = new Map(
+        [...request.citationTargets].filter(([id]) => included.has(id)),
+      );
+      request.answerText = message.answer;
+      renderAnswer(request.answer, request.answerText, request.includedTargets);
+      this.activeRequest = null;
       this.state = 'ready';
       this.elements.stopButton.disabled = true;
-      this.elements.status.textContent = `Grounded answer generated from ${message.documentIds?.length ?? 0} retrieved documents.`;
+      const count = message.documentIds?.length ?? 0;
+      const label = count === 1 ? request.evidenceLabel.replace(/s$/, '') : request.evidenceLabel;
+      this.elements.status.textContent = `Answer generated using ${count} ${label}.`;
       return;
     }
     if (message.type === 'cancelled') {
-      this.activeRequestId = null;
+      this.activeRequest = null;
       this.state = 'ready';
       this.elements.stopButton.disabled = true;
       this.elements.status.textContent = 'Generation stopped. BM25 results remain available.';
@@ -228,7 +277,7 @@ export class LLMController {
         this.elements.loadButton.disabled = false;
         this.elements.status.textContent = `Model load failed: ${message.message}. You can retry.`;
       } else {
-        this.activeRequestId = null;
+        this.activeRequest = null;
         this.state = 'ready';
         this.elements.stopButton.disabled = true;
         this.elements.status.textContent = `Answer generation failed: ${message.message}. BM25 results remain available.`;
@@ -237,7 +286,7 @@ export class LLMController {
   }
 
   dispose() {
-    if (this.activeRequestId) this.cancel(true);
+    if (this.activeRequest) this.cancel(true);
     this.worker?.terminate();
     this.worker = null;
   }
@@ -249,7 +298,10 @@ export function setupLLM() {
     stopButton: document.querySelector('#llm-stop'),
     status: document.querySelector('#llm-status'),
     progress: document.querySelector('#llm-progress'),
-    answer: document.querySelector('#llm-answer'),
+    answers: {
+      nfcorpus: document.querySelector('#fts-answer'),
+      msmarco: document.querySelector('#marco-answer'),
+    },
   };
   const controller = new LLMController({ elements });
   elements.loadButton.onclick = () => controller.load();

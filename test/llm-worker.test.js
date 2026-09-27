@@ -99,6 +99,37 @@ describe('LLM worker generation', () => {
     });
   });
 
+  it('reports fitted context IDs before the first answer delta and repeats them on completion', async () => {
+    const fittedDocuments = [
+      { id: 'MARCO-1', title: 'Passage 1', text: 'The highest-ranked evidence.' },
+      { id: 'MARCO-2', title: 'Passage 2', text: 'Evidence that does not fit.' },
+    ];
+    const harness = await createHarness({
+      chunks: ['Supported answer [MARCO-1].'],
+    });
+    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => JSON.stringify(messages));
+    harness.generator.tokenizer.encode.mockImplementation(prompt => (
+      prompt.includes('MARCO-2') ? new Array(4000).fill(1) : [1]
+    ));
+
+    harness.generate({ documents: fittedDocuments });
+
+    expect(await harness.terminal()).toMatchObject({
+      type: 'complete',
+      requestId: 'request-1',
+      documentIds: ['MARCO-1'],
+    });
+    const contextIndex = harness.messages.findIndex(message => message.type === 'context');
+    const deltaIndex = harness.messages.findIndex(message => message.type === 'answer-delta');
+    expect(harness.messages[contextIndex]).toEqual({
+      type: 'context',
+      requestId: 'request-1',
+      documentIds: ['MARCO-1'],
+    });
+    expect(contextIndex).toBeGreaterThanOrEqual(0);
+    expect(deltaIndex).toBeGreaterThan(contextIndex);
+  });
+
   it('filters a complete reasoning block from streamed and final answers', async () => {
     const harness = await createHarness({
       chunks: ['<thi', 'nk>private reasoning', '</think>\n\n', 'A useful fact [MED-14].'],
@@ -172,5 +203,27 @@ describe('LLM worker generation', () => {
 
     expect(await harness.terminal()).toMatchObject({ type: 'cancelled', requestId: 'request-1' });
     expect(harness.generator).not.toHaveBeenCalled();
+  });
+
+  it('skips a cancelled queued request and generates its superseding request', async () => {
+    const harness = await createHarness();
+
+    harness.generate({ requestId: 'request-queued' });
+    harness.send({ type: 'cancel', requestId: 'request-queued' });
+    harness.generate({ requestId: 'request-current', question: 'Use the latest search.' });
+
+    expect(await harness.terminal('request-queued')).toEqual({
+      type: 'cancelled',
+      requestId: 'request-queued',
+    });
+    expect(await harness.terminal('request-current')).toMatchObject({
+      type: 'complete',
+      requestId: 'request-current',
+      documentIds: ['MED-14'],
+    });
+    expect(harness.generator).toHaveBeenCalledOnce();
+    expect(harness.messages.some(message =>
+      message.requestId === 'request-queued' && ['context', 'answer-delta', 'complete'].includes(message.type),
+    )).toBe(false);
   });
 });
