@@ -34,7 +34,7 @@ jobs:
         env:
           PAGES_BASE: ${{ steps.pages.outputs.base_path }}
           VITE_MSMARCO_INDEX_URL: ${{ vars.MSMARCO_INDEX_URL }}
-        run: npm run build -- --base="${PAGES_BASE}/"
+        run: npm run build -- --base=/ragbox/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
