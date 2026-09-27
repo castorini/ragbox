@@ -2,13 +2,20 @@
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RAGbox</title></head>
 <body>
-<a class="skip-link" href="#collections">Skip to search</a>
-<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav aria-label="Main navigation"><a href="#collections">Collections</a><a href="#model">Answer model</a><a href="#lab">Storage lab</a></nav><span class="local-badge">Runs in your browser</span></header>
+<a class="skip-link" href="#collection-start">Skip to collection selection</a>
+<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav id="workspace-nav" aria-label="Main navigation" hidden><a href="#collections">Collections</a><a href="#model">Answer model</a><a href="#lab">Storage lab</a></nav><span class="local-badge">Runs in your browser</span></header>
 <main>
-<div class="hero"><div class="eyebrow">LOCAL SEARCH · GROUNDED ANSWERS</div><h1>Your browser.<br>Your research space.</h1><p>Explore millions of passages. Find the evidence.<br>Add a local model for answers with citations.</p><a class="hero-link" href="#collections">Explore the collections <span aria-hidden="true">↓</span></a></div>
-<div class="workspace-label" id="collections"><h2>Choose your collection</h2><span>Two collections. One workspace.</span></div>
-
-<section class="collection" aria-labelledby="fts-heading">
+<div id="collection-welcome" class="collection-welcome">
+<div class="eyebrow">YOUR BROWSER. YOUR RESEARCH SPACE.</div>
+<h1>Which collection would<br>you like to search?</h1>
+<p>Choose a collection to start exploring. You can switch at any time.</p>
+<label for="collection-start">Search collection</label>
+<select id="collection-start"><option value="" disabled selected>Choose a collection</option><option value="nfcorpus">NFCorpus · 3,633 documents</option><option value="msmarco">MS MARCO · 8.8 million passages</option></select>
+<p class="chooser-note">NFCorpus covers health and nutrition research.<br>MS MARCO brings millions of web passages to your browser.</p>
+</div>
+<div id="search-workspace" hidden>
+<div class="workspace-label" id="collections"><h2>Your search workspace</h2><div class="collection-switch"><label for="collection-switch">Switch collection</label><select id="collection-switch"><option value="" disabled selected>Choose a collection</option><option value="nfcorpus">NFCorpus · 3,633 documents</option><option value="msmarco">MS MARCO · 8.8 million passages</option></select></div></div>
+<section id="nfcorpus-collection" class="collection" aria-labelledby="fts-heading" hidden>
 <div class="collection-meta"><span class="eyebrow">01 / HEALTH & NUTRITION</span><span class="pill">3,633 documents</span></div>
 <h2 id="fts-heading">NFCorpus</h2>
 <p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
@@ -25,7 +32,7 @@
 </article>
 <ol id="fts-results" aria-label="NFCorpus search results"></ol>
 </section>
-<section class="collection" aria-labelledby="marco-heading">
+<section id="msmarco-collection" class="collection" aria-labelledby="marco-heading" hidden>
 <div class="collection-meta"><span class="eyebrow">02 / WEB PASSAGES</span><span class="pill">8.8 million passages</span></div>
 <h2 id="marco-heading">MS MARCO</h2>
 <p>Search 8.8 million passages in your browser.</p>
@@ -68,6 +75,6 @@
 <button id="close" disabled>Checkpoint & close</button>
 <button id="reset" disabled>Reset all data</button>
 </div><h3>Stored data</h3><pre id="output"></pre></div></details>
-</main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
+</div></main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
 <script type="module" src="/src/main.js"></script>
 </body></html>
