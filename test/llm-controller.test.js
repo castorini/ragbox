@@ -148,7 +148,7 @@ describe('LLMController', () => {
     expect(elements.stopButton.disabled).toBe(true);
   });
 
-  it('shows the defined insufficient-evidence answer when generation returns no text', async () => {
+  it.each(['', '   '])('reports empty generation as a failure, not insufficient evidence (%j)', async answer => {
     const { controller, elements, worker } = createHarness();
     await controller.initializeCapability();
     await controller.load();
@@ -156,9 +156,28 @@ describe('LLMController', () => {
     controller.generate('unanswerable', [{ id: 'MED-14', title: 'One', text: 'Evidence' }]);
     const request = worker.messages.find(message => message.type === 'generate');
 
-    worker.emit({ type: 'complete', requestId: request.requestId, answer: '', documentIds: ['MED-14'] });
+    worker.emit({ type: 'complete', requestId: request.requestId, answer, documentIds: ['MED-14'] });
 
-    expect(elements.answer.textContent).toMatch(/do not contain enough information/i);
+    expect(elements.answer.textContent).not.toMatch(/do not contain enough information/i);
+    expect(elements.status.textContent).toMatch(/failed.*before producing an answer/i);
+    expect(elements.stopButton.disabled).toBe(true);
+    expect(controller.state).toBe('ready');
+    expect(controller.activeRequestId).toBeNull();
+  });
+
+  it('preserves an explicit insufficient-evidence answer from the model', async () => {
+    const { controller, elements, worker } = createHarness();
+    await controller.initializeCapability();
+    await controller.load();
+    worker.emit({ type: 'ready' });
+    controller.generate('unanswerable', [{ id: 'MED-14', title: 'One', text: 'Evidence' }]);
+    const request = worker.messages.find(message => message.type === 'generate');
+    const answer = 'The retrieved documents do not contain enough information to answer this question.';
+
+    worker.emit({ type: 'complete', requestId: request.requestId, answer, documentIds: ['MED-14'] });
+
+    expect(elements.answer.textContent).toBe(answer);
+    expect(elements.status.textContent).toMatch(/Grounded answer generated/);
   });
 
   it('allows retry after a model-load error and terminates its worker on disposal', async () => {

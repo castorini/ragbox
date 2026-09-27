@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CHAT_TEMPLATE_OPTIONS,
   buildMessages,
   extractCitations,
   fitDocumentsToTokenBudget,
+  streamedAnswer,
   stripThinking,
 } from '../src/rag.js';
 
@@ -95,11 +97,44 @@ describe('fitDocumentsToTokenBudget', () => {
 });
 
 describe('answer parsing', () => {
+  it('uses MiniCPM direct-answer mode so reasoning cannot consume the output budget', () => {
+    expect(CHAT_TEMPLATE_OPTIONS).toEqual({ enable_thinking: false });
+  });
+
+  it('streams direct answers immediately while filtering tagged reasoning', () => {
+    expect(streamedAnswer('Direct answer [MED-14]')).toBe('Direct answer [MED-14]');
+    expect(streamedAnswer('<thi')).toBe('');
+    expect(streamedAnswer('<think>private reasoning')).toBe('');
+    expect(streamedAnswer('<think>private reasoning</think>Public answer [MED-14]')).toBe(
+      'Public answer [MED-14]',
+    );
+  });
+
   it('removes complete and unterminated thinking blocks', () => {
     expect(stripThinking('<think>private reasoning</think>Public answer [MED-14]')).toBe(
       'Public answer [MED-14]',
     );
-    expect(stripThinking('Visible answer<think>unfinished secret')).not.toContain('unfinished secret');
+    expect(stripThinking('Visible answer<think>unfinished secret')).toBe('Visible answer');
+  });
+
+  it('keeps answers around multiple blocks and hides a later unfinished block', () => {
+    expect(stripThinking('<think>first</think>Answer [MED-14]<think>second')).toBe('Answer [MED-14]');
+    expect(stripThinking('Answer <think>hidden</think>continues [MED-14]')).toBe('Answer continues [MED-14]');
+    expect(stripThinking('prefilled reasoning</think>Answer [MED-14]')).toBe('Answer [MED-14]');
+  });
+
+  it('filters reasoning across every possible stream boundary without losing answer text', () => {
+    const raw = '<think>hidden</think>First [MED-14]. <THINK>also hidden</THINK>Second [MED-2].<thi';
+    const expected = 'First [MED-14]. Second [MED-2].';
+    let previous = '';
+    for (let end = 1; end <= raw.length; end += 1) {
+      const visible = streamedAnswer(raw.slice(0, end));
+      expect(visible.startsWith(previous)).toBe(true);
+      expect(expected.startsWith(visible)).toBe(true);
+      previous = visible;
+    }
+    expect(previous).toBe(expected);
+    expect(stripThinking(raw)).toBe(expected);
   });
 
   it('extracts unique citations in first-seen order and filters unknown IDs', () => {

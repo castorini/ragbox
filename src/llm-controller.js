@@ -197,7 +197,16 @@ export class LLMController {
       return;
     }
     if (message.type === 'complete') {
-      this.answerText = message.answer || 'The retrieved documents do not contain enough information to answer this question.';
+      if (!String(message.answer ?? '').trim()) {
+        this.handleMessage({
+          type: 'error',
+          operation: 'generate',
+          requestId: message.requestId,
+          message: 'The model stopped before producing an answer. Please retry the search.',
+        });
+        return;
+      }
+      this.answerText = message.answer;
       renderAnswer(this.elements.answer, this.answerText, this.allowedIds);
       this.activeRequestId = null;
       this.state = 'ready';
