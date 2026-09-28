@@ -28,6 +28,8 @@ export function setupMSMarco(run = task => task(), llm) {
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
+    const setup = document.querySelector('#marco-setup');
+    if (setup) setup.hidden = !!prebuilt;
     fetchButton.hidden = checkingSaved || !!prebuilt || busy;
     reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
     reopenButton.textContent = 'Retry opening index';

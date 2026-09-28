@@ -198,6 +198,7 @@ export class LLMController {
 
   handleMessage(message) {
     if (message.type === 'cache-unavailable') {
+      if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;
@@ -219,6 +220,7 @@ export class LLMController {
       return;
     }
     if (message.type === 'ready') {
+      if (this.elements.setupHelp) this.elements.setupHelp.hidden = true;
       this.elements.loadButton.hidden = true;
       this.state = 'ready';
       this.elements.progress.hidden = true;
@@ -283,6 +285,7 @@ export class LLMController {
     }
     if (message.type === 'error') {
       if (message.operation === 'load') {
+        if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
         this.elements.loadButton.hidden = false;
         this.state = 'error';
         this.elements.progress.hidden = true;
@@ -306,6 +309,7 @@ export class LLMController {
 
 export function setupLLM() {
   const elements = {
+    setupHelp: document.querySelector('#llm-setup-help'),
     loadButton: document.querySelector('#llm-load'),
     stopButton: document.querySelector('#llm-stop'),
     status: document.querySelector('#llm-status'),

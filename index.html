@@ -19,7 +19,7 @@
 <div class="collection-meta"><span class="eyebrow">01 / HEALTH & NUTRITION</span><span class="pill">3,633 documents</span></div>
 <h2 id="fts-heading">NFCorpus</h2>
 <p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
-<div class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" disabled>Prepare NFCorpus</button></div>
+<div id="fts-setup" class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" disabled>Prepare NFCorpus</button></div>
 <form id="fts-form">
 <label for="fts-query">Search title and document text</label>
 <div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
@@ -37,7 +37,7 @@
 <div class="collection-meta"><span class="eyebrow">02 / WEB PASSAGES</span><span class="pill">8.8 million passages</span></div>
 <h2 id="marco-heading">MS MARCO</h2>
 <p>Search 8.8 million passages in your browser.</p>
-<div class="setup-box">
+<div id="marco-setup" class="setup-box">
 <span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
 <p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, the saved index opens automatically.</p>
 <button data-marco-control id="marco-fetch" type="button" hidden disabled>Download & open index (3.35 GB)</button>
@@ -60,7 +60,7 @@
 </section>
 <section id="model" class="model-card" aria-labelledby="llm-heading">
 <div class="eyebrow">OPTIONAL · GENERATE ANSWERS</div><h2 id="llm-heading">Go from results to answers.</h2>
-<p>Download the model once to generate cited answers for either collection. A cached model loads automatically on later visits.</p>
+<p id="llm-setup-help">Download the model once to generate cited answers for either collection. A cached model loads automatically on later visits.</p>
 <div id="llm-controls">
 <button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
 <button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
