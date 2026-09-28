@@ -122,7 +122,7 @@ The test suite covers retrieval/RAG integration and the production bundle is gen
 
 ## Choosing a search collection
 
-Choose NFCorpus or MS MARCO on the welcome screen. Both collections share one search workspace; use the **Collection** dropdown at the top of its card to switch. Only the selected collection’s setup controls, search form, cited answer, and results are shown. Switching preserves each collection’s query and results, along with any loaded index, for the current page session.
+Choose NFCorpus or MS MARCO on the welcome screen. Both collections share one search workspace; use the **Collection** dropdown at the top of its card to switch. Only the selected collection’s setup controls, search form, cited answer, and results are shown. Switching preserves each collection’s query and results, along with any loaded index, for the current page session. Setup instructions disappear once the collection is ready; a failed NFCorpus setup or search restores the preparation action. The cited-answer controls show a load action when needed and a stop action only during generation.
 
 ## NFCorpus full-text search in the browser
 
@@ -143,7 +143,7 @@ The preparation script validates document IDs and copies title/text fields to `p
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
 
-The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. FTS indexes do not automatically track table edits.
+The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. Older saved NFCorpus tables with only `id` and `contents` remain searchable: results use the document ID as their heading and the combined contents as their text. FTS indexes do not automatically track table edits.
 
 ### Core FTS operations
 

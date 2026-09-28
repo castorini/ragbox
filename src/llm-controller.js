@@ -77,8 +77,16 @@ export class LLMController {
     return this.state === 'ready' || this.state === 'generating';
   }
 
+  updateControls() {
+    if (this.elements.setup) {
+      this.elements.setup.hidden = !['idle', 'error'].includes(this.state);
+    }
+    this.elements.stopButton.hidden = this.state !== 'generating';
+  }
+
   async initializeCapability() {
     this.state = 'checking';
+    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
@@ -90,11 +98,14 @@ export class LLMController {
     }
     if (!this.capability.supported) {
       this.state = 'unsupported';
+      this.updateControls();
       this.elements.status.textContent = `${this.capability.reason} BM25 search remains available.`;
       this.elements.loadButton.disabled = true;
       return this.capability;
     }
     this.state = 'idle';
+    this.elements.loadButton.hidden = false;
+    this.updateControls();
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
     return this.capability;
@@ -120,6 +131,7 @@ export class LLMController {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
+    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
@@ -162,6 +174,7 @@ export class LLMController {
       evidenceLabel,
     };
     this.state = 'generating';
+    this.updateControls();
     renderAnswer(answer, '');
     const corpusName = corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
     this.elements.status.textContent = `Generating an answer from ${corpusName} evidence locally…`;
@@ -191,12 +204,21 @@ export class LLMController {
     this.worker.postMessage({ type: 'cancel', requestId });
     this.activeRequest = null;
     this.state = 'ready';
+    this.updateControls();
     this.elements.stopButton.disabled = true;
     if (!quiet) this.elements.status.textContent = 'Generation stopped. BM25 results remain available.';
     return true;
   }
 
   handleMessage(message) {
+    try {
+      this.handleWorkerMessage(message);
+    } finally {
+      this.updateControls();
+    }
+  }
+
+  handleWorkerMessage(message) {
     if (message.type === 'cache-unavailable') {
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
@@ -306,6 +328,7 @@ export class LLMController {
 
 export function setupLLM() {
   const elements = {
+    setup: document.querySelector('#llm-setup'),
     loadButton: document.querySelector('#llm-load'),
     stopButton: document.querySelector('#llm-stop'),
     status: document.querySelector('#llm-status'),

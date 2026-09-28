@@ -17,6 +17,7 @@ export function setupMSMarco(run = task => task(), llm) {
   const searchButton = document.querySelector('#marco-search');
   const progress = document.querySelector('#marco-progress');
   const cancelDownload = document.querySelector('#marco-cancel-download');
+  const setup = document.querySelector('#marco-setup');
   const downloadUrl = import.meta.env.VITE_MSMARCO_INDEX_URL ||
     'https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/resolve/d8b39bc9edc94a16fb77359243163ed80c609c84/msmarco-prebuilt.duckdb';
   const downloadBytes = 3346542592;
@@ -28,6 +29,7 @@ export function setupMSMarco(run = task => task(), llm) {
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
+    setup.hidden = !!prebuilt || checkingSaved || !supported;
     fetchButton.hidden = checkingSaved || !!prebuilt || busy;
     reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
     reopenButton.textContent = 'Retry opening index';
@@ -191,7 +193,9 @@ export function setupMSMarco(run = task => task(), llm) {
         checkingSaved = false;
         retryOpen = error.name !== 'NotFoundError';
         updateButtons();
-        if (error.name !== 'NotFoundError') status.textContent = `Could not check saved index: ${error.message}. You can retry with “Reopen saved index”.`;
+        status.textContent = error.name === 'NotFoundError'
+          ? 'Download the index once to start searching.'
+          : `Could not check saved index: ${error.message}. Use “Retry opening index” to try again.`;
         return;
       }
       checkingSaved = false;

@@ -10,7 +10,9 @@ export function setupSearchGuidance() {
       const globalText = globalStatus.textContent;
       const localText = status.textContent;
       let instruction;
-      if (/Startup failed|^Error:/.test(globalText)) {
+      if (prefix === 'fts' && /Prepare NFCorpus|Retry preparing NFCorpus/.test(localText)) {
+        instruction = localText;
+      } else if (/Startup failed|^Error:/.test(globalText)) {
         instruction = `Search unavailable. ${globalText} Reload the page to try again.`;
       } else if (/Database closed/.test(globalText)) {
         instruction = 'Search paused: the database is closed. Reload this page, then reopen your saved index before searching.';
@@ -26,6 +28,7 @@ export function setupSearchGuidance() {
         instruction = 'Search is temporarily paused while another operation runs. Wait for it to finish; search will become available automatically.';
       }
       help.textContent = instruction;
+      help.hidden = instruction === localText;
       button.title = instruction;
     };
     button.setAttribute('aria-describedby', `${prefix}-help ${prefix}-status`);

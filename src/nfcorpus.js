@@ -14,7 +14,31 @@ export const INDEX_SQL = `PRAGMA create_fts_index(
 export function setupNFCorpus(db, conn, run, llm) {
   const status = document.querySelector('#fts-status');
   const results = document.querySelector('#fts-results');
+  const setup = document.querySelector('#fts-setup');
+  const indexButton = document.querySelector('#fts-index');
+  const searchButton = document.querySelector('#fts-search');
+  let ready = false;
+  let blocked = false;
+  let searchSQL = SEARCH_SQL;
   let loaded = false;
+  function updateControls() {
+    setup.hidden = ready;
+    indexButton.hidden = ready;
+    indexButton.disabled = blocked;
+    searchButton.disabled = blocked || !ready;
+  }
+  async function readSchema() {
+    const columns = new Set((await conn.query(`SELECT column_name FROM information_schema.columns
+      WHERE table_catalog = current_database() AND table_schema = 'main'
+        AND table_name = 'nfcorpus'`)).toArray().map(row => row.column_name));
+    if (!columns.has('id') || !columns.has('contents')) {
+      throw new Error('The saved NFCorpus table is incompatible: document IDs and contents are required.');
+    }
+    // Older saved collections contain only IDs and combined document contents.
+    const title = columns.has('title') ? 'title' : "'Document ' || CAST(id AS VARCHAR) AS title";
+    const text = columns.has('text') ? 'text' : 'contents AS text';
+    searchSQL = SEARCH_SQL.replace('SELECT id, title, text,', `SELECT id, ${title}, ${text},`);
+  }
   async function loadExtension() {
     if (loaded) return;
     status.textContent = 'Loading the DuckDB FTS extension…';
@@ -33,13 +57,18 @@ export function setupNFCorpus(db, conn, run, llm) {
       results.replaceChildren();
       try { return await task(); }
       catch (error) {
-        status.textContent = `FTS error: ${error.message}`;
+        ready = false;
+        indexButton.textContent = 'Retry preparing NFCorpus';
+        updateControls();
+        status.textContent = `NFCorpus could not be opened or searched. ${error.message} Use “Retry preparing NFCorpus” to try again.`;
         throw error;
       }
     });
   }
 
-  document.querySelector('#fts-index').onclick = () => action(async () => {
+  indexButton.onclick = () => action(async () => {
+    ready = false;
+    updateControls();
     llm.showRetrievalMessage('nfcorpus', '');
     await loadExtension();
     if (!await exists()) {
@@ -62,13 +91,15 @@ export function setupNFCorpus(db, conn, run, llm) {
         await db.dropFile('nfcorpus-import.jsonl');
       }
     }
+    await readSchema();
     status.textContent = 'Building the full-text index in your browser…';
     const start = performance.now();
     await conn.query(INDEX_SQL);
     await conn.query('CHECKPOINT');
     const count = (await conn.query('SELECT count(*) AS n FROM nfcorpus')).toArray()[0].n;
     const version = (await conn.query('SELECT version() AS version')).toArray()[0].version;
-    document.querySelector('#fts-index').hidden = true;
+    ready = true;
+    updateControls();
     status.textContent = `${count} documents indexed in ${((performance.now() - start) / 1000).toFixed(2)} s. ${version}. Ready to search.`;
   });
 
@@ -82,12 +113,15 @@ export function setupNFCorpus(db, conn, run, llm) {
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
       if (!await exists() || Number(index.toArray()[0].n) === 0) {
+        ready = false;
+        updateControls();
         status.textContent = 'Click “Prepare NFCorpus” before searching.';
         return null;
       }
+      await readSchema();
       status.textContent = 'Searching saved NFCorpus documents…';
       const start = performance.now();
-      const statement = await conn.prepare(SEARCH_SQL);
+      const statement = await conn.prepare(searchSQL);
       let rows;
       try { rows = (await statement.query(query)).toArray(); }
       finally { await statement.close(); }
@@ -138,19 +172,27 @@ export function setupNFCorpus(db, conn, run, llm) {
       }
     });
   };
-  return { async reopenSaved() {
-    return run(async () => {
-      const indexed = (await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
-        WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
-      document.querySelector('#fts-index').hidden = indexed;
-      if (indexed) {
-        try { await loadExtension(); }
-        catch (error) { document.querySelector('#fts-index').hidden = false; throw error; }
-        status.textContent = 'Saved NFCorpus index opened automatically. Ready to search.';
-      } else {
-        status.textContent = 'First visit: click “Prepare NFCorpus” above, then enter a query.';
-      }
-    });
-  } };
-
+  updateControls();
+  return {
+    setBlocked(value) { blocked = value; updateControls(); },
+    async reopenSaved() {
+      return action(async () => {
+        const indexed = (await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
+          WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
+        if (indexed && await exists()) {
+          await loadExtension();
+          await readSchema();
+          // Bind the actual search before marking a persisted index as usable.
+          const statement = await conn.prepare(searchSQL);
+          await statement.close();
+          ready = true;
+          status.textContent = 'Saved NFCorpus index opened automatically. Ready to search.';
+        } else {
+          ready = false;
+          status.textContent = 'First visit: click “Prepare NFCorpus” above, then enter a query.';
+        }
+        updateControls();
+      });
+    },
+  };
 }

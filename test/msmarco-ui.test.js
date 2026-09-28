@@ -98,6 +98,7 @@ describe('MS MARCO search UI', () => {
 
     await openAndSearch({ llm, prebuilt });
 
+    expect(elements.get('#marco-setup').hidden).toBe(true);
     expect(statement.query).toHaveBeenCalledWith("what's a corporation");
     expect(statement.close).toHaveBeenCalledOnce();
     expect(llm.beginRetrieval).toHaveBeenCalledWith('msmarco');
