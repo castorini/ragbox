@@ -18,7 +18,7 @@ export function setupSearchGuidance() {
         instruction = 'Search paused: the database is closed. Reload this page, then reopen your saved index before searching.';
       } else if (/Opening database/.test(globalText)) {
         instruction = 'Getting ready: wait for the database to open. Setup controls will become available automatically.';
-      } else if (prefix === 'marco' && /Checking for a saved index|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
+      } else if (prefix === 'marco' && /Checking for a saved index|Download the index once|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
         instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Saved indexes open automatically. If that fails, use “Retry opening index”.';
       } else if (/needs a browser/.test(localText)) {
         instruction = localText;

@@ -21,7 +21,7 @@ npm run dev
 
 Open **http://127.0.0.1:5173/**. Native DuckDB is optional and is needed only to inspect exports outside the browser.
 
-The development server serves the application; SQL queries execute inside the browser in a Web Worker. Database files are stored in the browser’s OPFS, not in the repository directory.
+The development server serves the application; SQL queries execute inside the browser in a Web Worker. Database files are stored in the browser’s OPFS, not in the repository directory. Use the same address each time: `localhost:5173` and `127.0.0.1:5173` have separate browser storage, so an index downloaded on one address is unavailable on the other.
 
 ## Experiments
 
