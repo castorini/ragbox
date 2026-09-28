@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ pipeline: vi.fn(), streamers: [], criteria: [] }));
+const mocks = vi.hoisted(() => ({
+  pipeline: vi.fn(), fetch: vi.fn(), env: {}, streamers: [], criteria: [],
+}));
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
-  env: {},
+  env: mocks.env,
   TextStreamer: class {
     constructor(tokenizer, options) {
       this.options = options;
@@ -62,6 +64,10 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
 beforeEach(() => {
   vi.resetModules();
   mocks.pipeline.mockReset();
+  mocks.fetch.mockReset();
+  mocks.env.fetch = mocks.fetch;
+  delete mocks.env.allowLocalModels;
+  delete mocks.env.localModelPath;
   mocks.streamers.length = 0;
   mocks.criteria.length = 0;
 });
@@ -234,14 +240,27 @@ it('automatically loads cached model files without remote model downloads', asyn
   harness.send({ type: 'load', cachedOnly: true });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
   expect(mocks.pipeline.mock.calls[0][2].local_files_only).toBe(true);
+  expect(mocks.env.allowLocalModels).toBe(false);
 });
 it('offers a manual retry when the cache is missing, without automatic download fallback', async () => {
   const harness = await createHarness();
-  mocks.pipeline.mockRejectedValueOnce(new Error('not cached'));
+  mocks.pipeline.mockImplementationOnce(async () => {
+    expect(mocks.env.allowLocalModels).toBe(true);
+    throw new Error('not cached');
+  });
   harness.send({ type: 'load', cachedOnly: true });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'cache-unavailable')).toBe(true));
   expect(mocks.pipeline).toHaveBeenCalledTimes(1);
+  expect(mocks.env.localModelPath).toBe('/__ragbox_unavailable_models__/');
+  expect((await mocks.env.fetch(`${mocks.env.localModelPath}Mike0021/MiniCPM5-2B-ONNX/config.json`)).status).toBe(404);
+  expect(mocks.fetch).not.toHaveBeenCalled();
+
+  mocks.fetch.mockResolvedValueOnce(new Response('{}'));
+  await mocks.env.fetch('https://huggingface.co/model/config.json');
+  expect(mocks.fetch).toHaveBeenCalledWith('https://huggingface.co/model/config.json', undefined);
+
   harness.send({ type: 'load' });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
   expect(mocks.pipeline.mock.calls[1][2].local_files_only).toBe(false);
+  expect(mocks.env.allowLocalModels).toBe(false);
 });

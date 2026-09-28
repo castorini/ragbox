@@ -12,12 +12,19 @@ import {
   stripThinking,
 } from './rag.js';
 
-// Transformers requires this flag for cache-only loading in a browser worker.
-env.allowLocalModels = true;
-
 const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
 const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
 const MAX_INPUT_TOKENS = 3500;
+
+// Cache-only loading requires local models to be enabled in Transformers.js.
+// No model files are hosted by this app, so never let its SPA fallback page
+// masquerade as a model file (or get saved in the model cache).
+const unavailableLocalPath = '/__ragbox_unavailable_models__/';
+const fetchResource = env.fetch;
+env.localModelPath = unavailableLocalPath;
+env.fetch = (url, options) => String(url).startsWith(unavailableLocalPath)
+  ? Promise.resolve(new Response(null, { status: 404 }))
+  : fetchResource(url, options);
 
 let generator;
 let loading;
@@ -32,6 +39,7 @@ function report(type, details = {}) {
 async function loadModel(cachedOnly = false) {
   if (generator) return generator;
   if (!loading) {
+    env.allowLocalModels = cachedOnly;
     loading = pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
       local_files_only: cachedOnly,
@@ -48,6 +56,8 @@ async function loadModel(cachedOnly = false) {
       loading = undefined;
       report(cachedOnly ? 'cache-unavailable' : 'error', { operation: 'load', message: error.message });
       throw error;
+    }).finally(() => {
+      env.allowLocalModels = false;
     });
   }
   return loading;
