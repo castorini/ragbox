@@ -216,8 +216,6 @@ The MS MARCO section uses the prebuilt index only. Local TSV import, browser ind
 
 For native index construction and previous scaling measurements, see [the experiment notes](docs/experiments.md).
 
-### Automatic loading on return visits
+### Loading collections and models
 
-At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry. Runtime assets may still require internet access.
-
-First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.
+NFCorpus is prepared automatically on the first search and reuses its saved index thereafter. MS MARCO and the local LLM require a manual button click on each visit; saved files are reused when available. No large model or MS MARCO index is loaded automatically at startup. Setup controls and instructions disappear after successful loading in the current session and remain available after failures.

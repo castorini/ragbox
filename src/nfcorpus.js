@@ -39,7 +39,7 @@ export function setupNFCorpus(db, conn, run, llm) {
     });
   }
 
-  document.querySelector('#fts-index').onclick = () => action(async () => {
+  async function prepareIndex() {
     llm.showRetrievalMessage('nfcorpus', '');
     await loadExtension();
     if (!await exists()) {
@@ -71,7 +71,8 @@ export function setupNFCorpus(db, conn, run, llm) {
     document.querySelector('#fts-index').hidden = true;
     document.querySelector('#fts-setup').hidden = true;
     status.textContent = `${count} documents indexed in ${((performance.now() - start) / 1000).toFixed(2)} s. ${version}. Ready to search.`;
-  });
+  }
+  document.querySelector('#fts-index').onclick = () => action(prepareIndex);
 
   document.querySelector('#fts-form').onsubmit = event => {
     event.preventDefault();
@@ -83,9 +84,9 @@ export function setupNFCorpus(db, conn, run, llm) {
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
       if (!await exists() || Number(index.toArray()[0].n) === 0) {
-        status.textContent = 'Click “Prepare NFCorpus” before searching.';
-        return null;
+        await prepareIndex();
       }
+      document.querySelector('#fts-setup').hidden = true;
       status.textContent = 'Searching saved NFCorpus documents…';
       const start = performance.now();
       const statement = await conn.prepare(SEARCH_SQL);

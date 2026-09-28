@@ -23,8 +23,8 @@ export function setupMSMarco(run = task => task(), llm) {
   let prebuilt;
   let busy = false;
   let blocked = false;
-  let checkingSaved = true;
-  let retryOpen = false;
+  let checkingSaved = false;
+  let retryOpen = true;
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
@@ -32,7 +32,7 @@ export function setupMSMarco(run = task => task(), llm) {
     if (setup) setup.hidden = !!prebuilt;
     fetchButton.hidden = checkingSaved || !!prebuilt || busy;
     reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
-    reopenButton.textContent = 'Retry opening index';
+    reopenButton.textContent = 'Open saved index';
     fetchButton.disabled = !supported || busy || blocked;
     reopenButton.disabled = !supported || busy || blocked;
     searchButton.disabled = !supported || busy || blocked || !prebuilt;

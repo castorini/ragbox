@@ -109,3 +109,23 @@ describe('NFCorpus shared LLM integration', () => {
     );
   });
 });
+it('downloads and indexes a missing corpus only on search, then reuses it', async () => {
+  let ready = false;
+  const { conn, statement } = createConnection([]);
+  conn.query.mockImplementation(async sql => {
+    if (sql.includes('information_schema.')) return resultSet([{ n: ready ? 1 : 0 }]);
+    if (sql.includes('create_fts_index')) ready = true;
+    return resultSet([{ n: 3633, version: 'test' }]);
+  });
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, headers: { get: () => 'application/json' }, text: async () => Array.from({ length: 3633 }, (_, id) => JSON.stringify({ id: String(id), title: '', text: '' })).join('\n') });
+  vi.stubGlobal('fetch', fetcher);
+  const db = { registerFileText: vi.fn(), dropFile: vi.fn() };
+  setupNFCorpus(db, conn, task => task(), createLLM());
+  expect(fetcher).not.toHaveBeenCalled();
+  document.querySelector('#fts-query').value = 'health';
+  await elements.get('#fts-form').onsubmit({ preventDefault() {} });
+  expect(fetcher).toHaveBeenCalledOnce();
+  expect(statement.query).toHaveBeenCalledWith('health');
+  await elements.get('#fts-form').onsubmit({ preventDefault() {} });
+  expect(fetcher).toHaveBeenCalledOnce();
+});

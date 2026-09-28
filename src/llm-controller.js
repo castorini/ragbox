@@ -95,6 +95,7 @@ export class LLMController {
       return this.capability;
     }
     this.state = 'idle';
+    this.elements.loadButton.hidden = false;
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
     return this.capability;
@@ -322,8 +323,6 @@ export function setupLLM() {
   const controller = new LLMController({ elements });
   elements.loadButton.onclick = () => controller.load();
   elements.stopButton.onclick = () => controller.cancel();
-  controller.initializeCapability().then(capability => {
-    if (capability.supported) controller.load(true);
-  });
+  controller.initializeCapability();
   return controller;
 }

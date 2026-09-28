@@ -19,14 +19,14 @@
 <div class="collection-meta"><span class="eyebrow">01 / HEALTH & NUTRITION</span><span class="pill">3,633 documents</span></div>
 <h2 id="fts-heading">NFCorpus</h2>
 <p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
-<div id="fts-setup" class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" disabled>Prepare NFCorpus</button></div>
+<div id="fts-setup" class="setup-box"><span class="step-label">GET STARTED</span><p>Search to automatically prepare this collection on first use. Your index is saved in this browser.</p><button id="fts-index" disabled>Prepare NFCorpus</button></div>
 <form id="fts-form">
 <label for="fts-query">Search title and document text</label>
 <div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
 <button id="fts-search" class="primary" disabled>Search NFCorpus <span aria-hidden="true">↗</span></button></div>
 </form>
 <p id="fts-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
-<p id="fts-status" role="status">Build the index once, then search. Saved indexes can be reused after reload.</p>
+<p id="fts-status" role="status">Enter a query. NFCorpus will be prepared automatically on your first search.</p>
 <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading">
 <h3 id="fts-answer-heading">Cited answer</h3>
 <p id="fts-answer" class="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add a cited answer.</p>
@@ -39,7 +39,7 @@
 <p>Search 8.8 million passages in your browser.</p>
 <div id="marco-setup" class="setup-box">
 <span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
-<p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, the saved index opens automatically.</p>
+<p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, click Open saved index to reuse it without downloading again.</p>
 <button data-marco-control id="marco-fetch" type="button" hidden disabled>Download & open index (3.35 GB)</button>
 <button data-marco-control id="marco-reopen" type="button" hidden disabled>Reopen saved index</button>
 <button data-marco-control id="marco-cancel-download" type="button" disabled hidden>Cancel download</button>
@@ -51,7 +51,7 @@
 <button data-marco-control id="marco-search" class="primary" disabled>Search MS MARCO <span aria-hidden="true">↗</span></button></div>
 </form>
 <p id="marco-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
-<p id="marco-status" role="status">Checking for a saved index. If none is saved, download it once to start searching.</p>
+<p id="marco-status" role="status">Download the index, or click Open saved index if you have already downloaded it.</p>
 <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
 <h3 id="marco-answer-heading">Cited answer</h3>
 <p id="marco-answer" class="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add a cited answer.</p>
@@ -60,7 +60,7 @@
 </section>
 <section id="model" class="model-card" aria-labelledby="llm-heading">
 <div class="eyebrow">OPTIONAL · GENERATE ANSWERS</div><h2 id="llm-heading">Go from results to answers.</h2>
-<p id="llm-setup-help">Download the model once to generate cited answers for either collection. A cached model loads automatically on later visits.</p>
+<p id="llm-setup-help">Download the model once to generate cited answers for either collection. Click Load local LLM when you want answers; cached files are reused on later visits.</p>
 <div id="llm-controls">
 <button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
 <button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
