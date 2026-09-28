@@ -40,8 +40,8 @@
 <div class="setup-box">
 <span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
 <p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, the saved index opens automatically.</p>
-<button data-marco-control id="marco-fetch" type="button" disabled>Download & open index (3.35 GB)</button>
-<button data-marco-control id="marco-reopen" type="button" disabled>Reopen saved index</button>
+<button data-marco-control id="marco-fetch" type="button" hidden disabled>Download & open index (3.35 GB)</button>
+<button data-marco-control id="marco-reopen" type="button" hidden disabled>Reopen saved index</button>
 <button data-marco-control id="marco-cancel-download" type="button" disabled hidden>Cancel download</button>
 <progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
 </div>
@@ -62,7 +62,7 @@
 <div class="eyebrow">OPTIONAL · GENERATE ANSWERS</div><h2 id="llm-heading">Go from results to answers.</h2>
 <p>Download the model once to generate cited answers for either collection. A cached model loads automatically on later visits.</p>
 <div id="llm-controls">
-<button id="llm-load" type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
+<button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
 <button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>
 <progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
 <p id="llm-status" role="status">Checking WebGPU support…</p>

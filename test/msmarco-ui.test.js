@@ -227,6 +227,8 @@ it('opens an existing OPFS index automatically and enables search', async () => 
   const controller = setupMSMarco(task => task(), createLLM());
   await controller.reopenSaved();
   expect(openPrebuilt).toHaveBeenCalledOnce();
+  expect(elements.get('#marco-fetch').hidden).toBe(true);
+  expect(elements.get('#marco-reopen').hidden).toBe(true);
   expect(elements.get('#marco-search').disabled).toBe(false);
 });
 it('does not create or download an index when no saved file exists', async () => {
@@ -234,5 +236,7 @@ it('does not create or download an index when no saved file exists', async () =>
   const controller = setupMSMarco(task => task(), createLLM());
   await controller.reopenSaved();
   expect(openPrebuilt).not.toHaveBeenCalled();
+  expect(elements.get('#marco-fetch').hidden).toBe(false);
+  expect(elements.get('#marco-reopen').hidden).toBe(true);
   expect(elements.get('#marco-search').disabled).toBe(true);
 });

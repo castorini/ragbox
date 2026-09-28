@@ -79,6 +79,7 @@ export class LLMController {
 
   async initializeCapability() {
     this.state = 'checking';
+    this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
     this.elements.status.textContent = 'Checking WebGPU support…';
@@ -119,6 +120,7 @@ export class LLMController {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
+    this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
@@ -197,6 +199,7 @@ export class LLMController {
   handleMessage(message) {
     if (message.type === 'cache-unavailable') {
       this.state = 'idle';
+      this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = false;
       this.elements.status.textContent = 'The saved model is unavailable or could not be opened. Click “Load local LLM” to download or retry. Search still works without it.';
@@ -216,6 +219,7 @@ export class LLMController {
       return;
     }
     if (message.type === 'ready') {
+      this.elements.loadButton.hidden = true;
       this.state = 'ready';
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
@@ -279,6 +283,7 @@ export class LLMController {
     }
     if (message.type === 'error') {
       if (message.operation === 'load') {
+        this.elements.loadButton.hidden = false;
         this.state = 'error';
         this.elements.progress.hidden = true;
         this.elements.loadButton.disabled = false;

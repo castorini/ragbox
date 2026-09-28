@@ -23,9 +23,14 @@ export function setupMSMarco(run = task => task(), llm) {
   let prebuilt;
   let busy = false;
   let blocked = false;
+  let checkingSaved = true;
+  let retryOpen = false;
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
+    fetchButton.hidden = checkingSaved || !!prebuilt || busy;
+    reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
+    reopenButton.textContent = 'Retry opening index';
     fetchButton.disabled = !supported || busy || blocked;
     reopenButton.disabled = !supported || busy || blocked;
     searchButton.disabled = !supported || busy || blocked || !prebuilt;
@@ -42,6 +47,7 @@ export function setupMSMarco(run = task => task(), llm) {
           status.textContent = error.name === 'NotFoundError'
             ? 'No saved index found. Download the index first.'
             : `Unable to complete the request: ${error.message}`;
+          if (!prebuilt) { checkingSaved = false; retryOpen = error.name !== 'NotFoundError'; }
           console.error(error);
           throw error;
         }
@@ -61,6 +67,8 @@ export function setupMSMarco(run = task => task(), llm) {
   }
   async function connectPrebuilt() {
     prebuilt = await openPrebuilt();
+    checkingSaved = false;
+    retryOpen = false;
     status.textContent = `Ready to search ${prebuilt.count.toLocaleString()} passages.`;
   }
   cancelDownload.onclick = () => downloadController?.abort();
@@ -180,9 +188,13 @@ export function setupMSMarco(run = task => task(), llm) {
         const root = await navigator.storage.getDirectory();
         await root.getFileHandle(PREBUILT_NAME);
       } catch (error) {
+        checkingSaved = false;
+        retryOpen = error.name !== 'NotFoundError';
+        updateButtons();
         if (error.name !== 'NotFoundError') status.textContent = `Could not check saved index: ${error.message}. You can retry with “Reopen saved index”.`;
         return;
       }
+      checkingSaved = false;
       await action(async () => {
         if (prebuilt) return;
         status.textContent = 'Opening the saved index automatically…';
