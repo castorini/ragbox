@@ -120,6 +120,10 @@ npm run build
 
 The test suite covers retrieval/RAG integration and the production bundle is generated in `dist/`. Persistence, WebGPU inference, answer quality, and exports still require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
 
+## Choosing a search collection
+
+Choose NFCorpus or MS MARCO on the welcome screen. Both collections share one search workspace; use the **Collection** dropdown at the top of its card to switch. Only the selected collection’s setup controls, search form, cited answer, and results are shown. Switching preserves each collection’s query and results, along with any loaded index, for the current page session.
+
 ## NFCorpus full-text search in the browser
 
 The NFCorpus section demonstrates the [DuckDB FTS extension](https://duckdb.org/docs/current/core_extensions/full_text_search) on 3,633 documents. Import, index construction, and BM25 search execute in DuckDB-Wasm; there is no search backend.
