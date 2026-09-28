@@ -68,11 +68,9 @@ export function setupNFCorpus(db, conn, run, llm) {
     await conn.query('CHECKPOINT');
     const count = (await conn.query('SELECT count(*) AS n FROM nfcorpus')).toArray()[0].n;
     const version = (await conn.query('SELECT version() AS version')).toArray()[0].version;
-    document.querySelector('#fts-index').hidden = true;
     document.querySelector('#fts-setup').hidden = true;
     status.textContent = `${count} documents indexed in ${((performance.now() - start) / 1000).toFixed(2)} s. ${version}. Ready to search.`;
   }
-  document.querySelector('#fts-index').onclick = () => action(prepareIndex);
 
   document.querySelector('#fts-form').onsubmit = event => {
     event.preventDefault();
@@ -144,14 +142,13 @@ export function setupNFCorpus(db, conn, run, llm) {
     return run(async () => {
       const indexed = (await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
-      document.querySelector('#fts-index').hidden = indexed;
       document.querySelector('#fts-setup').hidden = indexed;
       if (indexed) {
         try { await loadExtension(); }
-        catch (error) { document.querySelector('#fts-index').hidden = false; document.querySelector('#fts-setup').hidden = false; throw error; }
+        catch (error) { document.querySelector('#fts-setup').hidden = false; throw error; }
         status.textContent = 'Saved NFCorpus index opened automatically. Ready to search.';
       } else {
-        status.textContent = 'First visit: click “Prepare NFCorpus” above, then enter a query.';
+        status.textContent = 'Enter a query and click Search. The index is prepared automatically on first use.';
       }
     });
   } };
