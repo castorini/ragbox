@@ -68,15 +68,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
-  it('restores an automatically detected model from local files only', async () => {
+  it('uses the browser cache compatible pipeline settings on load', async () => {
     const harness = await createHarness();
-    harness.send({ type: 'load', cachedOnly: true });
+    harness.send({ type: 'load' });
 
     await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
     expect(mocks.pipeline).toHaveBeenCalledWith(
       'text-generation',
       'Mike0021/MiniCPM5-2B-ONNX',
-      expect.objectContaining({ local_files_only: true }),
+      expect.not.objectContaining({ local_files_only: true }),
     );
   });
 

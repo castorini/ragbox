@@ -100,7 +100,7 @@ export class LLMController {
     this.elements.status.textContent = 'Checking for a cached local model…';
     try {
       if (await this.detectCachedModel()) {
-        await this.load({ cachedOnly: true });
+        await this.load({ cached: true });
         return this.capability;
       }
     } catch {
@@ -128,7 +128,7 @@ export class LLMController {
     return this.worker;
   }
 
-  async load({ cachedOnly = false } = {}) {
+  async load({ cached = false } = {}) {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
@@ -136,10 +136,10 @@ export class LLMController {
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
-    this.elements.status.textContent = cachedOnly
+    this.elements.status.textContent = cached
       ? 'Restoring the cached local model…'
       : 'Starting the local model download…';
-    this.ensureWorker().postMessage({ type: 'load', cachedOnly });
+    this.ensureWorker().postMessage({ type: 'load' });
     return true;
   }
 

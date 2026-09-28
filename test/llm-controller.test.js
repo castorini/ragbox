@@ -128,7 +128,7 @@ describe('LLMController', () => {
     expect(workerFactory).not.toHaveBeenCalled();
 
     await controller.load();
-    expect(worker.messages).toContainEqual({ type: 'load', cachedOnly: false });
+    expect(worker.messages).toContainEqual({ type: 'load' });
     worker.emit({ type: 'progress', progress: { progress: 50, total: 100, file: 'model.onnx' } });
     expect(elements.status.textContent).toMatch(/50|model\.onnx|download/i);
     worker.emit({ type: 'ready' });
@@ -155,7 +155,7 @@ describe('LLMController', () => {
   it('loads automatically only while the model is actually cached', async () => {
     const cached = createHarness({ supported: true }, true);
     await cached.controller.initializeCapability();
-    expect(cached.worker.messages).toEqual([{ type: 'load', cachedOnly: true }]);
+    expect(cached.worker.messages).toEqual([{ type: 'load' }]);
     expect(cached.controller.state).toBe('loading');
     expect(cached.elements.loadButton.disabled).toBe(true);
     cached.worker.emit({ type: 'ready' });

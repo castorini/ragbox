@@ -24,14 +24,13 @@ function report(type, details = {}) {
   self.postMessage({ type, ...details });
 }
 
-async function loadModel(cachedOnly = false) {
+async function loadModel() {
   if (generator) return generator;
   if (!loading) {
     loading = pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
       dtype: 'q4f16',
       revision: MODEL_REVISION,
-      local_files_only: cachedOnly,
       progress_callback(progress) {
         report('progress', { progress });
       },
@@ -143,7 +142,7 @@ async function generate({ requestId, question, documents }) {
 self.onmessage = event => {
   const message = event.data;
   if (message.type === 'load') {
-    loadModel(message.cachedOnly).catch(() => {});
+    loadModel().catch(() => {});
     return;
   }
   if (message.type === 'cancel') {
