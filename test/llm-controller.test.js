@@ -362,14 +362,13 @@ describe('renderAnswer', () => {
     );
   });
 });
-it('loads cached model on demand and generates the pending answer when ready', async () => {
-  const { controller, worker, workerFactory } = createHarness();
+it('does not initialize a cached model until the user clicks load', async () => {
+  const { controller, workerFactory } = createHarness();
   await controller.initializeCapability();
   controller.cachedAvailable = true;
-  expect(workerFactory).not.toHaveBeenCalled();
   controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });
+  expect(workerFactory).not.toHaveBeenCalled();
+  await controller.load();
   expect(controller.state).toBe('loading');
-  controller.handleMessage({ type: 'ready' });
-  expect(controller.state).toBe('generating');
-  expect(controller.activeRequest.corpus).toBe('nfcorpus');
+  expect(workerFactory).toHaveBeenCalledOnce();
 });

@@ -30,13 +30,13 @@ export function setupMSMarco(run = task => task(), llm) {
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
     const setup = document.querySelector('#marco-setup');
-    if (setup) setup.hidden = saved || !!prebuilt;
+    if (setup) setup.hidden = !!prebuilt;
     fetchButton.hidden = checkingSaved || saved || !!prebuilt || busy;
-    reopenButton.hidden = true;
+    reopenButton.hidden = checkingSaved || !saved || !!prebuilt || busy;
     reopenButton.textContent = 'Open saved index';
     fetchButton.disabled = !supported || busy || blocked;
     reopenButton.disabled = !supported || busy || blocked;
-    searchButton.disabled = !supported || busy || blocked || (!prebuilt && !saved) || checkingSaved;
+    searchButton.disabled = !supported || busy || blocked || !prebuilt || checkingSaved;
   }
   async function action(task) {
     if (busy || blocked || !supported) return;
@@ -135,8 +135,8 @@ export function setupMSMarco(run = task => task(), llm) {
     llm?.beginRetrieval('msmarco');
     return action(async () => {
       if (!prebuilt) {
-        status.textContent = 'Opening saved index for your search…';
-        await connectPrebuilt();
+        status.textContent = 'Click Open saved index before searching, or download it first.';
+        return null;
       }
       output.replaceChildren();
       status.textContent = 'Searching…';
@@ -191,7 +191,7 @@ export function setupMSMarco(run = task => task(), llm) {
       const handle = await root.getFileHandle(PREBUILT_NAME);
       const file = await handle.getFile();
       saved = file.size === downloadBytes;
-      status.textContent = saved ? 'Saved index found. Enter a query to search.' : 'Download the index once to start searching.';
+      status.textContent = saved ? 'Saved index found. Click Open saved index to enable search.' : 'Download the index once to start searching.';
     } catch {
       saved = false;
       if (supported) status.textContent = 'Download the index once to start searching.';

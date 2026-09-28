@@ -159,12 +159,6 @@ export class LLMController {
 
   generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }) {
     const answer = this.answerFor(corpus);
-    if (!this.ready && this.cachedAvailable && this.state !== 'unsupported') {
-      this.pendingGeneration = { corpus, question, documents, citationTargets, evidenceLabel };
-      renderAnswer(answer, 'Loading the saved model to generate your answer…');
-      if (this.state !== 'loading') void this.load(true);
-      return true;
-    }
     if (!this.ready || this.state === 'loading') {
       const message = this.state === 'unsupported'
         ? 'BM25 results are ready. Local answer generation is unavailable on this device.'
@@ -357,9 +351,10 @@ export function setupLLM() {
     if (!capability.supported) return;
     controller.cachedAvailable = await hasCachedModel();
     if (controller.state === 'idle' && controller.cachedAvailable) {
-      elements.loadButton.hidden = true;
-      elements.setupHelp.hidden = true;
-      elements.status.textContent = 'Saved model found. It will load when a search needs an answer.';
+      elements.loadButton.hidden = false;
+      elements.loadButton.textContent = 'Load saved LLM';
+      elements.setupHelp.textContent = 'Your model is saved in this browser. Load it to add cited answers to searches.';
+      elements.status.textContent = 'Saved model found. Click Load saved LLM when you want answers.';
     }
   });
   return controller;

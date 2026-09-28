@@ -219,3 +219,5 @@ For native index construction and previous scaling measurements, see [the experi
 ### Loading collections and models
 
 NFCorpus is prepared automatically on the first search and reuses its saved index thereafter. MS MARCO and the local LLM require a manual download on first use. On later visits, saved-file checks hide setup controls without loading the resources. MS MARCO opens on Search; the cached model loads when retrieved results need an answer. Missing model cache entries never trigger an automatic remote model download. No large model or MS MARCO index is loaded automatically at startup. Setup controls and instructions disappear after successful loading in the current session and remain available after failures.
+
+Returning users explicitly click **Open saved index** for MS MARCO and **Load saved LLM** for the model. Searches do not initialize these resources automatically. Setup controls disappear after successful loading. NFCorpus still prepares itself on Search.
