@@ -81,7 +81,7 @@ export function setupNFCorpus(db, conn, run, llm) {
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
       if (!await exists() || Number(index.toArray()[0].n) === 0) {
-        status.textContent = 'Click “Load NFCorpus & build FTS index” before searching.';
+        status.textContent = 'Click “Prepare NFCorpus” before searching.';
         return null;
       }
       status.textContent = 'Searching saved NFCorpus documents…';

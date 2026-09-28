@@ -1,3 +1,4 @@
+import { setupSearchGuidance } from './search-guidance.js';
 import { setupCollectionChooser } from './collection-chooser.js';
 import * as duckdb from '@duckdb/duckdb-wasm';
 import './style.css';
@@ -7,6 +8,7 @@ import { setupLLM } from './llm-controller.js';
 import { deleteDemoFiles } from './reset.js';
 
 setupCollectionChooser();
+setupSearchGuidance();
 
 const status = document.querySelector('#status');
 const output = document.querySelector('#output');
