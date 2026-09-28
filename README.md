@@ -215,3 +215,9 @@ No Hugging Face account or local `collection.tsv` is needed. Internet access is 
 The MS MARCO section uses the prebuilt index only. Local TSV import, browser index building, source selection, and benchmark controls have been removed from the UI. NFCorpus, the local LLM, and OPFS experiments remain available.
 
 For native index construction and previous scaling measurements, see [the experiment notes](docs/experiments.md).
+
+### Automatic loading on return visits
+
+At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry. Runtime assets may still require internet access.
+
+First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.

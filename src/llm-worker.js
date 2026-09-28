@@ -2,6 +2,7 @@ import {
   InterruptableStoppingCriteria,
   TextStreamer,
   pipeline,
+  env,
 } from '@huggingface/transformers';
 import {
   CHAT_TEMPLATE_OPTIONS,
@@ -10,6 +11,9 @@ import {
   streamedAnswer,
   stripThinking,
 } from './rag.js';
+
+// Transformers requires this flag for cache-only loading in a browser worker.
+env.allowLocalModels = true;
 
 const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
 const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
@@ -25,11 +29,12 @@ function report(type, details = {}) {
   self.postMessage({ type, ...details });
 }
 
-async function loadModel() {
+async function loadModel(cachedOnly = false) {
   if (generator) return generator;
   if (!loading) {
     loading = pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
+      local_files_only: cachedOnly,
       dtype: 'q4f16',
       revision: MODEL_REVISION,
       progress_callback(progress) {
@@ -41,7 +46,7 @@ async function loadModel() {
       return value;
     }).catch(error => {
       loading = undefined;
-      report('error', { operation: 'load', message: error.message });
+      report(cachedOnly ? 'cache-unavailable' : 'error', { operation: 'load', message: error.message });
       throw error;
     });
   }
@@ -143,7 +148,7 @@ async function generate({ requestId, question, documents }) {
 self.onmessage = event => {
   const message = event.data;
   if (message.type === 'load') {
-    loadModel().catch(() => {});
+    loadModel(message.cachedOnly === true).catch(() => {});
     return;
   }
   if (message.type === 'cancel') {

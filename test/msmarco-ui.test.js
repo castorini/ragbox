@@ -220,3 +220,19 @@ describe('MS MARCO search UI', () => {
     expect(elements.get('#marco-search').disabled).toBe(true);
   });
 });
+
+it('opens an existing OPFS index automatically and enables search', async () => {
+  navigator.storage.getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  openPrebuilt.mockResolvedValue(searchablePrebuilt([]).prebuilt);
+  const controller = setupMSMarco(task => task(), createLLM());
+  await controller.reopenSaved();
+  expect(openPrebuilt).toHaveBeenCalledOnce();
+  expect(elements.get('#marco-search').disabled).toBe(false);
+});
+it('does not create or download an index when no saved file exists', async () => {
+  navigator.storage.getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) });
+  const controller = setupMSMarco(task => task(), createLLM());
+  await controller.reopenSaved();
+  expect(openPrebuilt).not.toHaveBeenCalled();
+  expect(elements.get('#marco-search').disabled).toBe(true);
+});

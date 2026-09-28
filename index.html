@@ -39,7 +39,7 @@
 <p>Search 8.8 million passages in your browser.</p>
 <div class="setup-box">
 <span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
-<p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, reopen the saved index.</p>
+<p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, the saved index opens automatically.</p>
 <button data-marco-control id="marco-fetch" type="button" disabled>Download & open index (3.35 GB)</button>
 <button data-marco-control id="marco-reopen" type="button" disabled>Reopen saved index</button>
 <button data-marco-control id="marco-cancel-download" type="button" disabled hidden>Cancel download</button>
@@ -51,7 +51,7 @@
 <button data-marco-control id="marco-search" class="primary" disabled>Search MS MARCO <span aria-hidden="true">↗</span></button></div>
 </form>
 <p id="marco-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
-<p id="marco-status" role="status">Download or reopen the index to start searching.</p>
+<p id="marco-status" role="status">Checking for a saved index. If none is saved, download it once to start searching.</p>
 <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
 <h3 id="marco-answer-heading">Cited answer</h3>
 <p id="marco-answer" class="llm-answer" aria-live="polite">BM25 search works without the model. Load the local LLM to add a cited answer.</p>
@@ -60,7 +60,7 @@
 </section>
 <section id="model" class="model-card" aria-labelledby="llm-heading">
 <div class="eyebrow">OPTIONAL · GENERATE ANSWERS</div><h2 id="llm-heading">Go from results to answers.</h2>
-<p>Load one local model to generate cited answers for either search collection.</p>
+<p>Download the model once to generate cited answers for either collection. A cached model loads automatically on later visits.</p>
 <div id="llm-controls">
 <button id="llm-load" type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
 <button id="llm-stop" type="button" data-llm-control disabled>Stop generation</button>

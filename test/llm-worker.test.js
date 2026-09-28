@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({ pipeline: vi.fn(), streamers: [], criteria: []
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
+  env: {},
   TextStreamer: class {
     constructor(tokenizer, options) {
       this.options = options;
@@ -226,4 +227,21 @@ describe('LLM worker generation', () => {
       message.requestId === 'request-queued' && ['context', 'answer-delta', 'complete'].includes(message.type),
     )).toBe(false);
   });
+});
+
+it('automatically loads cached model files without remote model downloads', async () => {
+  const harness = await createHarness();
+  harness.send({ type: 'load', cachedOnly: true });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
+  expect(mocks.pipeline.mock.calls[0][2].local_files_only).toBe(true);
+});
+it('offers a manual retry when the cache is missing, without automatic download fallback', async () => {
+  const harness = await createHarness();
+  mocks.pipeline.mockRejectedValueOnce(new Error('not cached'));
+  harness.send({ type: 'load', cachedOnly: true });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'cache-unavailable')).toBe(true));
+  expect(mocks.pipeline).toHaveBeenCalledTimes(1);
+  harness.send({ type: 'load' });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
+  expect(mocks.pipeline.mock.calls[1][2].local_files_only).toBe(false);
 });

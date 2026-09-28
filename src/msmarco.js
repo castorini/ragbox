@@ -174,6 +174,21 @@ export function setupMSMarco(run = task => task(), llm) {
   if (!supported) status.textContent = 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.';
   updateButtons();
   return {
+    async reopenSaved() {
+      if (!supported) return;
+      try {
+        const root = await navigator.storage.getDirectory();
+        await root.getFileHandle(PREBUILT_NAME);
+      } catch (error) {
+        if (error.name !== 'NotFoundError') status.textContent = `Could not check saved index: ${error.message}. You can retry with “Reopen saved index”.`;
+        return;
+      }
+      await action(async () => {
+        if (prebuilt) return;
+        status.textContent = 'Opening the saved index automatically…';
+        await connectPrebuilt();
+      });
+    },
     setBlocked(value) { blocked = value; updateButtons(); },
     async close() {
       await closePrebuilt();

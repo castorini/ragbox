@@ -137,4 +137,17 @@ export function setupNFCorpus(db, conn, run, llm) {
       }
     });
   };
+  return { async reopenSaved() {
+    return run(async () => {
+      const indexed = (await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
+        WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
+      if (indexed) {
+        await loadExtension();
+        status.textContent = 'Saved NFCorpus index opened automatically. Ready to search.';
+      } else {
+        status.textContent = 'First visit: click “Prepare NFCorpus” above, then enter a query.';
+      }
+    });
+  } };
+
 }

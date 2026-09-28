@@ -154,7 +154,7 @@ async function main() {
     opfs: { fileHandling: 'auto' },
   });
   conn = await db.connect();
-  setupNFCorpus(db, conn, run, llm);
+  const nfcorpus = setupNFCorpus(db, conn, run, llm);
   marco = setupMSMarco(run, llm);
   await conn.query(`CREATE TABLE IF NOT EXISTS transactions (
     id BIGINT, ts TIMESTAMP, merchant VARCHAR, category VARCHAR, amount DECIMAL(10, 2)
@@ -169,6 +169,8 @@ async function main() {
 `));
   status.textContent = 'Ready. Reload: the count should increase by one.';
   buttons.forEach(button => { button.disabled = false; });
+  await nfcorpus.reopenSaved();
+  await marco.reopenSaved();
 }
 main().catch(async error => {
   status.textContent = `Startup failed: ${error.message}`;

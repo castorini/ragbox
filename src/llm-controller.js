@@ -115,7 +115,7 @@ export class LLMController {
     return this.worker;
   }
 
-  async load() {
+  async load(cachedOnly = false) {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
@@ -123,8 +123,8 @@ export class LLMController {
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
-    this.elements.status.textContent = 'Starting the local model download…';
-    this.ensureWorker().postMessage({ type: 'load' });
+    this.elements.status.textContent = cachedOnly ? 'Loading saved model from this browser…' : 'Starting the local model download…';
+    this.ensureWorker().postMessage(cachedOnly ? { type: 'load', cachedOnly: true } : { type: 'load' });
     return true;
   }
 
@@ -195,6 +195,13 @@ export class LLMController {
   }
 
   handleMessage(message) {
+    if (message.type === 'cache-unavailable') {
+      this.state = 'idle';
+      this.elements.progress.hidden = true;
+      this.elements.loadButton.disabled = false;
+      this.elements.status.textContent = 'The saved model is unavailable or could not be opened. Click “Load local LLM” to download or retry. Search still works without it.';
+      return;
+    }
     if (message.type === 'progress' && this.state === 'loading') {
       const percent = progressPercent(message.progress);
       const file = message.progress?.file ? ` ${message.progress.file}` : '';
@@ -306,6 +313,8 @@ export function setupLLM() {
   const controller = new LLMController({ elements });
   elements.loadButton.onclick = () => controller.load();
   elements.stopButton.onclick = () => controller.cancel();
-  controller.initializeCapability();
+  controller.initializeCapability().then(capability => {
+    if (capability.supported) controller.load(true);
+  });
   return controller;
 }
