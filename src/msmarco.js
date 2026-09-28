@@ -23,19 +23,20 @@ export function setupMSMarco(run = task => task(), llm) {
   let prebuilt;
   let busy = false;
   let blocked = false;
-  let checkingSaved = false;
+  let saved = false;
+  let checkingSaved = true;
   let retryOpen = true;
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
     const setup = document.querySelector('#marco-setup');
-    if (setup) setup.hidden = !!prebuilt;
-    fetchButton.hidden = checkingSaved || !!prebuilt || busy;
-    reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
+    if (setup) setup.hidden = saved || !!prebuilt;
+    fetchButton.hidden = checkingSaved || saved || !!prebuilt || busy;
+    reopenButton.hidden = true;
     reopenButton.textContent = 'Open saved index';
     fetchButton.disabled = !supported || busy || blocked;
     reopenButton.disabled = !supported || busy || blocked;
-    searchButton.disabled = !supported || busy || blocked || !prebuilt;
+    searchButton.disabled = !supported || busy || blocked || (!prebuilt && !saved) || checkingSaved;
   }
   async function action(task) {
     if (busy || blocked || !supported) return;
@@ -49,7 +50,7 @@ export function setupMSMarco(run = task => task(), llm) {
           status.textContent = error.name === 'NotFoundError'
             ? 'No saved index found. Download the index first.'
             : `Unable to complete the request: ${error.message}`;
-          if (!prebuilt) { checkingSaved = false; retryOpen = error.name !== 'NotFoundError'; }
+          if (!prebuilt) { checkingSaved = false; saved = false; retryOpen = false; }
           console.error(error);
           throw error;
         }
@@ -69,6 +70,7 @@ export function setupMSMarco(run = task => task(), llm) {
   }
   async function connectPrebuilt() {
     prebuilt = await openPrebuilt();
+    saved = true;
     checkingSaved = false;
     retryOpen = false;
     status.textContent = `Ready to search ${prebuilt.count.toLocaleString()} passages.`;
@@ -131,12 +133,11 @@ export function setupMSMarco(run = task => task(), llm) {
     const query = document.querySelector('#marco-query').value.trim();
     if (!query) return;
     llm?.beginRetrieval('msmarco');
-    if (!prebuilt) {
-      status.textContent = 'Download or reopen the index before searching.';
-      llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
-      return;
-    }
     return action(async () => {
+      if (!prebuilt) {
+        status.textContent = 'Opening saved index for your search…';
+        await connectPrebuilt();
+      }
       output.replaceChildren();
       status.textContent = 'Searching…';
       const stmt = await prebuilt.conn.prepare(`SELECT id, contents,
@@ -183,7 +184,22 @@ export function setupMSMarco(run = task => task(), llm) {
   };
   if (!supported) status.textContent = 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.';
   updateButtons();
+  const checkSaved = async () => {
+    try {
+      if (!supported) return;
+      const root = await navigator.storage.getDirectory();
+      const handle = await root.getFileHandle(PREBUILT_NAME);
+      const file = await handle.getFile();
+      saved = file.size === downloadBytes;
+      status.textContent = saved ? 'Saved index found. Enter a query to search.' : 'Download the index once to start searching.';
+    } catch {
+      saved = false;
+      if (supported) status.textContent = 'Download the index once to start searching.';
+    } finally { checkingSaved = false; updateButtons(); }
+  };
+  const checkedSaved = checkSaved();
   return {
+    checkedSaved,
     async reopenSaved() {
       if (!supported) return;
       try {
@@ -205,6 +221,7 @@ export function setupMSMarco(run = task => task(), llm) {
     },
     setBlocked(value) { blocked = value; updateButtons(); },
     async close() {
+      blocked = true;
       await closePrebuilt();
       output.replaceChildren();
       status.textContent = 'Index closed. Reload to reopen it.';

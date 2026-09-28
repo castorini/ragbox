@@ -1,3 +1,15 @@
+export async function hasCachedModel() {
+  try {
+    if (!globalThis.caches) return false;
+    for (const name of await caches.keys()) {
+      const cache = await caches.open(name);
+      const keys = await cache.keys();
+      if (keys.some(key => key.url.includes('Mike0021/MiniCPM5-2B-ONNX/resolve/04a6c49fcba3a65a0351c92644c3a7e9d4343059/') && /onnx.*q4f16/.test(key.url))) return true;
+    }
+  } catch { /* Cache access may be unavailable. Manual loading still works. */ }
+  return false;
+}
+
 export async function detectWebGPU() {
   if (!globalThis.navigator?.gpu) {
     return { supported: false, reason: 'WebGPU is unavailable in this browser.' };
@@ -66,6 +78,8 @@ export class LLMController {
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
     this.worker = null;
+    this.cachedAvailable = false;
+    this.pendingGeneration = null;
     this.capability = null;
     this.state = 'checking';
     this.activeRequest = null;
@@ -138,12 +152,19 @@ export class LLMController {
   }
 
   beginRetrieval(corpus) {
+    this.pendingGeneration = null;
     if (this.activeRequest) this.cancel(true);
     renderAnswer(this.answerFor(corpus), '');
   }
 
   generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }) {
     const answer = this.answerFor(corpus);
+    if (!this.ready && this.cachedAvailable && this.state !== 'unsupported') {
+      this.pendingGeneration = { corpus, question, documents, citationTargets, evidenceLabel };
+      renderAnswer(answer, 'Loading the saved model to generate your answer…');
+      if (this.state !== 'loading') void this.load(true);
+      return true;
+    }
     if (!this.ready || this.state === 'loading') {
       const message = this.state === 'unsupported'
         ? 'BM25 results are ready. Local answer generation is unavailable on this device.'
@@ -182,6 +203,7 @@ export class LLMController {
   }
 
   showRetrievalMessage(corpus, message) {
+    if (this.pendingGeneration?.corpus === corpus) this.pendingGeneration = null;
     if (this.activeRequest?.corpus === corpus) this.cancel(true);
     renderAnswer(this.answerFor(corpus), message);
   }
@@ -199,6 +221,9 @@ export class LLMController {
 
   handleMessage(message) {
     if (message.type === 'cache-unavailable') {
+      this.cachedAvailable = false;
+      if (this.pendingGeneration) renderAnswer(this.answerFor(this.pendingGeneration.corpus), 'The saved model could not be loaded. Search results are available; use Load local LLM to retry.');
+      this.pendingGeneration = null;
       if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
@@ -221,6 +246,7 @@ export class LLMController {
       return;
     }
     if (message.type === 'ready') {
+      this.cachedAvailable = true;
       if (this.elements.setupHelp) this.elements.setupHelp.hidden = true;
       this.elements.loadButton.hidden = true;
       this.state = 'ready';
@@ -228,6 +254,9 @@ export class LLMController {
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
       this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate cited answers.';
+      const pending = this.pendingGeneration;
+      this.pendingGeneration = null;
+      if (pending) this.generate(pending);
       return;
     }
     if (message.requestId && message.requestId !== this.activeRequest?.id) return;
@@ -288,6 +317,7 @@ export class LLMController {
       if (message.operation === 'load') {
         if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
         this.elements.loadButton.hidden = false;
+        this.pendingGeneration = null;
         this.state = 'error';
         this.elements.progress.hidden = true;
         this.elements.loadButton.disabled = false;
@@ -323,6 +353,14 @@ export function setupLLM() {
   const controller = new LLMController({ elements });
   elements.loadButton.onclick = () => controller.load();
   elements.stopButton.onclick = () => controller.cancel();
-  controller.initializeCapability();
+  controller.initializeCapability().then(async capability => {
+    if (!capability.supported) return;
+    controller.cachedAvailable = await hasCachedModel();
+    if (controller.state === 'idle' && controller.cachedAvailable) {
+      elements.loadButton.hidden = true;
+      elements.setupHelp.hidden = true;
+      elements.status.textContent = 'Saved model found. It will load when a search needs an answer.';
+    }
+  });
   return controller;
 }

@@ -362,3 +362,14 @@ describe('renderAnswer', () => {
     );
   });
 });
+it('loads cached model on demand and generates the pending answer when ready', async () => {
+  const { controller, worker, workerFactory } = createHarness();
+  await controller.initializeCapability();
+  controller.cachedAvailable = true;
+  expect(workerFactory).not.toHaveBeenCalled();
+  controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });
+  expect(controller.state).toBe('loading');
+  controller.handleMessage({ type: 'ready' });
+  expect(controller.state).toBe('generating');
+  expect(controller.activeRequest.corpus).toBe('nfcorpus');
+});

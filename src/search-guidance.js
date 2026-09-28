@@ -17,7 +17,7 @@ export function setupSearchGuidance() {
       } else if (/Opening database/.test(globalText)) {
         instruction = 'Getting ready: wait for the database to open. Setup controls will become available automatically.';
       } else if (prefix === 'marco' && /Download the index|Checking for a saved index|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
-        instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Already downloaded? Click “Open saved index”.';
+        instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Saved indexes open automatically when you search.';
       } else if (/needs a browser/.test(localText)) {
         instruction = localText;
       } else if (/Downloading|Starting index|Download complete|Opening the saved|Loading|Building|Searching/.test(localText)) {
