@@ -5,6 +5,12 @@
 <a class="skip-link" href="#collection-start">Skip to collection selection</a>
 <header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav id="workspace-nav" aria-label="Main navigation" hidden><a href="#collections">Collections</a><a href="#model">Answer model</a><a href="#lab">Storage lab</a></nav><span class="local-badge">Runs in your browser</span></header>
 <main>
+<aside id="local-file-notice" class="local-file-notice" aria-labelledby="local-file-heading" hidden>
+<h2 id="local-file-heading">Open RAGbox through localhost</h2>
+<p>Browser storage is unavailable when this HTML file is opened directly. In a terminal, go to the folder containing <code>ragbox.html</code> and run:</p>
+<pre>python3 -m http.server 8000</pre>
+<p>Then open <a href="http://localhost:8000/ragbox.html">http://localhost:8000/ragbox.html</a>. Keep the server running while you use RAGbox.</p>
+</aside>
 <div id="collection-welcome" class="collection-welcome">
 <div class="eyebrow">YOUR BROWSER. YOUR RESEARCH SPACE.</div>
 <h1>Which collection would<br>you like to search?</h1>

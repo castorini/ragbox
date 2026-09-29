@@ -7,3 +7,5 @@
 .search-row button.primary:disabled{opacity:1;background:#e5e9e5;border:1px dashed #9daaa2;color:#59665e;box-shadow:none;cursor:not-allowed}.search-row button.primary:disabled::before{content:'⊘';display:inline-block;margin-right:8px;font-size:18px;vertical-align:middle}.search-help{background:#fff7e7;border:1px solid #ead4a4;border-left:4px solid #b68936;border-radius:8px;padding:13px 16px;color:#695022!important;font-size:14px!important;line-height:1.65;margin:12px 0!important}
 
 #collections{scroll-margin-top:25px}.collection>.workspace-label{padding-bottom:24px;border-bottom:1px solid var(--line);margin-bottom:24px}
+
+.local-file-notice{background:#fff7e7;border:1px solid #ead4a4;border-left:4px solid #b68936;border-radius:10px;padding:18px 22px;margin-top:32px;color:#695022}.local-file-notice h2{font-size:18px;margin:0 0 8px}.local-file-notice p{font-size:14px;margin:8px 0}.local-file-notice pre{max-height:none;overflow:auto;background:#fff;border-color:#ead4a4;margin:12px 0;padding:10px 14px}.local-file-notice a{color:#695022;font-weight:650}
