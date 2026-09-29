@@ -98,6 +98,7 @@ describe('MS MARCO search UI', () => {
 
     await openAndSearch({ llm, prebuilt });
 
+    expect(elements.get('#marco-setup').hidden).toBe(true);
     expect(statement.query).toHaveBeenCalledWith("what's a corporation");
     expect(statement.close).toHaveBeenCalledOnce();
     expect(llm.beginRetrieval).toHaveBeenCalledWith('msmarco');
@@ -239,17 +240,4 @@ it('does not create or download an index when no saved file exists', async () =>
   expect(elements.get('#marco-fetch').hidden).toBe(false);
   expect(elements.get('#marco-reopen').hidden).toBe(true);
   expect(elements.get('#marco-search').disabled).toBe(true);
-});
-it('detects a saved index and waits for an explicit open click', async () => {
-  navigator.storage.getDirectory.mockResolvedValue({ getFileHandle: async () => ({ getFile: async () => ({ size: 3346542592 }) }) });
-  openPrebuilt.mockResolvedValue(searchablePrebuilt([]).prebuilt);
-  const controller = setupMSMarco(task => task(), createLLM());
-  await controller.checkedSaved;
-  expect(openPrebuilt).not.toHaveBeenCalled();
-  expect(elements.get('#marco-search').disabled).toBe(true);
-  expect(elements.get('#marco-reopen').hidden).toBe(false);
-  await elements.get('#marco-reopen').onclick();
-  document.querySelector('#marco-query').value = 'health';
-  await elements.get('#marco-form').onsubmit({ preventDefault() {} });
-  expect(openPrebuilt).toHaveBeenCalledOnce();
 });

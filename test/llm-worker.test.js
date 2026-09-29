@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ pipeline: vi.fn(), streamers: [], criteria: [] }));
+const mocks = vi.hoisted(() => ({ env: {}, pipeline: vi.fn(), streamers: [], criteria: [] }));
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
-  env: {},
+  env: mocks.env,
   TextStreamer: class {
     constructor(tokenizer, options) {
       this.options = options;
@@ -233,7 +233,8 @@ it('automatically loads cached model files without remote model downloads', asyn
   const harness = await createHarness();
   harness.send({ type: 'load', cachedOnly: true });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
-  expect(mocks.pipeline.mock.calls[0][2].local_files_only).toBe(true);
+  expect(mocks.env.allowRemoteModels).toBe(false);
+  expect(mocks.env.allowLocalModels).toBe(true);
 });
 it('offers a manual retry when the cache is missing, without automatic download fallback', async () => {
   const harness = await createHarness();
@@ -244,4 +245,36 @@ it('offers a manual retry when the cache is missing, without automatic download 
   harness.send({ type: 'load' });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
   expect(mocks.pipeline.mock.calls[1][2].local_files_only).toBe(false);
+});
+
+it('skips local model URLs on manual load and after a cache-only miss', async () => {
+  const harness = await createHarness();
+  mocks.pipeline.mockRejectedValueOnce(new Error('not cached'));
+  harness.send({ type: 'load', cachedOnly: true });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'cache-unavailable')).toBe(true));
+  expect(mocks.env.allowLocalModels).toBe(true);
+  expect(mocks.env.allowRemoteModels).toBe(false);
+  expect((await mocks.env.fetch('/models/missing.json')).status).toBe(404);
+  harness.send({ type: 'load' });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
+  expect(mocks.env.allowLocalModels).toBe(false);
+});
+
+it('removes HTML cached as external weights but preserves valid weights and unrelated files', async () => {
+  const prefix = 'https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX/resolve/main/';
+  const bad = { url: prefix + 'onnx/model_q4f16.onnx_data' };
+  const good = { url: prefix + 'onnx/model_q4f16.onnx' };
+  const unrelated = { url: 'https://example.com/page.html' };
+  const cache = {
+    keys: async () => [bad, good, unrelated],
+    match: async request => ({ headers: new Headers({ 'content-type': request === good ? 'application/octet-stream' : 'text/html' }) }),
+    delete: vi.fn(),
+  };
+  vi.stubGlobal('caches', { keys: async () => ['transformers-cache'], open: async () => cache });
+  const harness = await createHarness();
+  harness.send({ type: 'load' });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
+  expect(cache.delete).toHaveBeenCalledExactlyOnceWith(bad);
+  expect(mocks.env.allowLocalModels).toBe(false);
+  expect(mocks.env.allowRemoteModels).toBe(true);
 });

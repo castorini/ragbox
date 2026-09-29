@@ -10,14 +10,16 @@ export function setupSearchGuidance() {
       const globalText = globalStatus.textContent;
       const localText = status.textContent;
       let instruction;
-      if (/Startup failed|^Error:/.test(globalText)) {
+      if (prefix === 'fts' && /Prepare NFCorpus|Retry preparing NFCorpus/.test(localText)) {
+        instruction = localText;
+      } else if (/Startup failed|^Error:/.test(globalText)) {
         instruction = `Search unavailable. ${globalText} Reload the page to try again.`;
       } else if (/Database closed/.test(globalText)) {
         instruction = 'Search paused: the database is closed. Reload this page, then reopen your saved index before searching.';
       } else if (/Opening database/.test(globalText)) {
         instruction = 'Getting ready: wait for the database to open. Setup controls will become available automatically.';
-      } else if (prefix === 'marco' && /Saved index found|Download the index|Checking for a saved index|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
-        instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Already downloaded? Click “Open saved index”.';
+      } else if (prefix === 'marco' && /Checking for a saved index|Download the index once|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
+        instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Saved indexes open automatically. If that fails, use “Retry opening index”.';
       } else if (/needs a browser/.test(localText)) {
         instruction = localText;
       } else if (/Downloading|Starting index|Download complete|Opening the saved|Loading|Building|Searching/.test(localText)) {
@@ -26,6 +28,7 @@ export function setupSearchGuidance() {
         instruction = 'Search is temporarily paused while another operation runs. Wait for it to finish; search will become available automatically.';
       }
       help.textContent = instruction;
+      help.hidden = instruction === localText;
       button.title = instruction;
     };
     button.setAttribute('aria-describedby', `${prefix}-help ${prefix}-status`);

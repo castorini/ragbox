@@ -12,7 +12,7 @@ setupSearchGuidance();
 
 const status = document.querySelector('#status');
 const output = document.querySelector('#output');
-const buttons = [...document.querySelectorAll('button:not([data-llm-control]):not([data-download-control]):not([data-marco-control])')];
+const buttons = [...document.querySelectorAll('button:not([data-llm-control]):not([data-download-control]):not([data-marco-control]):not([data-fts-control])')];
 const show = (label, result) => {
   output.textContent = `${label}\n${JSON.stringify(result.toArray().map(row => row.toJSON()),
     (_, value) => typeof value === 'bigint' ? value.toString() : value, 2)}`;
@@ -22,6 +22,7 @@ let conn;
 let closed = false;
 let busy = false;
 let marco;
+let nfcorpus;
 
 async function download(path, name) {
   let directory = await navigator.storage.getDirectory();
@@ -38,6 +39,7 @@ async function run(action, allowClosed = false) {
   if (busy || (closed && !allowClosed)) return;
   busy = true;
   marco?.setBlocked(true);
+  nfcorpus?.setBlocked(true);
   buttons.forEach(button => { button.disabled = true; });
   try {
     return await action();
@@ -47,6 +49,7 @@ async function run(action, allowClosed = false) {
   } finally {
     busy = false;
     marco?.setBlocked(closed);
+    nfcorpus?.setBlocked(closed);
     buttons.forEach(button => { button.disabled = closed; });
     document.querySelector('#reload').disabled = false;
     document.querySelector('#reset').disabled = false;
@@ -154,7 +157,7 @@ async function main() {
     opfs: { fileHandling: 'auto' },
   });
   conn = await db.connect();
-  setupNFCorpus(db, conn, run, llm);
+  nfcorpus = setupNFCorpus(db, conn, run, llm);
   marco = setupMSMarco(run, llm);
   await conn.query(`CREATE TABLE IF NOT EXISTS transactions (
     id BIGINT, ts TIMESTAMP, merchant VARCHAR, category VARCHAR, amount DECIMAL(10, 2)
@@ -169,6 +172,8 @@ async function main() {
 `));
   status.textContent = 'Ready. Reload: the count should increase by one.';
   buttons.forEach(button => { button.disabled = false; });
+  await nfcorpus.reopenSaved();
+  await marco.reopenSaved();
 }
 main().catch(async error => {
   status.textContent = `Startup failed: ${error.message}`;

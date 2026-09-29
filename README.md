@@ -21,7 +21,7 @@ npm run dev
 
 Open **http://127.0.0.1:5173/**. Native DuckDB is optional and is needed only to inspect exports outside the browser.
 
-The development server serves the application; SQL queries execute inside the browser in a Web Worker. Database files are stored in the browser’s OPFS, not in the repository directory.
+The development server serves the application; SQL queries execute inside the browser in a Web Worker. Database files are stored in the browser’s OPFS, not in the repository directory. Use the same address each time: `localhost:5173` and `127.0.0.1:5173` have separate browser storage, so an index downloaded on one address is unavailable on the other.
 
 ## Experiments
 
@@ -120,6 +120,10 @@ npm run build
 
 The test suite covers retrieval/RAG integration and the production bundle is generated in `dist/`. Persistence, WebGPU inference, answer quality, and exports still require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
 
+## Choosing a search collection
+
+Choose NFCorpus or MS MARCO on the welcome screen. Both collections share one search workspace; use the **Collection** dropdown at the top of its card to switch. Only the selected collection’s setup controls, search form, cited answer, and results are shown. Switching preserves each collection’s query and results, along with any loaded index, for the current page session. Setup instructions disappear once the collection is ready; a failed NFCorpus setup or search restores the preparation action. The cited-answer controls show a load action when needed and a stop action only during generation.
+
 ## NFCorpus full-text search in the browser
 
 The NFCorpus section demonstrates the [DuckDB FTS extension](https://duckdb.org/docs/current/core_extensions/full_text_search) on 3,633 documents. Import, index construction, and BM25 search execute in DuckDB-Wasm; there is no search backend.
@@ -139,7 +143,7 @@ The preparation script validates document IDs and copies title/text fields to `p
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
 
-The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. FTS indexes do not automatically track table edits.
+The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. Older saved NFCorpus tables with only `id` and `contents` remain searchable: results use the document ID as their heading and the combined contents as their text. FTS indexes do not automatically track table edits.
 
 ### Core FTS operations
 
@@ -216,8 +220,8 @@ The MS MARCO section uses the prebuilt index only. Local TSV import, browser ind
 
 For native index construction and previous scaling measurements, see [the experiment notes](docs/experiments.md).
 
-### Loading collections and models
+### Automatic loading on return visits
 
-NFCorpus is prepared automatically on the first search and reuses its saved index thereafter. MS MARCO and the local LLM require a manual download on first use. On later visits, saved-file checks hide setup controls without loading the resources. MS MARCO opens on Search; the cached model loads when retrieved results need an answer. Missing model cache entries never trigger an automatic remote model download. No large model or MS MARCO index is loaded automatically at startup. Setup controls and instructions disappear after successful loading in the current session and remain available after failures.
+At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry. Runtime assets may still require internet access.
 
-Returning users explicitly click **Open saved index** for MS MARCO and **Load saved LLM** for the model. Searches do not initialize these resources automatically. Setup controls disappear after successful loading. NFCorpus still prepares itself on Search.
+First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.

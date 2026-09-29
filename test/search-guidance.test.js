@@ -14,7 +14,10 @@ it('explains initial setup, saved-index reopening, and removes guidance when ena
   nodes.get('#status').textContent = 'Ready.';
   nodes.get('#marco-status').textContent = 'Download or reopen the index to start searching.';
   updates.forEach(fn => fn());
-  expect(nodes.get('#marco-help').textContent).toContain('Open saved index');
+  expect(nodes.get('#marco-help').textContent).toContain('Retry opening index');
+  nodes.get('#marco-status').textContent = 'Download the index once to start searching.';
+  updates.forEach(fn => fn());
+  expect(nodes.get('#marco-help').textContent).toContain('Download & open index');
   nodes.get('#marco-search').disabled = false;
   updates.forEach(fn => fn());
   expect(nodes.get('#marco-help').hidden).toBe(true);

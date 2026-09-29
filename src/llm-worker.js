@@ -12,8 +12,13 @@ import {
   stripThinking,
 } from './rag.js';
 
-// Transformers requires this flag for cache-only loading in a browser worker.
-env.allowLocalModels = true;
+// This app hosts no model files under /models. Browser cache is still used.
+env.allowLocalModels = false;
+const modelFetch = env.fetch ?? globalThis.fetch;
+let cacheOnlyFetch = false;
+env.fetch = (...args) => cacheOnlyFetch
+  ? Promise.resolve(new Response(null, { status: 404 }))
+  : modelFetch(...args);
 
 const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
 const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
@@ -29,10 +34,29 @@ function report(type, details = {}) {
   self.postMessage({ type, ...details });
 }
 
+// A previous local-path attempt may have cached SPA HTML as model JSON or external weights.
+// Remove only those invalid entries; keep downloaded model weights intact.
+async function removeInvalidModelCache() {
+  if (!globalThis.caches) return;
+  for (const name of await caches.keys()) {
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) {
+      if (!request.url.includes(MODEL_ID)) continue;
+      const response = await cache.match(request);
+      if (response?.headers.get('content-type')?.includes('text/html')) await cache.delete(request);
+    }
+  }
+}
+
 async function loadModel(cachedOnly = false) {
   if (generator) return generator;
   if (!loading) {
-    loading = pipeline('text-generation', MODEL_ID, {
+    // Always skip SPA-local URLs. Disable remote model fetches for a cache-only
+    // attempt while retaining browser-cache lookup in Transformers.js.
+    cacheOnlyFetch = cachedOnly;
+    env.allowLocalModels = cachedOnly;
+    env.allowRemoteModels = !cachedOnly;
+    loading = removeInvalidModelCache().then(() => pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
       local_files_only: cachedOnly,
       dtype: 'q4f16',
@@ -40,7 +64,7 @@ async function loadModel(cachedOnly = false) {
       progress_callback(progress) {
         report('progress', { progress });
       },
-    }).then(value => {
+    })).then(value => {
       generator = value;
       report('ready', { model: MODEL_ID, revision: MODEL_REVISION });
       return value;

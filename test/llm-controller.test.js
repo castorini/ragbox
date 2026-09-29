@@ -72,6 +72,7 @@ function createHarness(capability = { supported: true }) {
     msmarco: new FakeEventTarget(document),
   };
   const elements = {
+    setup: new FakeEventTarget(),
     loadButton: new FakeEventTarget(),
     stopButton: new FakeEventTarget(),
     status: new FakeEventTarget(),
@@ -99,6 +100,27 @@ function links(container) {
 describe('LLMController', () => {
   beforeEach(() => vi.restoreAllMocks());
 
+  it('shows model setup only when it offers a load action and stop only during generation', async () => {
+    const { controller, elements, worker } = createHarness();
+    await controller.initializeCapability();
+    expect(elements.setup.hidden).toBe(false);
+    expect(elements.loadButton.hidden).toBe(false);
+    expect(elements.stopButton.hidden).toBe(true);
+    await controller.load(true);
+    expect(elements.setup.hidden).toBe(true);
+    worker.emit({ type: 'cache-unavailable' });
+    expect(elements.setup.hidden).toBe(false);
+    expect(elements.loadButton.hidden).toBe(false);
+    await controller.load();
+    worker.emit({ type: 'ready' });
+    expect(elements.setup.hidden).toBe(true);
+    expect(elements.loadButton.hidden).toBe(true);
+    controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });
+    expect(elements.stopButton.hidden).toBe(false);
+    controller.cancel();
+    expect(elements.stopButton.hidden).toBe(true);
+  });
+
   it('keeps both BM25 result sets usable when WebGPU is unsupported', async () => {
     const harness = createHarness({ supported: false, reason: 'WebGPU is unavailable.' });
 
@@ -115,6 +137,8 @@ describe('LLMController', () => {
     expect(generated).toBe(false);
     expect(harness.workerFactory).not.toHaveBeenCalled();
     expect(harness.elements.loadButton.disabled).toBe(true);
+    expect(harness.elements.setup.hidden).toBe(true);
+    expect(harness.elements.stopButton.hidden).toBe(true);
     expect(harness.elements.status.textContent).toMatch(/WebGPU|unavailable|unsupported/i);
     expect(harness.answers.msmarco.textContent).toMatch(/BM25 results are ready/i);
     expect(harness.answers.nfcorpus.textContent).toBe('');
@@ -361,14 +385,4 @@ describe('renderAnswer', () => {
       '<b>Claim</b> [MED-14], passage [MARCO-12], and unknown [MED-404].',
     );
   });
-});
-it('does not initialize a cached model until the user clicks load', async () => {
-  const { controller, workerFactory } = createHarness();
-  await controller.initializeCapability();
-  controller.cachedAvailable = true;
-  controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });
-  expect(workerFactory).not.toHaveBeenCalled();
-  await controller.load();
-  expect(controller.state).toBe('loading');
-  expect(workerFactory).toHaveBeenCalledOnce();
 });

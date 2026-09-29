@@ -1,15 +1,3 @@
-export async function hasCachedModel() {
-  try {
-    if (!globalThis.caches) return false;
-    for (const name of await caches.keys()) {
-      const cache = await caches.open(name);
-      const keys = await cache.keys();
-      if (keys.some(key => key.url.includes('Mike0021/MiniCPM5-2B-ONNX/resolve/04a6c49fcba3a65a0351c92644c3a7e9d4343059/') && /onnx.*q4f16/.test(key.url))) return true;
-    }
-  } catch { /* Cache access may be unavailable. Manual loading still works. */ }
-  return false;
-}
-
 export async function detectWebGPU() {
   if (!globalThis.navigator?.gpu) {
     return { supported: false, reason: 'WebGPU is unavailable in this browser.' };
@@ -78,8 +66,6 @@ export class LLMController {
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
     this.worker = null;
-    this.cachedAvailable = false;
-    this.pendingGeneration = null;
     this.capability = null;
     this.state = 'checking';
     this.activeRequest = null;
@@ -91,8 +77,16 @@ export class LLMController {
     return this.state === 'ready' || this.state === 'generating';
   }
 
+  updateControls() {
+    if (this.elements.setup) {
+      this.elements.setup.hidden = !['idle', 'error'].includes(this.state);
+    }
+    this.elements.stopButton.hidden = this.state !== 'generating';
+  }
+
   async initializeCapability() {
     this.state = 'checking';
+    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
@@ -104,12 +98,14 @@ export class LLMController {
     }
     if (!this.capability.supported) {
       this.state = 'unsupported';
+      this.updateControls();
       this.elements.status.textContent = `${this.capability.reason} BM25 search remains available.`;
       this.elements.loadButton.disabled = true;
       return this.capability;
     }
     this.state = 'idle';
     this.elements.loadButton.hidden = false;
+    this.updateControls();
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
     return this.capability;
@@ -135,6 +131,7 @@ export class LLMController {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
+    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
@@ -152,7 +149,6 @@ export class LLMController {
   }
 
   beginRetrieval(corpus) {
-    this.pendingGeneration = null;
     if (this.activeRequest) this.cancel(true);
     renderAnswer(this.answerFor(corpus), '');
   }
@@ -178,6 +174,7 @@ export class LLMController {
       evidenceLabel,
     };
     this.state = 'generating';
+    this.updateControls();
     renderAnswer(answer, '');
     const corpusName = corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
     this.elements.status.textContent = `Generating an answer from ${corpusName} evidence locally…`;
@@ -197,7 +194,6 @@ export class LLMController {
   }
 
   showRetrievalMessage(corpus, message) {
-    if (this.pendingGeneration?.corpus === corpus) this.pendingGeneration = null;
     if (this.activeRequest?.corpus === corpus) this.cancel(true);
     renderAnswer(this.answerFor(corpus), message);
   }
@@ -208,17 +204,22 @@ export class LLMController {
     this.worker.postMessage({ type: 'cancel', requestId });
     this.activeRequest = null;
     this.state = 'ready';
+    this.updateControls();
     this.elements.stopButton.disabled = true;
     if (!quiet) this.elements.status.textContent = 'Generation stopped. BM25 results remain available.';
     return true;
   }
 
   handleMessage(message) {
+    try {
+      this.handleWorkerMessage(message);
+    } finally {
+      this.updateControls();
+    }
+  }
+
+  handleWorkerMessage(message) {
     if (message.type === 'cache-unavailable') {
-      this.cachedAvailable = false;
-      if (this.pendingGeneration) renderAnswer(this.answerFor(this.pendingGeneration.corpus), 'The saved model could not be loaded. Search results are available; use Load local LLM to retry.');
-      this.pendingGeneration = null;
-      if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;
@@ -240,17 +241,12 @@ export class LLMController {
       return;
     }
     if (message.type === 'ready') {
-      this.cachedAvailable = true;
-      if (this.elements.setupHelp) this.elements.setupHelp.hidden = true;
       this.elements.loadButton.hidden = true;
       this.state = 'ready';
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
       this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate cited answers.';
-      const pending = this.pendingGeneration;
-      this.pendingGeneration = null;
-      if (pending) this.generate(pending);
       return;
     }
     if (message.requestId && message.requestId !== this.activeRequest?.id) return;
@@ -309,9 +305,7 @@ export class LLMController {
     }
     if (message.type === 'error') {
       if (message.operation === 'load') {
-        if (this.elements.setupHelp) this.elements.setupHelp.hidden = false;
         this.elements.loadButton.hidden = false;
-        this.pendingGeneration = null;
         this.state = 'error';
         this.elements.progress.hidden = true;
         this.elements.loadButton.disabled = false;
@@ -334,7 +328,7 @@ export class LLMController {
 
 export function setupLLM() {
   const elements = {
-    setupHelp: document.querySelector('#llm-setup-help'),
+    setup: document.querySelector('#llm-setup'),
     loadButton: document.querySelector('#llm-load'),
     stopButton: document.querySelector('#llm-stop'),
     status: document.querySelector('#llm-status'),
@@ -347,15 +341,8 @@ export function setupLLM() {
   const controller = new LLMController({ elements });
   elements.loadButton.onclick = () => controller.load();
   elements.stopButton.onclick = () => controller.cancel();
-  controller.initializeCapability().then(async capability => {
-    if (!capability.supported) return;
-    controller.cachedAvailable = await hasCachedModel();
-    if (controller.state === 'idle' && controller.cachedAvailable) {
-      elements.loadButton.hidden = false;
-      elements.loadButton.textContent = 'Load saved LLM';
-      elements.setupHelp.textContent = 'Your model is saved in this browser. Load it to add cited answers to searches.';
-      elements.status.textContent = 'Saved model found. Click Load saved LLM when you want answers.';
-    }
+  controller.initializeCapability().then(capability => {
+    if (capability.supported) controller.load(true);
   });
   return controller;
 }

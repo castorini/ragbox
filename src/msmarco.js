@@ -17,26 +17,25 @@ export function setupMSMarco(run = task => task(), llm) {
   const searchButton = document.querySelector('#marco-search');
   const progress = document.querySelector('#marco-progress');
   const cancelDownload = document.querySelector('#marco-cancel-download');
+  const setup = document.querySelector('#marco-setup');
   const downloadUrl = import.meta.env.VITE_MSMARCO_INDEX_URL ||
     'https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/resolve/d8b39bc9edc94a16fb77359243163ed80c609c84/msmarco-prebuilt.duckdb';
   const downloadBytes = 3346542592;
   let prebuilt;
   let busy = false;
   let blocked = false;
-  let saved = false;
   let checkingSaved = true;
-  let retryOpen = true;
+  let retryOpen = false;
   let downloadController;
   const supported = window.isSecureContext && navigator.storage?.getDirectory;
   function updateButtons() {
-    const setup = document.querySelector('#marco-setup');
-    if (setup) setup.hidden = !!prebuilt;
-    fetchButton.hidden = checkingSaved || saved || !!prebuilt || busy;
-    reopenButton.hidden = checkingSaved || !saved || !!prebuilt || busy;
-    reopenButton.textContent = 'Open saved index';
+    setup.hidden = !!prebuilt || checkingSaved || !supported;
+    fetchButton.hidden = checkingSaved || !!prebuilt || busy;
+    reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
+    reopenButton.textContent = 'Retry opening index';
     fetchButton.disabled = !supported || busy || blocked;
     reopenButton.disabled = !supported || busy || blocked;
-    searchButton.disabled = !supported || busy || blocked || !prebuilt || checkingSaved;
+    searchButton.disabled = !supported || busy || blocked || !prebuilt;
   }
   async function action(task) {
     if (busy || blocked || !supported) return;
@@ -50,7 +49,7 @@ export function setupMSMarco(run = task => task(), llm) {
           status.textContent = error.name === 'NotFoundError'
             ? 'No saved index found. Download the index first.'
             : `Unable to complete the request: ${error.message}`;
-          if (!prebuilt) { checkingSaved = false; saved = false; retryOpen = false; }
+          if (!prebuilt) { checkingSaved = false; retryOpen = error.name !== 'NotFoundError'; }
           console.error(error);
           throw error;
         }
@@ -70,7 +69,6 @@ export function setupMSMarco(run = task => task(), llm) {
   }
   async function connectPrebuilt() {
     prebuilt = await openPrebuilt();
-    saved = true;
     checkingSaved = false;
     retryOpen = false;
     status.textContent = `Ready to search ${prebuilt.count.toLocaleString()} passages.`;
@@ -133,11 +131,12 @@ export function setupMSMarco(run = task => task(), llm) {
     const query = document.querySelector('#marco-query').value.trim();
     if (!query) return;
     llm?.beginRetrieval('msmarco');
+    if (!prebuilt) {
+      status.textContent = 'Download or reopen the index before searching.';
+      llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
+      return;
+    }
     return action(async () => {
-      if (!prebuilt) {
-        status.textContent = 'Click Open saved index before searching, or download it first.';
-        return null;
-      }
       output.replaceChildren();
       status.textContent = 'Searching…';
       const stmt = await prebuilt.conn.prepare(`SELECT id, contents,
@@ -184,22 +183,7 @@ export function setupMSMarco(run = task => task(), llm) {
   };
   if (!supported) status.textContent = 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.';
   updateButtons();
-  const checkSaved = async () => {
-    try {
-      if (!supported) return;
-      const root = await navigator.storage.getDirectory();
-      const handle = await root.getFileHandle(PREBUILT_NAME);
-      const file = await handle.getFile();
-      saved = file.size === downloadBytes;
-      status.textContent = saved ? 'Saved index found. Click Open saved index to enable search.' : 'Download the index once to start searching.';
-    } catch {
-      saved = false;
-      if (supported) status.textContent = 'Download the index once to start searching.';
-    } finally { checkingSaved = false; updateButtons(); }
-  };
-  const checkedSaved = checkSaved();
   return {
-    checkedSaved,
     async reopenSaved() {
       if (!supported) return;
       try {
@@ -209,7 +193,9 @@ export function setupMSMarco(run = task => task(), llm) {
         checkingSaved = false;
         retryOpen = error.name !== 'NotFoundError';
         updateButtons();
-        if (error.name !== 'NotFoundError') status.textContent = `Could not check saved index: ${error.message}. You can retry with “Reopen saved index”.`;
+        status.textContent = error.name === 'NotFoundError'
+          ? 'Download the index once to start searching.'
+          : `Could not check saved index: ${error.message}. Use “Retry opening index” to try again.`;
         return;
       }
       checkingSaved = false;
@@ -221,7 +207,6 @@ export function setupMSMarco(run = task => task(), llm) {
     },
     setBlocked(value) { blocked = value; updateButtons(); },
     async close() {
-      blocked = true;
       await closePrebuilt();
       output.replaceChildren();
       status.textContent = 'Index closed. Reload to reopen it.';
