@@ -19,25 +19,12 @@ export function setupNFCorpus(db, conn, run, llm) {
   const searchButton = document.querySelector('#fts-search');
   let ready = false;
   let blocked = false;
-  let searchSQL = SEARCH_SQL;
   let loaded = false;
   function updateControls() {
     setup.hidden = ready;
     indexButton.hidden = ready;
     indexButton.disabled = blocked;
     searchButton.disabled = blocked || !ready;
-  }
-  async function readSchema() {
-    const columns = new Set((await conn.query(`SELECT column_name FROM information_schema.columns
-      WHERE table_catalog = current_database() AND table_schema = 'main'
-        AND table_name = 'nfcorpus'`)).toArray().map(row => row.column_name));
-    if (!columns.has('id') || !columns.has('contents')) {
-      throw new Error('The saved NFCorpus table is incompatible: document IDs and contents are required.');
-    }
-    // Older saved collections contain only IDs and combined document contents.
-    const title = columns.has('title') ? 'title' : "'Document ' || CAST(id AS VARCHAR) AS title";
-    const text = columns.has('text') ? 'text' : 'contents AS text';
-    searchSQL = SEARCH_SQL.replace('SELECT id, title, text,', `SELECT id, ${title}, ${text},`);
   }
   async function loadExtension() {
     if (loaded) return;
@@ -91,11 +78,12 @@ export function setupNFCorpus(db, conn, run, llm) {
         await db.dropFile('nfcorpus-import.jsonl');
       }
     }
-    await readSchema();
     status.textContent = 'Building the full-text index in your browser…';
     const start = performance.now();
     await conn.query(INDEX_SQL);
     await conn.query('CHECKPOINT');
+    const statement = await conn.prepare(SEARCH_SQL);
+    await statement.close();
     const count = (await conn.query('SELECT count(*) AS n FROM nfcorpus')).toArray()[0].n;
     const version = (await conn.query('SELECT version() AS version')).toArray()[0].version;
     ready = true;
@@ -118,10 +106,9 @@ export function setupNFCorpus(db, conn, run, llm) {
         status.textContent = 'Click “Prepare NFCorpus” before searching.';
         return null;
       }
-      await readSchema();
       status.textContent = 'Searching saved NFCorpus documents…';
       const start = performance.now();
-      const statement = await conn.prepare(searchSQL);
+      const statement = await conn.prepare(SEARCH_SQL);
       let rows;
       try { rows = (await statement.query(query)).toArray(); }
       finally { await statement.close(); }
@@ -181,9 +168,8 @@ export function setupNFCorpus(db, conn, run, llm) {
           WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
         if (indexed && await exists()) {
           await loadExtension();
-          await readSchema();
           // Bind the actual search before marking a persisted index as usable.
-          const statement = await conn.prepare(searchSQL);
+          const statement = await conn.prepare(SEARCH_SQL);
           await statement.close();
           ready = true;
           status.textContent = 'Saved NFCorpus index opened automatically. Ready to search.';

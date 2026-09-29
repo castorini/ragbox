@@ -29,7 +29,7 @@ function resultSet(rows) {
   return { toArray: () => rows };
 }
 
-function createConnection(rows, columns = ['id', 'title', 'text', 'contents']) {
+function createConnection(rows) {
   const statement = {
     query: vi.fn().mockResolvedValue(resultSet(rows)),
     close: vi.fn(),
@@ -37,7 +37,6 @@ function createConnection(rows, columns = ['id', 'title', 'text', 'contents']) {
   const conn = {
     prepare: vi.fn().mockResolvedValue(statement),
     query: vi.fn(async sql => {
-      if (sql.includes('information_schema.columns')) return resultSet(columns.map(column_name => ({ column_name })));
       if (sql.includes('information_schema.schemata')) return resultSet([{ n: 1 }]);
       if (sql.includes('information_schema.tables')) return resultSet([{ n: 1 }]);
       return resultSet([]);
@@ -72,19 +71,6 @@ describe('NFCorpus shared LLM integration', () => {
     controller.setBlocked(true);
     expect(elements.get('#fts-search').disabled).toBe(true);
     controller.setBlocked(false);
-    expect(elements.get('#fts-search').disabled).toBe(false);
-  });
-
-  it('searches older saved collections with only id and contents', async () => {
-    const rows = [{ id: 'MED-14', title: 'Document MED-14', text: 'Health research', score: 4 }];
-    const { conn } = createConnection(rows, ['id', 'contents']);
-    const llm = createLLM();
-    const controller = setupNFCorpus({}, conn, task => task(), llm);
-    await controller.reopenSaved();
-    document.querySelector('#fts-query').value = 'health';
-    await elements.get('#fts-form').onsubmit({ preventDefault() {} });
-    expect(conn.prepare).toHaveBeenLastCalledWith(expect.stringContaining("'Document ' || CAST(id AS VARCHAR) AS title, contents AS text"));
-    expect(llm.generate).toHaveBeenCalledWith(expect.objectContaining({ documents: rows }));
     expect(elements.get('#fts-search').disabled).toBe(false);
   });
 
