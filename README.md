@@ -200,7 +200,7 @@ Each visitor builds their own FTS index in their browser. Storage on the publish
 
 Each push to `main` also runs `.github/workflows/release-html.yml`. After tests pass, it prepares NFCorpus, builds `ragbox.html`, and attaches it to a GitHub Release tagged `html-<commit SHA>`. The newest successful build appears as the latest release; rerunning the workflow leaves an existing release in place. The HTML includes the app code, CSS, LLM worker, LLM WebAssembly runtime, and NFCorpus data. The DuckDB runtime and extension files, model weights, and MS MARCO index still download on demand.
 
-To build the same file locally, prepare NFCorpus as above and run `npm run build:single`. The output is `dist-single/ragbox.html`. Serve the file from a stable localhost or HTTPS origin to use OPFS, for example `python3 -m http.server 8000 --directory dist-single` and open `http://localhost:8000/ragbox.html`. Opening it directly with `file://` may give it an opaque origin without persistent browser storage.
+To build the same file locally, run `npm run build:single`. The command downloads and prepares NFCorpus if `public/data/nfcorpus.jsonl` is missing; this first build needs internet access and `unzip`. The output is `dist-single/ragbox.html`. Serve the file from a stable localhost or HTTPS origin to use OPFS, for example `python3 -m http.server 8000 --directory dist-single` and open `http://localhost:8000/ragbox.html`. Opening it directly with `file://` may give it an opaque origin without persistent browser storage.
 
 ## Reset all demo data
 

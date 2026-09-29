@@ -24,11 +24,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Download and prepare NFCorpus
-        run: |
-          curl --fail --location --retry 3 https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip --output "$RUNNER_TEMP/nfcorpus.zip"
-          unzip -q "$RUNNER_TEMP/nfcorpus.zip" -d "$RUNNER_TEMP/nfcorpus-data"
-          npm run prepare:nfcorpus -- "$RUNNER_TEMP/nfcorpus-data/nfcorpus/corpus.jsonl"
       - name: Build single HTML
         env:
           VITE_MSMARCO_INDEX_URL: ${{ vars.MSMARCO_INDEX_URL }}
