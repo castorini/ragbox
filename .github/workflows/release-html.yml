@@ -1,0 +1,54 @@
+name: Release single HTML
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-single-html-main
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Download and prepare NFCorpus
+        run: |
+          curl --fail --location --retry 3 https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip --output "$RUNNER_TEMP/nfcorpus.zip"
+          unzip -q "$RUNNER_TEMP/nfcorpus.zip" -d "$RUNNER_TEMP/nfcorpus-data"
+          npm run prepare:nfcorpus -- "$RUNNER_TEMP/nfcorpus-data/nfcorpus/corpus.jsonl"
+      - name: Build single HTML
+        env:
+          VITE_MSMARCO_INDEX_URL: ${{ vars.MSMARCO_INDEX_URL }}
+        run: npm run build:single
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current_main="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$current_main" != "$GITHUB_SHA" ]; then
+            echo "A newer main commit exists; skipping this release."
+            exit 0
+          fi
+          tag="html-${GITHUB_SHA}"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists."
+          else
+            gh release create "$tag" dist-single/ragbox.html \
+              --target "$GITHUB_SHA" \
+              --title "Single HTML (${GITHUB_SHA::7})" \
+              --notes "Single-file build of main at ${GITHUB_SHA}. Serve ragbox.html over localhost or HTTPS to use OPFS." \
+              --latest
+          fi

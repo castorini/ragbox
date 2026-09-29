@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "build": "vite build",
+    "build:single": "vite build --config vite.single.config.js && node scripts/make-single-file.mjs",
     "test": "vitest run",
     "prepare:nfcorpus": "node scripts/prepare-nfcorpus.mjs"
   },
