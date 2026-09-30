@@ -101,24 +101,28 @@ Both downloads are snapshots. Later browser changes do not update previously dow
 
 ```text
 index.html        Page layout and experiment buttons
-src/main.js       DuckDB initialization, SQL queries, and exports
-src/nfcorpus.js   NFCorpus import, FTS indexing, and search interface
+src/main.ts       DuckDB initialization and app startup
+src/nfcorpus.ts   NFCorpus import, FTS indexing, and search interface
+src/msmarco.ts    Saved MS MARCO index and search interface
+src/llm-worker.ts Local answer generation in a Web Worker
+src/types.ts      Shared evidence and worker message types
 src/style.css     Page styling
-scripts/prepare-nfcorpus.mjs Dataset validation and preparation
+scripts/prepare-nfcorpus.ts Dataset validation and preparation
 package.json      Dependencies and development commands
 package-lock.json Locked dependency versions
 ```
 
-Start with `main()` in `src/main.js` to follow initialization, then read the button handlers for each experiment.
+Start with `main()` in `src/main.ts` to follow initialization, then read the collection modules for search behavior.
 
 ## Build and validation
 
 ```sh
 npm test
+npm run typecheck
 npm run build
 ```
 
-The test suite covers retrieval/RAG integration and the production bundle is generated in `dist/`. Persistence, WebGPU inference, answer quality, and exports still require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
+The test suite covers retrieval/RAG integration. The build runs strict TypeScript checks before generating `dist/`. Persistence, WebGPU inference, answer quality, and exports still require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
 
 ## Choosing a search collection
 
@@ -143,7 +147,7 @@ The preparation script validates document IDs and copies title/text fields to `p
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
 
-The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. Older saved NFCorpus tables with only `id` and `contents` remain searchable: results use the document ID as their heading and the combined contents as their text. FTS indexes do not automatically track table edits.
+The module is in `src/nfcorpus.ts`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. Older saved NFCorpus tables with only `id` and `contents` remain searchable: results use the document ID as their heading and the combined contents as their text. FTS indexes do not automatically track table edits.
 
 ### Core FTS operations
 

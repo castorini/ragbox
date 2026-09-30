@@ -1,8 +1,10 @@
+import { errorName } from './boundaries.ts';
+
 // Delete only files owned by this demo, not other applications on the origin.
-export async function deleteDemoFiles(root) {
-  async function remove(directory, name) {
+export async function deleteDemoFiles(root: FileSystemDirectoryHandle) {
+  async function remove(directory: FileSystemDirectoryHandle, name: string) {
     try { await directory.removeEntry(name); }
-    catch (error) { if (error.name !== 'NotFoundError') throw error; }
+    catch (error) { if (errorName(error) !== 'NotFoundError') throw error; }
   }
   for (const name of [
     'analytics.duckdb.wal',
@@ -18,7 +20,7 @@ export async function deleteDemoFiles(root) {
     let directory;
     try { directory = await root.getDirectoryHandle(folder); }
     catch (error) {
-      if (error.name === 'NotFoundError') continue;
+      if (errorName(error) === 'NotFoundError') continue;
       throw error;
     }
     await remove(directory, name);

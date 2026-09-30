@@ -1,25 +1,35 @@
 import { it, expect, vi, afterEach } from 'vitest';
-import { setupCollectionChooser } from '../src/collection-chooser.js';
+import { setupCollectionChooser } from '../src/collection-chooser.ts';
+type FakeElement = {
+  hidden: boolean;
+  value: string;
+  href?: string;
+  textContent?: string;
+  focus: ReturnType<typeof vi.fn>;
+  scrollIntoView: ReturnType<typeof vi.fn>;
+  append: ReturnType<typeof vi.fn>;
+  onchange?: () => void;
+};
 afterEach(() => vi.unstubAllGlobals());
 it('starts unselected, shows only the chosen collection, and preserves inputs when switching', () => {
-  const elements = new Map();
-  vi.stubGlobal('document', { querySelector(id) {
+  const elements = new Map<string, FakeElement>();
+  vi.stubGlobal('document', { querySelector(id: string) {
     if (!elements.has(id)) elements.set(id, { hidden: false, value: '', focus: vi.fn(), scrollIntoView: vi.fn(), append: vi.fn() });
     return elements.get(id);
   } });
-  const get = id => document.querySelector(id);
+  const get = (id: string) => elements.get(id)!;
   setupCollectionChooser();
   expect(get('#search-workspace').hidden).toBe(true);
   expect(get('#collection-welcome').hidden).toBe(false);
   get('#collection-start').value = 'nfcorpus';
-  get('#collection-start').onchange();
+  get('#collection-start').onchange?.();
   expect(get('#nfcorpus-collection').hidden).toBe(false);
   expect(get('#msmarco-collection').hidden).toBe(true);
   expect(get('#collection-switch').value).toBe('nfcorpus');
   expect(get('#fts-search-tools').append).toHaveBeenCalledWith(get('#model'));
   get('#fts-query').value = 'nutrition';
   get('#collection-switch').value = 'msmarco';
-  get('#collection-switch').onchange();
+  get('#collection-switch').onchange?.();
   expect(get('#nfcorpus-collection').hidden).toBe(true);
   expect(get('#msmarco-collection').hidden).toBe(false);
   expect(get('#marco-query').focus).toHaveBeenCalled();

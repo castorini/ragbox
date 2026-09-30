@@ -1,3 +1,11 @@
+import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
+import { errorMessage, requiredElement, rowsAs } from './boundaries.ts';
+import type { LLMController } from './llm-controller.ts';
+import type { EvidenceDocument, RunTask } from './types.ts';
+
+type SearchRow = EvidenceDocument & { score: number };
+type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+
 // FTS executes through the same DuckDB-Wasm worker and persistent OPFS database.
 export const SEARCH_SQL = `
   SELECT id, title, text,
@@ -11,12 +19,12 @@ export const INDEX_SQL = `PRAGMA create_fts_index(
   'nfcorpus', 'id', 'contents', overwrite = 1
 )`;
 
-export function setupNFCorpus(db, conn, run, llm) {
-  const status = document.querySelector('#fts-status');
-  const results = document.querySelector('#fts-results');
-  const setup = document.querySelector('#fts-setup');
-  const indexButton = document.querySelector('#fts-index');
-  const searchButton = document.querySelector('#fts-search');
+export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM) {
+  const status = requiredElement<HTMLElement>('#fts-status');
+  const results = requiredElement<HTMLOListElement>('#fts-results');
+  const setup = requiredElement<HTMLElement>('#fts-setup');
+  const indexButton = requiredElement<HTMLButtonElement>('#fts-index');
+  const searchButton = requiredElement<HTMLButtonElement>('#fts-search');
   let ready = false;
   let blocked = false;
   let searchSQL = SEARCH_SQL;
@@ -28,9 +36,9 @@ export function setupNFCorpus(db, conn, run, llm) {
     searchButton.disabled = blocked || !ready;
   }
   async function readSchema() {
-    const columns = new Set((await conn.query(`SELECT column_name FROM information_schema.columns
+    const columns = new Set(rowsAs<{ column_name: string }>(await conn.query(`SELECT column_name FROM information_schema.columns
       WHERE table_catalog = current_database() AND table_schema = 'main'
-        AND table_name = 'nfcorpus'`)).toArray().map(row => row.column_name));
+        AND table_name = 'nfcorpus'`)).map(row => row.column_name));
     if (!columns.has('id') || !columns.has('contents')) {
       throw new Error('The saved NFCorpus table is incompatible: document IDs and contents are required.');
     }
@@ -46,13 +54,13 @@ export function setupNFCorpus(db, conn, run, llm) {
     await conn.query('LOAD fts');
     loaded = true;
   }
-  const exists = async () => (await conn.query(`
+  const exists = async () => Number(rowsAs<{ n: number | bigint }>(await conn.query(`
     SELECT count(*) AS n FROM information_schema.tables
     WHERE table_catalog = current_database()
       AND table_schema = 'main' AND table_name = 'nfcorpus'
-  `)).toArray()[0].n > 0;
+  `))[0].n) > 0;
 
-  async function action(task) {
+  async function action<T>(task: () => Promise<T>): Promise<T | undefined> {
     return run(async () => {
       results.replaceChildren();
       try { return await task(); }
@@ -60,7 +68,7 @@ export function setupNFCorpus(db, conn, run, llm) {
         ready = false;
         indexButton.textContent = 'Retry preparing NFCorpus';
         updateControls();
-        status.textContent = `NFCorpus could not be opened or searched. ${error.message} Use “Retry preparing NFCorpus” to try again.`;
+        status.textContent = `NFCorpus could not be opened or searched. ${errorMessage(error)} Use “Retry preparing NFCorpus” to try again.`;
         throw error;
       }
     });
@@ -78,7 +86,7 @@ export function setupNFCorpus(db, conn, run, llm) {
         throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
       }
       const contents = await response.text();
-      const rows = contents.trim().split(/\r?\n/).map(JSON.parse);
+      const rows = contents.trim().split(/\r?\n/).map(line => JSON.parse(line) as { id: string });
       if (rows.length !== 3633 || new Set(rows.map(row => row.id)).size !== 3633) {
         throw new Error('Expected 3,633 unique NFCorpus documents.');
       }
@@ -96,23 +104,23 @@ export function setupNFCorpus(db, conn, run, llm) {
     const start = performance.now();
     await conn.query(INDEX_SQL);
     await conn.query('CHECKPOINT');
-    const count = (await conn.query('SELECT count(*) AS n FROM nfcorpus')).toArray()[0].n;
-    const version = (await conn.query('SELECT version() AS version')).toArray()[0].version;
+    const count = rowsAs<{ n: number | bigint }>(await conn.query('SELECT count(*) AS n FROM nfcorpus'))[0].n;
+    const version = rowsAs<{ version: string }>(await conn.query('SELECT version() AS version'))[0].version;
     ready = true;
     updateControls();
     status.textContent = `${count} documents indexed in ${((performance.now() - start) / 1000).toFixed(2)} s. ${version}. Ready to search.`;
   });
 
-  document.querySelector('#fts-form').onsubmit = event => {
+  requiredElement<HTMLFormElement>('#fts-form').onsubmit = event => {
     event.preventDefault();
-    const query = document.querySelector('#fts-query').value.trim();
+    const query = requiredElement<HTMLInputElement>('#fts-query').value.trim();
     if (!query) return;
     llm.beginRetrieval('nfcorpus');
     return action(async () => {
       await loadExtension();
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
         WHERE schema_name = 'fts_main_nfcorpus' AND catalog_name = current_database()`);
-      if (!await exists() || Number(index.toArray()[0].n) === 0) {
+      if (!await exists() || Number(rowsAs<{ n: number | bigint }>(index)[0].n) === 0) {
         ready = false;
         updateControls();
         status.textContent = 'Click “Prepare NFCorpus” before searching.';
@@ -123,7 +131,7 @@ export function setupNFCorpus(db, conn, run, llm) {
       const start = performance.now();
       const statement = await conn.prepare(searchSQL);
       let rows;
-      try { rows = (await statement.query(query)).toArray(); }
+      try { rows = rowsAs<SearchRow>(await statement.query(query)); }
       finally { await statement.close(); }
       for (const row of rows) {
         const item = document.createElement('li');
@@ -174,11 +182,11 @@ export function setupNFCorpus(db, conn, run, llm) {
   };
   updateControls();
   return {
-    setBlocked(value) { blocked = value; updateControls(); },
+    setBlocked(value: boolean) { blocked = value; updateControls(); },
     async reopenSaved() {
       return action(async () => {
-        const indexed = (await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
-          WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`)).toArray()[0].n > 0;
+        const indexed = Number(rowsAs<{ n: number | bigint }>(await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
+          WHERE catalog_name=current_database() AND schema_name='fts_main_nfcorpus'`))[0].n) > 0;
         if (indexed && await exists()) {
           await loadExtension();
           await readSchema();

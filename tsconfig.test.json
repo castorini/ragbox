@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.shared.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["node", "vite/client", "@webgpu/types"]
+  },
+  "include": ["test/**/*.ts"]
+}

@@ -1,4 +1,40 @@
-export async function detectWebGPU() {
+import { errorMessage, requiredElement } from './boundaries.ts';
+import type { Corpus, EvidenceDocument, ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
+
+export type Capability = { supported: true } | { supported: false; reason: string };
+type CitationTargets = Map<string, string> | Record<string, string>;
+
+interface ControllerElements {
+  setup?: HTMLElement | null;
+  loadButton: HTMLButtonElement;
+  stopButton: HTMLButtonElement;
+  status: HTMLElement;
+  progress: HTMLProgressElement;
+  answers?: Partial<Record<Corpus, HTMLElement>>;
+  answer?: HTMLElement;
+}
+
+interface ActiveRequest {
+  id: string;
+  corpus: Corpus;
+  answer: HTMLElement;
+  answerText: string;
+  citationTargets: Map<string, string>;
+  includedTargets: Map<string, string>;
+  evidenceLabel: string;
+}
+
+type ControllerState = 'checking' | 'unsupported' | 'idle' | 'loading' | 'ready' | 'generating' | 'error';
+
+export interface GenerateOptions {
+  corpus: Corpus;
+  question: string;
+  documents: EvidenceDocument[];
+  citationTargets: CitationTargets;
+  evidenceLabel?: string;
+}
+
+export async function detectWebGPU(): Promise<Capability> {
   if (!globalThis.navigator?.gpu) {
     return { supported: false, reason: 'WebGPU is unavailable in this browser.' };
   }
@@ -11,25 +47,26 @@ export async function detectWebGPU() {
 }
 
 function defaultWorkerFactory() {
-  return new Worker(new URL('./llm-worker.js', import.meta.url), { type: 'module' });
+  return new Worker(new URL('./llm-worker.ts', import.meta.url), { type: 'module' });
 }
 
-function progressPercent(progress) {
-  if (Number.isFinite(progress?.progress)) return Math.min(100, Math.max(0, progress.progress));
-  if (Number.isFinite(progress?.loaded) && Number.isFinite(progress?.total) && progress.total > 0) {
+function progressPercent(progress: ModelProgress): number | null {
+  if (typeof progress.progress === 'number' && Number.isFinite(progress.progress)) return Math.min(100, Math.max(0, progress.progress));
+  if (typeof progress.loaded === 'number' && Number.isFinite(progress.loaded) &&
+      typeof progress.total === 'number' && Number.isFinite(progress.total) && progress.total > 0) {
     return Math.min(100, Math.max(0, progress.loaded / progress.total * 100));
   }
   return null;
 }
 
-function citationTargetMap(citationTargets) {
+function citationTargetMap(citationTargets?: CitationTargets): Map<string, string> {
   if (citationTargets instanceof Map) {
     return new Map([...citationTargets].map(([id, target]) => [String(id), String(target)]));
   }
   return new Map(Object.entries(citationTargets ?? {}).map(([id, target]) => [String(id), String(target)]));
 }
 
-export function renderAnswer(container, text, citationTargets = new Map()) {
+export function renderAnswer(container: HTMLElement, text: unknown, citationTargets: CitationTargets = new Map()) {
   const value = String(text ?? '');
   const targets = citationTargetMap(citationTargets);
   if (!container.ownerDocument || typeof container.replaceChildren !== 'function') {
@@ -43,7 +80,7 @@ export function renderAnswer(container, text, citationTargets = new Map()) {
     const id = match[1];
     if (targets.has(id)) {
       const link = container.ownerDocument.createElement('a');
-      link.href = targets.get(id);
+      link.href = targets.get(id) ?? '';
       link.textContent = match[0];
       link.title = `Jump to retrieved evidence ${id}`;
       nodes.push(link);
@@ -57,11 +94,21 @@ export function renderAnswer(container, text, citationTargets = new Map()) {
 }
 
 export class LLMController {
+  private elements: ControllerElements;
+  private workerFactory: () => Worker;
+  private capabilityDetector: () => Promise<Capability>;
+  private worker: Worker | null;
+  private capability: Capability | null;
+  state: ControllerState;
+  activeRequest: ActiveRequest | null;
+  private requestNumber: number;
+  private answers: Partial<Record<Corpus, HTMLElement>>;
+
   constructor({
     elements,
     workerFactory = defaultWorkerFactory,
     detectWebGPU: capabilityDetector = detectWebGPU,
-  }) {
+  }: { elements: ControllerElements; workerFactory?: () => Worker; detectWebGPU?: () => Promise<Capability> }) {
     this.elements = elements;
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
@@ -94,7 +141,7 @@ export class LLMController {
     try {
       this.capability = await this.capabilityDetector();
     } catch (error) {
-      this.capability = { supported: false, reason: error.message };
+      this.capability = { supported: false, reason: errorMessage(error) };
     }
     if (!this.capability.supported) {
       this.state = 'unsupported';
@@ -114,7 +161,7 @@ export class LLMController {
   ensureWorker() {
     if (this.worker) return this.worker;
     this.worker = this.workerFactory();
-    this.worker.onmessage = event => this.handleMessage(event.data);
+    this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.handleMessage(event.data);
     this.worker.onerror = event => {
       event.preventDefault?.();
       this.handleMessage({
@@ -125,6 +172,10 @@ export class LLMController {
       });
     };
     return this.worker;
+  }
+
+  private send(message: WorkerRequest) {
+    this.ensureWorker().postMessage(message);
   }
 
   async load(cachedOnly = false) {
@@ -138,22 +189,22 @@ export class LLMController {
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
     this.elements.status.textContent = cachedOnly ? 'Loading saved model from this browser…' : 'Starting the local model download…';
-    this.ensureWorker().postMessage(cachedOnly ? { type: 'load', cachedOnly: true } : { type: 'load' });
+    this.send(cachedOnly ? { type: 'load', cachedOnly: true } : { type: 'load' });
     return true;
   }
 
-  answerFor(corpus) {
+  answerFor(corpus: Corpus) {
     const answer = this.answers[corpus];
     if (!answer) throw new Error(`No answer destination is configured for ${corpus}.`);
     return answer;
   }
 
-  beginRetrieval(corpus) {
+  beginRetrieval(corpus: Corpus) {
     if (this.activeRequest) this.cancel(true);
     renderAnswer(this.answerFor(corpus), '');
   }
 
-  generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }) {
+  generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }: GenerateOptions) {
     const answer = this.answerFor(corpus);
     if (!this.ready || this.state === 'loading') {
       const message = this.state === 'unsupported'
@@ -179,7 +230,7 @@ export class LLMController {
     const corpusName = corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
     this.elements.status.textContent = `Generating an answer from ${corpusName} evidence locally…`;
     this.elements.stopButton.disabled = false;
-    this.ensureWorker().postMessage({
+    this.send({
       type: 'generate',
       requestId,
       corpus,
@@ -193,7 +244,7 @@ export class LLMController {
     return true;
   }
 
-  showRetrievalMessage(corpus, message) {
+  showRetrievalMessage(corpus: Corpus, message: string) {
     if (this.activeRequest?.corpus === corpus) this.cancel(true);
     renderAnswer(this.answerFor(corpus), message);
   }
@@ -210,7 +261,7 @@ export class LLMController {
     return true;
   }
 
-  handleMessage(message) {
+  handleMessage(message: WorkerResponse) {
     try {
       this.handleWorkerMessage(message);
     } finally {
@@ -218,7 +269,7 @@ export class LLMController {
     }
   }
 
-  handleWorkerMessage(message) {
+  handleWorkerMessage(message: WorkerResponse) {
     if (message.type === 'cache-unavailable') {
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
@@ -249,29 +300,33 @@ export class LLMController {
       this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate cited answers.';
       return;
     }
-    if (message.requestId && message.requestId !== this.activeRequest?.id) return;
+    if ('requestId' in message && message.requestId && message.requestId !== this.activeRequest?.id) return;
+    const request = this.activeRequest;
     if (message.type === 'context') {
+      if (!request) return;
       const included = new Set((message.documentIds ?? []).map(String));
-      this.activeRequest.includedTargets = new Map(
-        [...this.activeRequest.citationTargets].filter(([id]) => included.has(id)),
+      request.includedTargets = new Map(
+        [...request.citationTargets].filter(([id]) => included.has(id)),
       );
       renderAnswer(
-        this.activeRequest.answer,
-        this.activeRequest.answerText,
-        this.activeRequest.includedTargets,
+        request.answer,
+        request.answerText,
+        request.includedTargets,
       );
       return;
     }
     if (message.type === 'answer-delta') {
-      this.activeRequest.answerText += message.text;
+      if (!request) return;
+      request.answerText += message.text;
       renderAnswer(
-        this.activeRequest.answer,
-        this.activeRequest.answerText,
-        this.activeRequest.includedTargets,
+        request.answer,
+        request.answerText,
+        request.includedTargets,
       );
       return;
     }
     if (message.type === 'complete') {
+      if (!request) return;
       if (!String(message.answer ?? '').trim()) {
         this.handleMessage({
           type: 'error',
@@ -281,7 +336,6 @@ export class LLMController {
         });
         return;
       }
-      const request = this.activeRequest;
       const included = new Set((message.documentIds ?? []).map(String));
       request.includedTargets = new Map(
         [...request.citationTargets].filter(([id]) => included.has(id)),
@@ -328,14 +382,14 @@ export class LLMController {
 
 export function setupLLM() {
   const elements = {
-    setup: document.querySelector('#llm-setup'),
-    loadButton: document.querySelector('#llm-load'),
-    stopButton: document.querySelector('#llm-stop'),
-    status: document.querySelector('#llm-status'),
-    progress: document.querySelector('#llm-progress'),
+    setup: requiredElement<HTMLElement>('#llm-setup'),
+    loadButton: requiredElement<HTMLButtonElement>('#llm-load'),
+    stopButton: requiredElement<HTMLButtonElement>('#llm-stop'),
+    status: requiredElement<HTMLElement>('#llm-status'),
+    progress: requiredElement<HTMLProgressElement>('#llm-progress'),
     answers: {
-      nfcorpus: document.querySelector('#fts-answer'),
-      msmarco: document.querySelector('#marco-answer'),
+      nfcorpus: requiredElement<HTMLElement>('#fts-answer'),
+      msmarco: requiredElement<HTMLElement>('#marco-answer'),
     },
   };
   const controller = new LLMController({ elements });

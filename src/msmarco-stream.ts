@@ -1,9 +1,9 @@
 // Incremental TSV parser: never holds the complete corpus in JS memory.
-export async function* passageBatches(stream, limit = Infinity, batchSize = 2000) {
+export async function* passageBatches(stream: ReadableStream<Uint8Array>, limit = Infinity, batchSize = 2000): AsyncGenerator<{ id: string; contents: string }[]> {
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let pending = '', batch = [], count = 0;
-  function parse(line) {
+  function parse(line: string) {
     const tab = line.indexOf('\t');
     if (tab < 1) throw new Error(`Malformed passage at line ${count + 1}`);
     const id = line.slice(0, tab);

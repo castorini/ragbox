@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.shared.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"]
+  },
+  "include": ["vitest.config.ts", "scripts/**/*.ts"]
+}

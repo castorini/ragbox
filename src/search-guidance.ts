@@ -1,9 +1,11 @@
+import { requiredElement } from './boundaries.ts';
+
 export function setupSearchGuidance() {
-  const globalStatus = document.querySelector('#status');
+  const globalStatus = requiredElement<HTMLElement>('#status');
   for (const prefix of ['fts', 'marco']) {
-    const button = document.querySelector(`#${prefix}-search`);
-    const status = document.querySelector(`#${prefix}-status`);
-    const help = document.querySelector(`#${prefix}-help`);
+    const button = requiredElement<HTMLButtonElement>(`#${prefix}-search`);
+    const status = requiredElement<HTMLElement>(`#${prefix}-status`);
+    const help = requiredElement<HTMLElement>(`#${prefix}-help`);
     const update = () => {
       help.hidden = !button.disabled;
       if (!button.disabled) { button.removeAttribute('title'); return; }

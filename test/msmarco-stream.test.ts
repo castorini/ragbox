@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { passageBatches } from '../src/msmarco-stream.js';
-function stream(text, chunkSize = 3) {
+import { passageBatches } from '../src/msmarco-stream.ts';
+function stream(text: string, chunkSize = 3) {
   const bytes = new TextEncoder().encode(text);
   let offset = 0;
   return new ReadableStream({ pull(controller) {
@@ -8,8 +8,8 @@ function stream(text, chunkSize = 3) {
     controller.enqueue(bytes.slice(offset, offset += Math.min(chunkSize, bytes.length - offset)));
   } });
 }
-async function read(text, limit = Infinity) {
-  const batches = [];
+async function read(text: string, limit = Infinity) {
+  const batches: { id: string; contents: string }[][] = [];
   for await (const batch of passageBatches(stream(text), limit, 2)) batches.push(batch);
   return batches;
 }
