@@ -3,7 +3,7 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RAGbox</title></head>
 <body>
 <a class="skip-link" href="#collection-start">Skip to collection selection</a>
-<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav id="workspace-nav" aria-label="Main navigation" hidden><a href="#collections">Collections</a><a href="#model">Answer model</a><a href="#lab">Storage lab</a></nav><span class="local-badge">Runs in your browser</span></header>
+<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav id="workspace-nav" aria-label="Main navigation" hidden><a href="#collections">Collections</a><a href="#model">Answer model</a></nav><span class="local-badge">Runs in your browser</span></header>
 <main>
 <div id="collection-welcome" class="collection-welcome">
 <div class="eyebrow">YOUR BROWSER. YOUR RESEARCH SPACE.</div>
@@ -14,6 +14,7 @@
 <p class="chooser-note">NFCorpus covers health and nutrition research.<br>MS MARCO brings millions of web passages to your browser.</p>
 </div>
 <div id="search-workspace" hidden>
+<p id="status" role="status" hidden>Opening database…</p>
 <section id="collections" class="collection" aria-labelledby="collections-heading">
 <div class="workspace-label"><h2 id="collections-heading">Your search workspace</h2><div class="collection-switch"><label for="collection-switch">Collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="" disabled selected>Choose a collection</option><option value="nfcorpus">NFCorpus · 3,633 documents</option><option value="msmarco">MS MARCO · 8.8 million passages</option></select></div></div>
 <div id="nfcorpus-collection" class="collection-panel" role="region" aria-labelledby="fts-heading" hidden>
@@ -70,15 +71,7 @@
 <p id="llm-status" role="status">Checking WebGPU support…</p>
 </div>
 </section>
-<details id="lab" class="lab"><summary><span>Storage lab</span><span class="summary-note">Persistence, exports & database tools</span></summary><div class="lab-content"><p>Explore how browser storage persists between visits. Each page load adds one sample transaction.</p><p id="status" role="status">Opening database…</p><div class="lab-actions">
-<button id="reload" disabled>Reload page</button>
-<button id="orders" disabled>Load orders & cache monthly totals</button>
-<button id="local-orders" disabled>Query saved orders (local only)</button>
-<button id="parquet" disabled>Download transactions.parquet</button>
-<button id="export" disabled>Download analytics.duckdb</button>
-<button id="close" disabled>Checkpoint & close</button>
-<button id="reset" disabled>Reset all data</button>
-</div><h3>Stored data</h3><pre id="output"></pre></div></details>
+
 </div></main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
 <script type="module" src="/src/main.js"></script>
 </body></html>
