@@ -8,7 +8,7 @@ Based on DuckDB’s article [Persistent Databases in the Browser with DuckDB-Was
 
 Prerequisites:
 
-- Node.js 22 or later and npm.
+- Node.js 22 (22.12+) or Node.js 24+, and npm.
 - A modern browser with OPFS support. The walkthrough has been exercised in Chrome.
 - Internet access to load the DuckDB worker and WebAssembly files from the CDN, and to import the remote orders dataset.
 
