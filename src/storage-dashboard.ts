@@ -37,6 +37,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   const refreshButton = requiredElement<HTMLButtonElement>('#storage-refresh');
   const reloadButton = requiredElement<HTMLButtonElement>('#storage-reload');
   const resetButton = requiredElement<HTMLButtonElement>('#storage-reset');
+  const resetAllButton = requiredElement<HTMLButtonElement>('#storage-reset-all');
   const modelRows = requiredElement<HTMLTableSectionElement>('#model-cache-files');
   const modelStatus = requiredElement<HTMLElement>('#model-cache-status');
   const modelSummary = requiredElement<HTMLElement>('#model-cache-summary');
@@ -60,20 +61,23 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   function updateControls() {
     refreshButton.disabled = !supported || refreshing || deleting;
     resetButton.disabled = !supported || blocked() || !files.some(file => file.owned);
+    resetAllButton.disabled = !supported || !cacheSupported || blocked();
     for (const button of deleteButtons) button.disabled = !supported || blocked();
     modelRefresh.disabled = !cacheSupported || refreshingModel || deleting;
     modelDelete.disabled = !cacheSupported || blocked() || !modelFiles.length;
     reloadButton.disabled = deleting;
   }
-  async function remove(path?: string) {
-    if (!supported || blocked()) return;
-    const message = path
+  async function remove(path?: string, all = false) {
+    if (!supported || (all && !cacheSupported) || blocked()) return;
+    const message = all
+      ? 'Reset all ragbox data? Saved collection databases, indexes, demo Parquet files, and all cached MiniCPM5-2B model files will be deleted. You will need to prepare collections and download the model again.'
+      : path
       ? `Delete ${path}? Deleting a database removes its collection and index.`
       : 'Reset all ragbox collection data? Saved databases, indexes, and demo Parquet files will be deleted.';
-    if (!window.confirm(`${message} The page will reload. The model cache is kept. Close other ragbox tabs first.`)) return;
+    if (!window.confirm(`${message} The page will reload.${all ? '' : ' The model cache is kept.'} Close other ragbox tabs first.`)) return;
     deleting = true;
     updateControls();
-    status.textContent = 'Closing databases and removing saved files…';
+    status.textContent = all ? 'Stopping the LLM, closing databases, and removing all ragbox data…' : 'Closing databases and removing saved files…';
     try {
       stopped = true;
       await shutdown();
@@ -83,6 +87,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
         for (const name of DEMO_FILES.filter(name => name.startsWith('analytics.duckdb'))) await deleteDemoFile(root, name);
       } else if (path) await deleteDemoFile(root, path);
       else await deleteDemoFiles(root);
+      if (all) await deleteModelCacheFiles(caches);
       window.location.reload();
     } catch (error) {
       status.textContent = `Could not remove saved files: ${errorMessage(error)}. Close other ragbox tabs and reload this page to retry.`;
@@ -186,6 +191,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   refreshButton.onclick = () => { void refresh(); };
   reloadButton.onclick = () => { if (!deleting) window.location.reload(); };
   resetButton.onclick = () => { void remove(); };
+  resetAllButton.onclick = () => { void remove(undefined, true); };
   modelRefresh.onclick = () => { void refreshModel(); };
   modelDelete.onclick = () => { void removeModel(); };
   if (!supported) status.textContent = 'Browser file storage requires a supported browser on localhost or HTTPS.';

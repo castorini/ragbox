@@ -122,7 +122,7 @@ it('deletes installed model data after shutdown while preserving collection file
   const cache = {
     keys: vi.fn(async () => [new Request(url)]),
     match: vi.fn(async () => new Response(null, { headers: { 'content-length': '1840000000' } })),
-    delete: vi.fn(async () => true),
+    delete: vi.fn(async (_request: Request) => true),
   };
   vi.stubGlobal('caches', { keys: async () => ['transformers-cache'], open: async () => cache });
   const ui = harness();
@@ -141,4 +141,46 @@ it('deletes installed model data after shutdown while preserving collection file
   await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
   expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(cache.delete.mock.invocationCallOrder[0]);
   expect(ui.root.removeEntry).not.toHaveBeenCalled();
+});
+
+it('resets collections and model cache together after confirmation and shutdown', async () => {
+  const url = 'https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX/resolve/main/model.onnx';
+  const other = 'https://example.com/unrelated.bin';
+  const cache = {
+    keys: vi.fn(async () => [new Request(url), new Request(other)]),
+    match: vi.fn(async () => new Response(null)),
+    delete: vi.fn(async (_request: Request) => true),
+  };
+  vi.stubGlobal('caches', { keys: async () => ['transformers-cache'], open: async () => cache });
+  const ui = harness();
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#storage-reset-all').disabled).toBe(false));
+  ui.states.setBusy(true);
+  ui.elements.get('#storage-reset-all').onclick();
+  expect(ui.confirm).not.toHaveBeenCalled();
+  ui.states.setBusy(false);
+  ui.confirm.mockReturnValue(false);
+  ui.elements.get('#storage-reset-all').onclick();
+  expect(ui.shutdown).not.toHaveBeenCalled();
+  ui.confirm.mockReturnValue(true);
+  ui.elements.get('#storage-reset-all').onclick();
+  await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
+  expect(ui.confirm).toHaveBeenLastCalledWith(expect.stringContaining('all cached MiniCPM5-2B model files'));
+  expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ui.root.removeEntry).mock.invocationCallOrder[0]);
+  expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(cache.delete.mock.invocationCallOrder[0]);
+  expect(ui.root.removeEntry).toHaveBeenCalledWith('analytics.duckdb');
+  expect(ui.root.removeEntry).toHaveBeenCalledWith('msmarco-prebuilt.duckdb');
+  expect(ui.root.removeEntry).not.toHaveBeenCalledWith('personal.txt');
+  expect(cache.delete).toHaveBeenCalledOnce();
+  expect(cache.delete.mock.calls[0][0].url).toBe(url);
+});
+
+it('keeps reset all disabled when model cache management is unavailable', async () => {
+  vi.stubGlobal('caches', undefined);
+  const ui = harness();
+  await ready(ui);
+  expect(ui.elements.get('#storage-reset-all').disabled).toBe(true);
+  ui.elements.get('#storage-reset-all').onclick();
+  expect(ui.confirm).not.toHaveBeenCalled();
+  expect(ui.shutdown).not.toHaveBeenCalled();
 });

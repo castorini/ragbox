@@ -210,6 +210,8 @@ Click a file's **Delete** button or **Reset collection data** and confirm to clo
 
 The page reloads after deletion. Prepare NFCorpus again or download MS MARCO again to replace deleted indexes. The model cache, downloaded files outside browser storage, repository data, and unrelated origin files are kept. If closing or deleting a file fails, the dashboard reports the error and provides **Reload page** to recover. Localhost and the hosted site have separate storage, so reset each separately if needed.
 
+For a fresh start, **Reset all data** removes both collection data and the installed MiniCPM5-2B model cache after confirmation, then reloads the page. Prepare collections and download the model again to use them. Unrelated origin files and other models are kept. This option requires both browser file storage and cache access and is disabled during active work.
+
 ## MS MARCO search
 
 ### Using the saved index
