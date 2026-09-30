@@ -1,5 +1,6 @@
 import { errorMessage, requiredElement } from './boundaries.ts';
 import type { Corpus, EvidenceDocument, ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
+import type { LoadCoordinator } from './load-coordinator.ts';
 
 export type Capability = { supported: true } | { supported: false; reason: string };
 type CitationTargets = Map<string, string> | Record<string, string>;
@@ -24,7 +25,7 @@ interface ActiveRequest {
   evidenceLabel: string;
 }
 
-type ControllerState = 'checking' | 'unsupported' | 'idle' | 'loading' | 'ready' | 'generating' | 'error';
+export type ControllerState = 'checking' | 'unsupported' | 'idle' | 'loading' | 'ready' | 'generating' | 'error';
 
 export interface GenerateOptions {
   corpus: Corpus;
@@ -103,12 +104,15 @@ export class LLMController {
   activeRequest: ActiveRequest | null;
   private requestNumber: number;
   private answers: Partial<Record<Corpus, HTMLElement>>;
+  private onState?: (state: ControllerState, message: string) => void;
+  private loadWaiters = new Set<() => void>();
 
   constructor({
     elements,
     workerFactory = defaultWorkerFactory,
     detectWebGPU: capabilityDetector = detectWebGPU,
-  }: { elements: ControllerElements; workerFactory?: () => Worker; detectWebGPU?: () => Promise<Capability> }) {
+    onState,
+  }: { elements: ControllerElements; workerFactory?: () => Worker; detectWebGPU?: () => Promise<Capability>; onState?: (state: ControllerState, message: string) => void }) {
     this.elements = elements;
     this.workerFactory = workerFactory;
     this.capabilityDetector = capabilityDetector;
@@ -118,6 +122,7 @@ export class LLMController {
     this.activeRequest = null;
     this.requestNumber = 0;
     this.answers = elements.answers ?? { nfcorpus: elements.answer };
+    this.onState = onState;
   }
 
   get ready() {
@@ -129,15 +134,16 @@ export class LLMController {
       this.elements.setup.hidden = !['idle', 'error'].includes(this.state);
     }
     this.elements.stopButton.hidden = this.state !== 'generating';
+    this.onState?.(this.state, this.elements.status.textContent);
   }
 
   async initializeCapability() {
     this.state = 'checking';
-    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
     this.elements.status.textContent = 'Checking WebGPU support…';
+    this.updateControls();
     try {
       this.capability = await this.capabilityDetector();
     } catch (error) {
@@ -145,16 +151,16 @@ export class LLMController {
     }
     if (!this.capability.supported) {
       this.state = 'unsupported';
-      this.updateControls();
       this.elements.status.textContent = `${this.capability.reason} BM25 search remains available.`;
       this.elements.loadButton.disabled = true;
+      this.updateControls();
       return this.capability;
     }
     this.state = 'idle';
     this.elements.loadButton.hidden = false;
-    this.updateControls();
     this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
     this.elements.loadButton.disabled = false;
+    this.updateControls();
     return this.capability;
   }
 
@@ -182,15 +188,27 @@ export class LLMController {
     if (!this.capability) await this.initializeCapability();
     if (!this.capability?.supported || this.state === 'loading' || this.ready) return false;
     this.state = 'loading';
-    this.updateControls();
     this.elements.loadButton.hidden = true;
     this.elements.loadButton.disabled = true;
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
     this.elements.status.textContent = cachedOnly ? 'Loading saved model from this browser…' : 'Starting the local model download…';
+    this.updateControls();
     this.send(cachedOnly ? { type: 'load', cachedOnly: true } : { type: 'load' });
     return true;
+  }
+
+  async loadAndWait(cachedOnly = false) {
+    let resolveLoad!: () => void;
+    const settled = new Promise<void>(resolve => { resolveLoad = resolve; });
+    this.loadWaiters.add(resolveLoad);
+    try {
+      if (!await this.load(cachedOnly)) return;
+      await settled;
+    } finally {
+      this.loadWaiters.delete(resolveLoad);
+    }
   }
 
   answerFor(corpus: Corpus) {
@@ -225,11 +243,11 @@ export class LLMController {
       evidenceLabel,
     };
     this.state = 'generating';
-    this.updateControls();
     renderAnswer(answer, '');
     const corpusName = corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
     this.elements.status.textContent = `Generating an answer from ${corpusName} evidence locally…`;
     this.elements.stopButton.disabled = false;
+    this.updateControls();
     this.send({
       type: 'generate',
       requestId,
@@ -255,9 +273,9 @@ export class LLMController {
     this.worker.postMessage({ type: 'cancel', requestId });
     this.activeRequest = null;
     this.state = 'ready';
-    this.updateControls();
     this.elements.stopButton.disabled = true;
     if (!quiet) this.elements.status.textContent = 'Generation stopped. BM25 results remain available.';
+    this.updateControls();
     return true;
   }
 
@@ -266,6 +284,10 @@ export class LLMController {
       this.handleWorkerMessage(message);
     } finally {
       this.updateControls();
+      if (this.state !== 'loading') {
+        for (const resolve of this.loadWaiters) resolve();
+        this.loadWaiters.clear();
+      }
     }
   }
 
@@ -377,10 +399,12 @@ export class LLMController {
     if (this.activeRequest) this.cancel(true);
     this.worker?.terminate();
     this.worker = null;
+    for (const resolve of this.loadWaiters) resolve();
+    this.loadWaiters.clear();
   }
 }
 
-export function setupLLM() {
+export function setupLLM(onState?: (state: ControllerState, message: string) => void, loads?: LoadCoordinator) {
   const elements = {
     setup: requiredElement<HTMLElement>('#llm-setup'),
     loadButton: requiredElement<HTMLButtonElement>('#llm-load'),
@@ -392,11 +416,22 @@ export function setupLLM() {
       msmarco: requiredElement<HTMLElement>('#marco-answer'),
     },
   };
-  const controller = new LLMController({ elements });
-  elements.loadButton.onclick = () => controller.load();
+  const controller = new LLMController({ elements, onState });
+  let queued = false;
+  elements.loadButton.onclick = async () => {
+    if (queued) return;
+    queued = true;
+    elements.loadButton.disabled = true;
+    elements.status.textContent = 'Waiting to load the local model…';
+    onState?.('loading', elements.status.textContent);
+    try {
+      return await (loads ? loads.run(() => controller.loadAndWait()) : controller.loadAndWait());
+    } finally {
+      queued = false;
+      if (controller.state === 'idle' || controller.state === 'error') elements.loadButton.disabled = false;
+    }
+  };
   elements.stopButton.onclick = () => controller.cancel();
-  controller.initializeCapability().then(capability => {
-    if (capability.supported) controller.load(true);
-  });
+  onState?.('checking', elements.status.textContent);
   return controller;
 }

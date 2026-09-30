@@ -1,41 +1,85 @@
 import { it, expect, vi, afterEach } from 'vitest';
 import { setupCollectionChooser } from '../src/collection-chooser.ts';
+
 type FakeElement = {
   hidden: boolean;
   value: string;
-  href?: string;
-  textContent?: string;
-  focus: ReturnType<typeof vi.fn>;
-  scrollIntoView: ReturnType<typeof vi.fn>;
-  append: ReturnType<typeof vi.fn>;
+  textContent: string;
+  onclick?: (event: { preventDefault(): void }) => void;
   onchange?: () => void;
+  focus: ReturnType<typeof vi.fn>;
+  setAttribute: ReturnType<typeof vi.fn>;
+  removeAttribute: ReturnType<typeof vi.fn>;
 };
-afterEach(() => vi.unstubAllGlobals());
-it('starts unselected, shows only the chosen collection, and preserves inputs when switching', () => {
+
+function harness(start = 'https://example.com/ragbox/') {
+  let href = start;
+  let popstate = () => {};
   const elements = new Map<string, FakeElement>();
-  vi.stubGlobal('document', { querySelector(id: string) {
-    if (!elements.has(id)) elements.set(id, { hidden: false, value: '', focus: vi.fn(), scrollIntoView: vi.fn(), append: vi.fn() });
-    return elements.get(id);
-  } });
-  const get = (id: string) => elements.get(id)!;
+  const document = {
+    title: '',
+    querySelector(id: string) {
+      if (!elements.has(id)) elements.set(id, {
+        hidden: false, value: '', textContent: '', focus: vi.fn(),
+        setAttribute: vi.fn(), removeAttribute: vi.fn(),
+      });
+      return elements.get(id);
+    },
+  };
+  const window = {
+    location: { get href() { return href; } },
+    history: { pushState(_state: unknown, _title: string, url: URL) { href = url.href; } },
+    addEventListener(_type: string, listener: () => void) { popstate = listener; },
+    scrollTo: vi.fn(),
+  };
+  vi.stubGlobal('document', document);
+  vi.stubGlobal('window', window);
+  return {
+    get: (id: string) => document.querySelector(id)!,
+    get href() { return href; },
+    setHref(value: string) { href = value; popstate(); },
+    click(id: string) { document.querySelector(id)!.onclick?.({ preventDefault() {} }); },
+  };
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+it('opens NFCorpus search directly and keeps each query and result panel when switching', () => {
+  const ui = harness();
+  const changed = vi.fn();
+  const chooser = setupCollectionChooser(changed);
+  expect(chooser.selected()).toBe('nfcorpus');
+  expect(ui.get('#search-view').hidden).toBe(false);
+  expect(ui.get('#setup-view').hidden).toBe(true);
+  expect(ui.get('#nfcorpus-collection').hidden).toBe(false);
+  expect(ui.get('#collection-description').textContent).toContain('3,633');
+
+  ui.get('#fts-query').value = 'nutrition';
+  ui.get('#collection-switch').value = 'msmarco';
+  ui.get('#collection-switch').onchange?.();
+  expect(changed).toHaveBeenCalledWith('msmarco');
+  expect(ui.get('#nfcorpus-collection').hidden).toBe(true);
+  expect(ui.get('#msmarco-collection').hidden).toBe(false);
+  expect(ui.get('#collection-description').textContent).toContain('8.8 million');
+  expect(ui.get('#fts-query').value).toBe('nutrition');
+  expect(ui.get('#marco-query').focus).toHaveBeenCalled();
+});
+
+it('opens direct Setup links and supports in-page navigation and Back/Forward', () => {
+  const ui = harness('https://example.com/ragbox/?view=setup');
   setupCollectionChooser();
-  expect(get('#search-workspace').hidden).toBe(true);
-  expect(get('#collection-welcome').hidden).toBe(false);
-  get('#collection-start').value = 'nfcorpus';
-  get('#collection-start').onchange?.();
-  expect(get('#nfcorpus-collection').hidden).toBe(false);
-  expect(get('#msmarco-collection').hidden).toBe(true);
-  expect(get('#collection-switch').value).toBe('nfcorpus');
-  expect(get('#fts-search-tools').append).toHaveBeenCalledWith(get('#model'));
-  get('#fts-query').value = 'nutrition';
-  get('#collection-switch').value = 'msmarco';
-  get('#collection-switch').onchange?.();
-  expect(get('#nfcorpus-collection').hidden).toBe(true);
-  expect(get('#msmarco-collection').hidden).toBe(false);
-  expect(get('#marco-query').focus).toHaveBeenCalled();
-  expect(get('#marco-search-tools').append).toHaveBeenCalledWith(get('#model'));
-  expect(get('#fts-query').value).toBe('nutrition');
-  setupCollectionChooser();
-  expect(get('#collection-start').value).toBe('');
-  expect(get('#search-workspace').hidden).toBe(true);
+  expect(ui.get('#setup-view').hidden).toBe(false);
+  expect(ui.get('#search-view').hidden).toBe(true);
+
+  ui.click('#setup-back');
+  expect(ui.href).toBe('https://example.com/ragbox/');
+  expect(ui.get('#search-view').hidden).toBe(false);
+  ui.click('#fts-setup-link');
+  expect(ui.href).toBe('https://example.com/ragbox/?view=setup');
+  expect(ui.get('#setup-view').hidden).toBe(false);
+
+  ui.setHref('https://example.com/ragbox/#fts-result-1');
+  expect(ui.get('#search-view').hidden).toBe(false);
+  ui.setHref('https://example.com/ragbox/?view=setup');
+  expect(ui.get('#setup-view').hidden).toBe(false);
 });
