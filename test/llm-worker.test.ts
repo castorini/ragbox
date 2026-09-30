@@ -1,17 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { WorkerRequest } from '../src/types.ts';
 
-const mocks = vi.hoisted(() => ({ env: {}, pipeline: vi.fn(), streamers: [], criteria: [] }));
+type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string };
+type StreamerOptions = { callback_function: (text: string) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
+type MockStreamer = { options: StreamerOptions };
+type MockCriterion = { interrupt: ReturnType<typeof vi.fn> };
+type MockEnv = { allowRemoteModels: boolean; allowLocalModels: boolean; fetch: typeof fetch };
+
+const mocks = vi.hoisted(() => ({
+  env: {} as MockEnv,
+  pipeline: vi.fn(),
+  streamers: [] as MockStreamer[],
+  criteria: [] as MockCriterion[],
+}));
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
   env: mocks.env,
   TextStreamer: class {
-    constructor(tokenizer, options) {
+    options: StreamerOptions;
+    constructor(_tokenizer: unknown, options: StreamerOptions) {
       this.options = options;
       mocks.streamers.push(this);
     }
   },
   InterruptableStoppingCriteria: class {
+    interrupt: ReturnType<typeof vi.fn>;
     constructor() {
       this.interrupt = vi.fn();
       mocks.criteria.push(this);
@@ -22,31 +36,35 @@ vi.mock('@huggingface/transformers', () => ({
 const documents = [{ id: 'MED-14', title: 'Evidence', text: 'A useful fact.' }];
 
 function deferred() {
-  let resolve;
-  const promise = new Promise(value => { resolve = value; });
+  let resolve!: () => void;
+  const promise = new Promise<void>(value => { resolve = value; });
   return { promise, resolve };
 }
 
-async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load } = {}) {
-  const generator = vi.fn(async (messages, options) => {
+async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load }: {
+  chunks?: string[]; final?: string; load?: Promise<void>;
+} = {}) {
+  const tokenizer = {
+    apply_chat_template: vi.fn((_messages: unknown) => 'formatted prompt'),
+    encode: vi.fn((_prompt: string) => [1, 2, 3]),
+  };
+  const generator = Object.assign(vi.fn(async (messages: Array<{ role: string; content: string }>, options: { streamer: MockStreamer }) => {
     for (const chunk of chunks) options.streamer.options.callback_function(chunk);
     return [{ generated_text: [...messages, { role: 'assistant', content: final ?? chunks.join('') }] }];
-  });
-  generator.tokenizer = {
-    apply_chat_template: vi.fn(() => 'formatted prompt'),
-    encode: vi.fn(() => [1, 2, 3]),
-  };
+  }), { tokenizer });
   mocks.pipeline.mockImplementation(async () => {
     if (load) await load;
     return generator;
   });
-  const messages = [];
-  const worker = { postMessage: message => messages.push(message), onmessage: null };
+  const messages: MockMessage[] = [];
+  const worker: { postMessage: (message: MockMessage) => void; onmessage: ((event: { data: WorkerRequest }) => void) | null } = {
+    postMessage: message => { messages.push(message); }, onmessage: null,
+  };
   vi.stubGlobal('self', worker);
-  await import('../src/llm-worker.js');
-  const send = data => worker.onmessage({ data });
-  const generate = (overrides = {}) => send({
-    type: 'generate', requestId: 'request-1', question: 'What is known?', documents, ...overrides,
+  await import('../src/llm-worker.ts');
+  const send = (data: WorkerRequest) => worker.onmessage?.({ data });
+  const generate = (overrides: Partial<Extract<WorkerRequest, { type: 'generate' }>> = {}) => send({
+    type: 'generate', requestId: 'request-1', corpus: 'nfcorpus', question: 'What is known?', documents, ...overrides,
   });
   const terminal = async (requestId = 'request-1') => {
     await vi.waitFor(() => expect(messages.some(message =>
@@ -74,7 +92,7 @@ describe('LLM worker generation', () => {
     const finish = deferred();
     const originalGenerate = harness.generator.getMockImplementation();
     harness.generator.mockImplementation(async (...args) => {
-      const result = await originalGenerate(...args);
+      const result = await originalGenerate!(...args);
       await finish.promise;
       return result;
     });
@@ -267,7 +285,7 @@ it('removes HTML cached as external weights but preserves valid weights and unre
   const unrelated = { url: 'https://example.com/page.html' };
   const cache = {
     keys: async () => [bad, good, unrelated],
-    match: async request => ({ headers: new Headers({ 'content-type': request === good ? 'application/octet-stream' : 'text/html' }) }),
+    match: async (request: { url: string }) => ({ headers: new Headers({ 'content-type': request === good ? 'application/octet-stream' : 'text/html' }) }),
     delete: vi.fn(),
   };
   vi.stubGlobal('caches', { keys: async () => ['transformers-cache'], open: async () => cache });

@@ -20,7 +20,7 @@ Return only the final answer. Do not include reasoning, a preamble, or an explan
 // template instead; stripThinking remains a defensive output filter.
 export const CHAT_TEMPLATE_OPTIONS = Object.freeze({ enable_thinking: false });
 
-function serializableDocument(document) {
+function serializableDocument(document: EvidenceDocument): EvidenceDocument {
   return {
     id: String(document.id),
     title: String(document.title ?? ''),
@@ -28,7 +28,7 @@ function serializableDocument(document) {
   };
 }
 
-export function buildMessages(question, documents) {
+export function buildMessages(question: string, documents: EvidenceDocument[]) {
   const evidence = documents.map(serializableDocument);
   return [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -44,9 +44,9 @@ export function buildMessages(question, documents) {
 }
 
 export async function fitDocumentsToTokenBudget(
-  question,
-  documents,
-  countTokens,
+  question: string,
+  documents: EvidenceDocument[],
+  countTokens: (messages: ReturnType<typeof buildMessages>) => Promise<number>,
   maxTokens = 3500,
 ) {
   const selected = [];
@@ -78,7 +78,7 @@ export async function fitDocumentsToTokenBudget(
   return selected;
 }
 
-export function stripThinking(text) {
+export function stripThinking(text: unknown) {
   const value = String(text ?? '');
   // A prompt may already contain the opening tag. Discard that initial
   // reasoning when only its closing tag appears in the generated text.
@@ -104,11 +104,11 @@ export function stripThinking(text) {
   return visible;
 }
 
-export function streamedAnswer(text) {
+export function streamedAnswer(text: unknown) {
   return stripThinking(text);
 }
 
-export function extractCitations(text, allowedIds) {
+export function extractCitations(text: unknown, allowedIds?: Iterable<string | number>) {
   const allowed = allowedIds ? new Set([...allowedIds].map(String)) : null;
   const citations = [];
   const seen = new Set();
@@ -120,3 +120,4 @@ export function extractCitations(text, allowedIds) {
   }
   return citations;
 }
+import type { EvidenceDocument } from './types.ts';

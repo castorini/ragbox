@@ -1,7 +1,13 @@
-import { openPrebuilt, PREBUILT_NAME } from './prebuilt-msmarco.js';
-import { downloadPrebuilt } from './download-prebuilt.js';
+import { openPrebuilt, PREBUILT_NAME } from './prebuilt-msmarco.ts';
+import { downloadPrebuilt } from './download-prebuilt.ts';
+import { errorMessage, errorName, requiredElement, rowsAs } from './boundaries.ts';
+import type { LLMController } from './llm-controller.ts';
+import type { EvidenceDocument, RunTask } from './types.ts';
 
-export function normalizeMSMarcoResults(rows) {
+type MarcoRow = { id: string | number | bigint; contents: string; score: number };
+type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+
+export function normalizeMSMarcoResults<T extends { id: string | number | bigint; contents?: string | null }>(rows: T[]): EvidenceDocument[] {
   return rows.map(row => ({
     id: `MARCO-${String(row.id)}`,
     title: `Passage ${String(row.id)}`,
@@ -9,25 +15,25 @@ export function normalizeMSMarcoResults(rows) {
   }));
 }
 
-export function setupMSMarco(run = task => task(), llm) {
-  const status = document.querySelector('#marco-status');
-  const output = document.querySelector('#marco-results');
-  const fetchButton = document.querySelector('#marco-fetch');
-  const reopenButton = document.querySelector('#marco-reopen');
-  const searchButton = document.querySelector('#marco-search');
-  const progress = document.querySelector('#marco-progress');
-  const cancelDownload = document.querySelector('#marco-cancel-download');
-  const setup = document.querySelector('#marco-setup');
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
+  const status = requiredElement<HTMLElement>('#marco-status');
+  const output = requiredElement<HTMLOListElement>('#marco-results');
+  const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
+  const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
+  const searchButton = requiredElement<HTMLButtonElement>('#marco-search');
+  const progress = requiredElement<HTMLProgressElement>('#marco-progress');
+  const cancelDownload = requiredElement<HTMLButtonElement>('#marco-cancel-download');
+  const setup = requiredElement<HTMLElement>('#marco-setup');
   const downloadUrl = import.meta.env.VITE_MSMARCO_INDEX_URL ||
     'https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/resolve/d8b39bc9edc94a16fb77359243163ed80c609c84/msmarco-prebuilt.duckdb';
   const downloadBytes = 3346542592;
-  let prebuilt;
+  let prebuilt: Awaited<ReturnType<typeof openPrebuilt>> | undefined;
   let busy = false;
   let blocked = false;
   let checkingSaved = true;
   let retryOpen = false;
-  let downloadController;
-  const supported = window.isSecureContext && navigator.storage?.getDirectory;
+  let downloadController: AbortController | undefined;
+  const supported = Boolean(window.isSecureContext && navigator.storage?.getDirectory);
   function updateButtons() {
     setup.hidden = !!prebuilt || checkingSaved || !supported;
     fetchButton.hidden = checkingSaved || !!prebuilt || busy;
@@ -37,7 +43,7 @@ export function setupMSMarco(run = task => task(), llm) {
     reopenButton.disabled = !supported || busy || blocked;
     searchButton.disabled = !supported || busy || blocked || !prebuilt;
   }
-  async function action(task) {
+  async function action<T>(task: () => Promise<T>): Promise<T | undefined> {
     if (busy || blocked || !supported) return;
     busy = true;
     updateButtons();
@@ -46,10 +52,10 @@ export function setupMSMarco(run = task => task(), llm) {
         try {
           return await task();
         } catch (error) {
-          status.textContent = error.name === 'NotFoundError'
+          status.textContent = errorName(error) === 'NotFoundError'
             ? 'No saved index found. Download the index first.'
-            : `Unable to complete the request: ${error.message}`;
-          if (!prebuilt) { checkingSaved = false; retryOpen = error.name !== 'NotFoundError'; }
+            : `Unable to complete the request: ${errorMessage(error)}`;
+          if (!prebuilt) { checkingSaved = false; retryOpen = errorName(error) !== 'NotFoundError'; }
           console.error(error);
           throw error;
         }
@@ -85,7 +91,8 @@ export function setupMSMarco(run = task => task(), llm) {
       if (estimate.quota != null && estimate.usage != null && estimate.quota - estimate.usage < downloadBytes) {
         throw new Error('Not enough available browser storage for this download.');
       }
-      downloadController = new AbortController();
+      const controller = new AbortController();
+      downloadController = controller;
       cancelDownload.hidden = false;
       cancelDownload.disabled = false;
       progress.hidden = false;
@@ -94,7 +101,7 @@ export function setupMSMarco(run = task => task(), llm) {
       try {
         status.textContent = 'Starting index download…';
         await downloadPrebuilt({ url: downloadUrl, bytes: downloadBytes,
-          root, name: PREBUILT_NAME, signal: downloadController.signal,
+          root, name: PREBUILT_NAME, signal: controller.signal,
           onProgress(received, total) {
             const now = performance.now();
             if (now - lastUpdate < 200 && received !== total) return;
@@ -107,7 +114,7 @@ export function setupMSMarco(run = task => task(), llm) {
         status.textContent = 'Download complete. Opening the saved index…';
         await connectPrebuilt();
       } catch (error) {
-        if (error.name === 'AbortError') {
+        if (errorName(error) === 'AbortError') {
           status.textContent = 'Download cancelled. You can retry or reopen a previously saved index.';
           return;
         }
@@ -126,12 +133,13 @@ export function setupMSMarco(run = task => task(), llm) {
     status.textContent = 'Opening the saved index…';
     await connectPrebuilt();
   });
-  document.querySelector('#marco-form').onsubmit = event => {
+  requiredElement<HTMLFormElement>('#marco-form').onsubmit = event => {
     event.preventDefault();
-    const query = document.querySelector('#marco-query').value.trim();
+    const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
     if (!query) return;
     llm?.beginRetrieval('msmarco');
-    if (!prebuilt) {
+    const activePrebuilt = prebuilt;
+    if (!activePrebuilt) {
       status.textContent = 'Download or reopen the index before searching.';
       llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
       return;
@@ -139,11 +147,11 @@ export function setupMSMarco(run = task => task(), llm) {
     return action(async () => {
       output.replaceChildren();
       status.textContent = 'Searching…';
-      const stmt = await prebuilt.conn.prepare(`SELECT id, contents,
+      const stmt = await activePrebuilt.conn.prepare(`SELECT id, contents,
         fts_main_msmarco.match_bm25(id, ?) AS score FROM msmarco
         WHERE score IS NOT NULL ORDER BY score DESC, id LIMIT 10`);
       let rows;
-      try { rows = (await stmt.query(query)).toArray(); }
+      try { rows = rowsAs<MarcoRow>(await stmt.query(query)); }
       finally { await stmt.close(); }
       for (const row of rows) {
         const item = document.createElement('li');
@@ -191,11 +199,11 @@ export function setupMSMarco(run = task => task(), llm) {
         await root.getFileHandle(PREBUILT_NAME);
       } catch (error) {
         checkingSaved = false;
-        retryOpen = error.name !== 'NotFoundError';
+        retryOpen = errorName(error) !== 'NotFoundError';
         updateButtons();
-        status.textContent = error.name === 'NotFoundError'
+        status.textContent = errorName(error) === 'NotFoundError'
           ? 'Download the index once to start searching.'
-          : `Could not check saved index: ${error.message}. Use “Retry opening index” to try again.`;
+          : `Could not check saved index: ${errorMessage(error)}. Use “Retry opening index” to try again.`;
         return;
       }
       checkingSaved = false;
@@ -205,7 +213,7 @@ export function setupMSMarco(run = task => task(), llm) {
         await connectPrebuilt();
       });
     },
-    setBlocked(value) { blocked = value; updateButtons(); },
+    setBlocked(value: boolean) { blocked = value; updateButtons(); },
     async close() {
       await closePrebuilt();
       output.replaceChildren();

@@ -1,22 +1,23 @@
-import { setupSearchGuidance } from './search-guidance.js';
-import { setupCollectionChooser } from './collection-chooser.js';
+import { setupSearchGuidance } from './search-guidance.ts';
+import { setupCollectionChooser } from './collection-chooser.ts';
 import * as duckdb from '@duckdb/duckdb-wasm';
 import './style.css';
-import { setupNFCorpus } from './nfcorpus.js';
-import { setupMSMarco } from './msmarco.js';
-import { setupLLM } from './llm-controller.js';
+import { setupNFCorpus } from './nfcorpus.ts';
+import { setupMSMarco } from './msmarco.ts';
+import { setupLLM } from './llm-controller.ts';
+import { errorMessage, requiredElement } from './boundaries.ts';
+import type { RunTask } from './types.ts';
 
 setupCollectionChooser();
 setupSearchGuidance();
 
-const status = document.querySelector('#status');
-let db;
-let conn;
+const status = requiredElement<HTMLElement>('#status');
+let db: duckdb.AsyncDuckDB | undefined;
 let busy = false;
-let marco;
-let nfcorpus;
+let marco: ReturnType<typeof setupMSMarco> | undefined;
+let nfcorpus: ReturnType<typeof setupNFCorpus> | undefined;
 
-async function run(action) {
+const run: RunTask = async action => {
   if (busy) return;
   busy = true;
   marco?.setBlocked(true);
@@ -24,14 +25,14 @@ async function run(action) {
   try {
     return await action();
   } catch (error) {
-    status.textContent = `Error: ${error.message}`;
+    status.textContent = `Error: ${errorMessage(error)}`;
     console.error(error);
   } finally {
     busy = false;
     marco?.setBlocked(false);
     nfcorpus?.setBlocked(false);
   }
-}
+};
 
 const llm = setupLLM();
 
@@ -55,7 +56,7 @@ async function main() {
     accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
     opfs: { fileHandling: 'auto' },
   });
-  conn = await db.connect();
+  const conn = await db.connect();
   nfcorpus = setupNFCorpus(db, conn, run, llm);
   marco = setupMSMarco(run, llm);
   status.textContent = 'Ready.';
@@ -63,7 +64,7 @@ async function main() {
   await marco.reopenSaved();
 }
 main().catch(async error => {
-  status.textContent = `Startup failed: ${error.message}`;
+  status.textContent = `Startup failed: ${errorMessage(error)}`;
   console.error(error);
   if (db) await db.terminate().catch(console.error);
 });

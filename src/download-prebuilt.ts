@@ -1,5 +1,15 @@
 // Write to a staged OPFS stream. close() commits; abort() preserves an old file.
-export async function downloadPrebuilt({ url, bytes, root, name, signal, onProgress = () => {}, fetcher = fetch }) {
+export interface DownloadOptions {
+  url: string;
+  bytes: number;
+  root: FileSystemDirectoryHandle;
+  name: string;
+  signal?: AbortSignal;
+  onProgress?: (received: number, total: number) => void;
+  fetcher?: typeof fetch;
+}
+
+export async function downloadPrebuilt({ url, bytes, root, name, signal, onProgress = () => {}, fetcher = fetch }: DownloadOptions) {
   if (!url) throw new Error('The public index download has not been configured yet.');
   const parsed = new URL(url);
   if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(parsed.hostname))) {
@@ -12,7 +22,7 @@ export async function downloadPrebuilt({ url, bytes, root, name, signal, onProgr
     throw new Error('The download URL returned a web page instead of a database.');
   }
   const reader = response.body.getReader();
-  let writable;
+  let writable: FileSystemWritableFileStream | undefined;
   let received = 0;
   try {
     const handle = await root.getFileHandle(name, { create: true });

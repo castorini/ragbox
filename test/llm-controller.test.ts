@@ -1,15 +1,27 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { LLMController, renderAnswer } from '../src/llm-controller.js';
+import { LLMController, renderAnswer } from '../src/llm-controller.ts';
+import type { Capability } from '../src/llm-controller.ts';
+
+type FakeNode = { nodeType?: string; tagName?: string; textContent: string; href?: string; title?: string };
 
 function fakeDocument() {
   return {
-    createTextNode: text => ({ nodeType: 'text', textContent: text }),
-    createElement: tagName => ({ tagName, textContent: '', href: '', title: '' }),
+    createTextNode: (text: string): FakeNode => ({ nodeType: 'text', textContent: text }),
+    createElement: (tagName: string): FakeNode => ({ tagName, textContent: '', href: '', title: '' }),
   };
 }
 
 class FakeEventTarget {
-  constructor(ownerDocument = null) {
+  disabled: boolean;
+  hidden: boolean;
+  textContent: string;
+  value: number | undefined;
+  max: number;
+  children: FakeNode[];
+  ownerDocument: ReturnType<typeof fakeDocument> | null;
+  listeners: Map<string, Array<(event: { type: string; target: FakeEventTarget }) => void>>;
+
+  constructor(ownerDocument: ReturnType<typeof fakeDocument> | null = null) {
     this.disabled = false;
     this.hidden = false;
     this.textContent = '';
@@ -20,42 +32,46 @@ class FakeEventTarget {
     this.listeners = new Map();
   }
 
-  addEventListener(type, listener) {
+  addEventListener(type: string, listener: (event: { type: string; target: FakeEventTarget }) => void) {
     const listeners = this.listeners.get(type) ?? [];
     listeners.push(listener);
     this.listeners.set(type, listeners);
   }
 
-  removeEventListener(type, listener) {
+  removeEventListener(type: string, listener: (event: { type: string; target: FakeEventTarget }) => void) {
     this.listeners.set(type, (this.listeners.get(type) ?? []).filter(value => value !== listener));
   }
 
-  dispatch(type) {
+  dispatch(type: string) {
     for (const listener of this.listeners.get(type) ?? []) listener({ type, target: this });
   }
 
-  removeAttribute(name) {
+  removeAttribute(name: string) {
     if (name === 'value') this.value = undefined;
   }
 
-  replaceChildren(...children) {
+  replaceChildren(...children: FakeNode[]) {
     this.children = children;
     this.textContent = children.map(child => child.textContent).join('');
   }
 }
 
 class MockWorker {
+  messages: Array<{ type: string; requestId?: string; [key: string]: unknown }>;
+  onmessage: ((event: { data: unknown }) => void) | null;
+  terminated: boolean;
+
   constructor() {
     this.messages = [];
     this.onmessage = null;
     this.terminated = false;
   }
 
-  postMessage(message) {
+  postMessage(message: { type: string; requestId?: string; [key: string]: unknown }) {
     this.messages.push(message);
   }
 
-  emit(data) {
+  emit(data: unknown) {
     this.onmessage?.({ data });
   }
 
@@ -64,7 +80,7 @@ class MockWorker {
   }
 }
 
-function createHarness(capability = { supported: true }) {
+function createHarness(capability: Capability = { supported: true }) {
   const worker = new MockWorker();
   const document = fakeDocument();
   const answers = {
@@ -79,13 +95,13 @@ function createHarness(capability = { supported: true }) {
     progress: new FakeEventTarget(),
     answers,
   };
-  const workerFactory = vi.fn(() => worker);
+  const workerFactory = vi.fn(() => worker as unknown as Worker);
   const detectWebGPU = vi.fn(async () => capability);
-  const controller = new LLMController({ workerFactory, elements, detectWebGPU });
+  const controller = new LLMController({ workerFactory, elements: elements as unknown as ConstructorParameters<typeof LLMController>[0]['elements'], detectWebGPU });
   return { answers, controller, detectWebGPU, elements, worker, workerFactory };
 }
 
-async function readyHarness(capability) {
+async function readyHarness(capability?: Capability) {
   const harness = createHarness(capability);
   await harness.controller.initializeCapability();
   await harness.controller.load();
@@ -93,7 +109,7 @@ async function readyHarness(capability) {
   return harness;
 }
 
-function links(container) {
+function links(container: FakeEventTarget) {
   return container.children.filter(node => node.tagName === 'a');
 }
 
@@ -184,7 +200,7 @@ describe('LLMController', () => {
       documents: [{ id: 'MED-14', title: 'One', text: 'First' }],
       citationTargets: new Map([['MED-14', '#fts-result-MED-14']]),
     });
-    const first = worker.messages.find(message => message.type === 'generate');
+    const first = worker.messages.find(message => message.type === "generate")!;
     worker.emit({ type: 'context', requestId: first.requestId, documentIds: ['MED-14'] });
     worker.emit({ type: 'answer-delta', requestId: first.requestId, text: 'Current [MED-14].' });
     expect(answers.nfcorpus.textContent).toBe('Current [MED-14].');
@@ -203,7 +219,7 @@ describe('LLMController', () => {
       ]),
       evidenceLabel: 'passages',
     });
-    const second = worker.messages.filter(message => message.type === 'generate').at(-1);
+    const second = worker.messages.filter(message => message.type === 'generate').at(-1)!;
     expect(second.requestId).not.toBe(first.requestId);
     expect(worker.messages).toContainEqual({ type: 'cancel', requestId: first.requestId });
     expect(elements.status.textContent).toBe('Generating an answer from MS MARCO evidence locally…');
@@ -258,7 +274,7 @@ describe('LLMController', () => {
       },
       evidenceLabel: 'documents',
     });
-    const request = worker.messages.find(message => message.type === 'generate');
+    const request = worker.messages.find(message => message.type === "generate")!;
     worker.emit({
       type: 'complete',
       requestId: request.requestId,
@@ -281,7 +297,7 @@ describe('LLMController', () => {
       documents: [{ id: 'MED-14', title: 'One', text: 'Evidence' }],
       citationTargets: new Map([['MED-14', '#fts-result-MED-14']]),
     });
-    const request = worker.messages.find(message => message.type === 'generate');
+    const request = worker.messages.find(message => message.type === "generate")!;
 
     controller.cancel();
     expect(worker.messages).toContainEqual({ type: 'cancel', requestId: request.requestId });
@@ -300,7 +316,7 @@ describe('LLMController', () => {
       documents: [{ id: 'MED-14', title: 'One', text: 'Evidence' }],
       citationTargets: new Map([['MED-14', '#fts-result-MED-14']]),
     });
-    const request = worker.messages.find(message => message.type === 'generate');
+    const request = worker.messages.find(message => message.type === "generate")!;
 
     worker.emit({ type: 'complete', requestId: request.requestId, answer, documentIds: ['MED-14'] });
 
@@ -319,7 +335,7 @@ describe('LLMController', () => {
       documents: [{ id: 'MED-14', title: 'One', text: 'Evidence' }],
       citationTargets: new Map([['MED-14', '#fts-result-MED-14']]),
     });
-    const request = worker.messages.find(message => message.type === 'generate');
+    const request = worker.messages.find(message => message.type === "generate")!;
     const answer = 'The retrieved documents do not contain enough information to answer this question.';
 
     worker.emit({ type: 'complete', requestId: request.requestId, answer, documentIds: ['MED-14'] });
@@ -330,15 +346,15 @@ describe('LLMController', () => {
 
   it('clears the new corpus destination and cancels the active generation at retrieval start', async () => {
     const { answers, controller, worker } = await readyHarness();
-    renderAnswer(answers.nfcorpus, 'Previous NFCorpus answer.');
-    renderAnswer(answers.msmarco, 'Previous MS MARCO answer.');
+    renderAnswer(answers.nfcorpus as unknown as HTMLElement, 'Previous NFCorpus answer.');
+    renderAnswer(answers.msmarco as unknown as HTMLElement, 'Previous MS MARCO answer.');
     controller.generate({
       corpus: 'nfcorpus',
       question: 'question',
       documents: [{ id: 'MED-14', title: 'One', text: 'Evidence' }],
       citationTargets: new Map([['MED-14', '#fts-result-MED-14']]),
     });
-    const request = worker.messages.find(message => message.type === 'generate');
+    const request = worker.messages.find(message => message.type === "generate")!;
 
     controller.beginRetrieval('msmarco');
 
@@ -368,7 +384,7 @@ describe('renderAnswer', () => {
     const container = new FakeEventTarget(fakeDocument());
 
     renderAnswer(
-      container,
+      container as unknown as HTMLElement,
       '<b>Claim</b> [MED-14], passage [MARCO-12], and unknown [MED-404].',
       new Map([
         ['MED-14', '#fts-result-MED-14'],

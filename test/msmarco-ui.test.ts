@@ -1,29 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../src/prebuilt-msmarco.js', () => ({
+vi.mock('../src/prebuilt-msmarco.ts', () => ({
   openPrebuilt: vi.fn(),
   PREBUILT_NAME: 'msmarco-prebuilt.duckdb',
 }));
 
-import { openPrebuilt } from '../src/prebuilt-msmarco.js';
-import { normalizeMSMarcoResults, setupMSMarco } from '../src/msmarco.js';
+import { openPrebuilt } from '../src/prebuilt-msmarco.ts';
+import { normalizeMSMarcoResults, setupMSMarco } from '../src/msmarco.ts';
+import { FakeElements, fakeElement } from './fake-elements.ts';
+import type { RunTask } from '../src/types.ts';
 
-let elements;
-
-function element(tagName = '') {
-  return {
-    tagName,
-    id: '',
-    tabIndex: 0,
-    disabled: false,
-    hidden: false,
-    value: '',
-    textContent: '',
-    children: [],
-    replaceChildren(...items) { this.children = items; },
-    append(...items) { this.children.push(...items); },
-  };
-}
+const mockedOpenPrebuilt = vi.mocked(openPrebuilt);
+let elements: FakeElements;
+let getDirectory = vi.fn();
 
 function createLLM() {
   return {
@@ -33,11 +22,11 @@ function createLLM() {
   };
 }
 
-function resultSet(rows) {
+function resultSet(rows: unknown[]) {
   return { toArray: () => rows };
 }
 
-function searchablePrebuilt(rows, overrides = {}) {
+function searchablePrebuilt(rows: unknown[], overrides: Record<string, unknown> = {}) {
   const statement = {
     query: vi.fn().mockResolvedValue(resultSet(rows)),
     close: vi.fn(),
@@ -51,26 +40,32 @@ function searchablePrebuilt(rows, overrides = {}) {
   return { prebuilt, statement };
 }
 
-async function openAndSearch({ llm, prebuilt, query = "what's a corporation" }) {
-  openPrebuilt.mockResolvedValue(prebuilt);
+function asIndex(value: unknown): Awaited<ReturnType<typeof openPrebuilt>> {
+  return value as Awaited<ReturnType<typeof openPrebuilt>>;
+}
+
+async function openAndSearch({ llm, prebuilt, query = "what's a corporation" }: {
+  llm: ReturnType<typeof createLLM>;
+  prebuilt: ReturnType<typeof searchablePrebuilt>['prebuilt'];
+  query?: string;
+}) {
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(prebuilt));
   setupMSMarco(task => task(), llm);
   await elements.get('#marco-reopen').onclick();
-  document.querySelector('#marco-query').value = query;
+  elements.get('#marco-query').value = query;
   await elements.get('#marco-form').onsubmit({ preventDefault() {} });
 }
 
 beforeEach(() => {
-  elements = new Map();
+  elements = new FakeElements();
   vi.stubGlobal('document', {
-    querySelector(selector) {
-      if (!elements.has(selector)) elements.set(selector, element());
-      return elements.get(selector);
-    },
-    createElement: tagName => element(tagName),
+    querySelector: (selector: string) => elements.get(selector),
+    createElement: fakeElement,
   });
   vi.stubGlobal('window', { isSecureContext: true });
-  vi.stubGlobal('navigator', { storage: { getDirectory: vi.fn() } });
-  openPrebuilt.mockReset();
+  getDirectory = vi.fn();
+  vi.stubGlobal('navigator', { storage: { getDirectory } });
+  mockedOpenPrebuilt.mockReset();
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -153,14 +148,14 @@ describe('MS MARCO search UI', () => {
       close: vi.fn(),
     };
     const llm = createLLM();
-    const run = vi.fn(async task => {
+    const run: RunTask = async task => {
       try { return await task(); }
       catch { return undefined; }
-    });
-    openPrebuilt.mockResolvedValue(prebuilt);
+    };
+    mockedOpenPrebuilt.mockResolvedValue(asIndex(prebuilt));
     setupMSMarco(run, llm);
     await elements.get('#marco-reopen').onclick();
-    document.querySelector('#marco-query').value = 'broken search';
+    elements.get('#marco-query').value = 'broken search';
 
     await elements.get('#marco-form').onsubmit({ preventDefault() {} });
 
@@ -175,7 +170,7 @@ describe('MS MARCO search UI', () => {
 
   it('keeps search disabled and provides download guidance when no saved file exists', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    openPrebuilt.mockRejectedValue(new DOMException('missing', 'NotFoundError'));
+    mockedOpenPrebuilt.mockRejectedValue(new DOMException('missing', 'NotFoundError'));
     setupMSMarco();
 
     await elements.get('#marco-reopen').onclick();
@@ -197,9 +192,9 @@ describe('MS MARCO search UI', () => {
   it('cancels the MS MARCO answer when replacing or closing its index', async () => {
     const first = searchablePrebuilt([]).prebuilt;
     const second = searchablePrebuilt([]).prebuilt;
-    openPrebuilt.mockResolvedValueOnce(first).mockResolvedValueOnce(second);
+    mockedOpenPrebuilt.mockResolvedValueOnce(asIndex(first)).mockResolvedValueOnce(asIndex(second));
     const llm = createLLM();
-    const run = vi.fn(task => task());
+    const run: RunTask = task => task();
     const controller = setupMSMarco(run, llm);
 
     controller.setBlocked(true);
@@ -223,8 +218,8 @@ describe('MS MARCO search UI', () => {
 });
 
 it('opens an existing OPFS index automatically and enables search', async () => {
-  navigator.storage.getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
-  openPrebuilt.mockResolvedValue(searchablePrebuilt([]).prebuilt);
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(searchablePrebuilt([]).prebuilt));
   const controller = setupMSMarco(task => task(), createLLM());
   await controller.reopenSaved();
   expect(openPrebuilt).toHaveBeenCalledOnce();
@@ -233,7 +228,7 @@ it('opens an existing OPFS index automatically and enables search', async () => 
   expect(elements.get('#marco-search').disabled).toBe(false);
 });
 it('does not create or download an index when no saved file exists', async () => {
-  navigator.storage.getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) });
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) });
   const controller = setupMSMarco(task => task(), createLLM());
   await controller.reopenSaved();
   expect(openPrebuilt).not.toHaveBeenCalled();

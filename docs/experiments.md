@@ -103,15 +103,18 @@ Both downloads are snapshots. Later browser changes do not update previously dow
 
 ```text
 index.html        Page layout and experiment buttons
-src/main.js       DuckDB initialization, SQL queries, and exports
-src/nfcorpus.js   NFCorpus import, FTS indexing, and search interface
+src/main.ts       DuckDB initialization and app startup
+src/nfcorpus.ts   NFCorpus import, FTS indexing, and search interface
+src/msmarco.ts    Saved MS MARCO index and search interface
+src/llm-worker.ts Local answer generation in a Web Worker
+src/types.ts      Shared evidence and worker message types
 src/style.css     Page styling
-scripts/prepare-nfcorpus.mjs Dataset validation and preparation
+scripts/prepare-nfcorpus.ts Dataset validation and preparation
 package.json      Dependencies and development commands
 package-lock.json Locked dependency versions
 ```
 
-Start with `main()` in `src/main.js` to follow initialization, then read the button handlers for each experiment.
+Start with `main()` in `src/main.ts` to follow initialization, then read the collection modules for search behavior.
 
 ## Build and validation
 
@@ -119,7 +122,7 @@ Start with `main()` in `src/main.js` to follow initialization, then read the but
 npm run build
 ```
 
-The production bundle is generated in `dist/`. A successful build verifies bundling; persistence and exports require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
+The production bundle is generated in `dist/`. A successful build verifies strict TypeScript checks and bundling; persistence and exports require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
 
 ## NFCorpus full-text search in the browser
 
@@ -140,7 +143,7 @@ The preparation script validates document IDs and copies title/text fields to `p
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
 
-The module is in `src/nfcorpus.js`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. FTS indexes do not automatically track table edits.
+The module is in `src/nfcorpus.ts`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. FTS indexes do not automatically track table edits.
 
 ### Core FTS operations
 
@@ -219,7 +222,7 @@ Measurements include source size, actual imported row count, engine version, imp
 
 A partial import after an error is not a completed experiment. Reimport to retry. Batching bounds JavaScript input buffers but does not bound DuckDB-Wasm's memory use during index construction. Million-passage and full-corpus runs are experimental and have not been validated in a browser. A tab crash may lose the in-memory measurement log. **Reset all data** also deletes the MS MARCO table/index because they live in the shared demo database.
 
-Implementation: `src/msmarco-stream.js` handles streaming TSV parsing; `src/msmarco.js` handles import, indexing, results, and measurement download. Building in the browser requires a local `collection.tsv`; visitors can instead download the prebuilt index described below.
+Implementation: `src/msmarco-stream.ts` handles streaming TSV parsing; `src/msmarco.ts` handles import, indexing, results, and measurement download. Building in the browser requires a local `collection.tsv`; visitors can instead download the prebuilt index described below.
 
 ## Build MS MARCO FTS outside the browser
 
@@ -261,4 +264,4 @@ VITE_MSMARCO_INDEX_URL=https://your-host.example/msmarco-prebuilt.duckdb
 
 Restart Vite after changing it. For GitHub Pages, add the repository Actions variable **MSMARCO_INDEX_URL** under **Settings → Secrets and variables → Actions → Variables**, then rerun the deployment. The Pages workflow passes it to Vite at build time.
 
-The expected artifact size is currently 3,346,542,592 bytes. If publishing a different build, update `downloadBytes` in `src/msmarco.js` as well. Visitors need browser storage for the downloaded file; replacing an existing copy may temporarily require additional disk space. Downloads do not resume across reloads. After a completed download, use **Reopen saved prebuilt index** on later visits.
+The expected artifact size is currently 3,346,542,592 bytes. If publishing a different build, update `downloadBytes` in `src/msmarco.ts` as well. Visitors need browser storage for the downloaded file; replacing an existing copy may temporarily require additional disk space. Downloads do not resume across reloads. After a completed download, use **Reopen saved prebuilt index** on later visits.

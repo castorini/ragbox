@@ -1,8 +1,9 @@
 import * as duckdb from '@duckdb/duckdb-wasm';
+import { rowsAs } from './boundaries.ts';
 export const PREBUILT_NAME = 'msmarco-prebuilt.duckdb';
 
 // Copy via streams directly into OPFS, without buffering a multi-GB file in JS.
-export async function copyPrebuilt(file, root) {
+export async function copyPrebuilt(file: Pick<Blob, 'stream'>, root: FileSystemDirectoryHandle) {
   const handle = await root.getFileHandle(PREBUILT_NAME, { create: true });
   const writable = await handle.createWritable();
   await file.stream().pipeTo(writable);
@@ -18,7 +19,7 @@ export async function openPrebuilt() {
   ], { type: 'text/javascript' }));
   const worker = new Worker(url);
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
-  let conn;
+  let conn: duckdb.AsyncDuckDBConnection | undefined;
   try {
     await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
     await db.open({ path: `opfs://${PREBUILT_NAME}`, accessMode: duckdb.DuckDBAccessMode.READ_ONLY });
@@ -27,9 +28,10 @@ export async function openPrebuilt() {
     // Bind and execute the actual saved retrieval macro to validate the artifact.
     await conn.query(`SELECT fts_main_msmarco.match_bm25(id, 'corporation') AS score
       FROM msmarco LIMIT 1`);
-    const count = Number((await conn.query('SELECT count(*) AS n FROM msmarco')).toArray()[0].n);
+    const count = Number(rowsAs<{ n: number | bigint }>(await conn.query('SELECT count(*) AS n FROM msmarco'))[0].n);
+    const activeConn = conn;
     return { conn, count, async close() {
-      try { await conn.close(); } finally { await db.terminate(); }
+      try { await activeConn.close(); } finally { await db.terminate(); }
     } };
   } catch (error) {
     if (conn) await conn.close().catch(() => {});

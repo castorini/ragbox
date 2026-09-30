@@ -1,21 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { setupNFCorpus } from '../src/nfcorpus.js';
+import { setupNFCorpus } from '../src/nfcorpus.ts';
+import { FakeElements, fakeElement } from './fake-elements.ts';
 
-let elements;
-
-function element(tagName = '') {
-  return {
-    tagName,
-    id: '',
-    tabIndex: 0,
-    value: '',
-    textContent: '',
-    children: [],
-    replaceChildren(...items) { this.children = items; },
-    append(...items) { this.children.push(...items); },
-  };
-}
+let elements: FakeElements;
 
 function createLLM() {
   return {
@@ -25,18 +13,18 @@ function createLLM() {
   };
 }
 
-function resultSet(rows) {
+function resultSet(rows: unknown[]) {
   return { toArray: () => rows };
 }
 
-function createConnection(rows, columns = ['id', 'title', 'text', 'contents']) {
+function createConnection(rows: unknown[], columns = ['id', 'title', 'text', 'contents']) {
   const statement = {
     query: vi.fn().mockResolvedValue(resultSet(rows)),
     close: vi.fn(),
   };
   const conn = {
     prepare: vi.fn().mockResolvedValue(statement),
-    query: vi.fn(async sql => {
+    query: vi.fn(async (sql: string) => {
       if (sql.includes('information_schema.columns')) return resultSet(columns.map(column_name => ({ column_name })));
       if (sql.includes('information_schema.schemata')) return resultSet([{ n: 1 }]);
       if (sql.includes('information_schema.tables')) return resultSet([{ n: 1 }]);
@@ -46,14 +34,20 @@ function createConnection(rows, columns = ['id', 'title', 'text', 'contents']) {
   return { conn, statement };
 }
 
+function start(conn: ReturnType<typeof createConnection>['conn'], llm = createLLM()) {
+  return setupNFCorpus(
+    {} as Parameters<typeof setupNFCorpus>[0],
+    conn as unknown as Parameters<typeof setupNFCorpus>[1],
+    task => task(),
+    llm,
+  );
+}
+
 beforeEach(() => {
-  elements = new Map();
+  elements = new FakeElements();
   vi.stubGlobal('document', {
-    querySelector(selector) {
-      if (!elements.has(selector)) elements.set(selector, element());
-      return elements.get(selector);
-    },
-    createElement: tagName => element(tagName),
+    querySelector: (selector: string) => elements.get(selector),
+    createElement: fakeElement,
   });
 });
 
@@ -62,7 +56,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('NFCorpus shared LLM integration', () => {
   it('hides the entire setup after validating a saved index and keeps search blocked during other work', async () => {
     const { conn } = createConnection([]);
-    const controller = setupNFCorpus({}, conn, task => task(), createLLM());
+    const controller = start(conn);
     expect(elements.get('#fts-setup').hidden).toBe(false);
     expect(elements.get('#fts-index').disabled).toBe(false);
     expect(elements.get('#fts-search').disabled).toBe(true);
@@ -79,9 +73,9 @@ describe('NFCorpus shared LLM integration', () => {
     const rows = [{ id: 'MED-14', title: 'Document MED-14', text: 'Health research', score: 4 }];
     const { conn } = createConnection(rows, ['id', 'contents']);
     const llm = createLLM();
-    const controller = setupNFCorpus({}, conn, task => task(), llm);
+    const controller = start(conn, llm);
     await controller.reopenSaved();
-    document.querySelector('#fts-query').value = 'health';
+    elements.get('#fts-query').value = 'health';
     await elements.get('#fts-form').onsubmit({ preventDefault() {} });
     expect(conn.prepare).toHaveBeenLastCalledWith(expect.stringContaining("'Document ' || CAST(id AS VARCHAR) AS title, contents AS text"));
     expect(llm.generate).toHaveBeenCalledWith(expect.objectContaining({ documents: rows }));
@@ -91,7 +85,7 @@ describe('NFCorpus shared LLM integration', () => {
   it('restores the setup action when a saved index cannot bind the search', async () => {
     const { conn } = createConnection([]);
     conn.prepare.mockRejectedValueOnce(new Error('Saved index cannot be read'));
-    const controller = setupNFCorpus({}, conn, task => task(), createLLM());
+    const controller = start(conn);
     await expect(controller.reopenSaved()).rejects.toThrow('Saved index cannot be read');
     controller.setBlocked(false);
     expect(elements.get('#fts-setup').hidden).toBe(false);
@@ -114,8 +108,8 @@ describe('NFCorpus shared LLM integration', () => {
     }];
     const { conn, statement } = createConnection(rows);
     const llm = createLLM();
-    setupNFCorpus({}, conn, task => task(), llm);
-    document.querySelector('#fts-query').value = 'walking';
+    start(conn, llm);
+    elements.get('#fts-query').value = 'walking';
 
     await elements.get('#fts-form').onsubmit({ preventDefault() {} });
 
@@ -142,8 +136,8 @@ describe('NFCorpus shared LLM integration', () => {
   it('keeps NFCorpus retrieval usable without generation when no matches are found', async () => {
     const { conn } = createConnection([]);
     const llm = createLLM();
-    setupNFCorpus({}, conn, task => task(), llm);
-    document.querySelector('#fts-query').value = 'no matches';
+    start(conn, llm);
+    elements.get('#fts-query').value = 'no matches';
 
     await elements.get('#fts-form').onsubmit({ preventDefault() {} });
 

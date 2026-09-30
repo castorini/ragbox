@@ -6,7 +6,7 @@ import {
   fitDocumentsToTokenBudget,
   streamedAnswer,
   stripThinking,
-} from '../src/rag.js';
+} from '../src/rag.ts';
 
 const documents = [
   { id: 'MED-14', title: 'First result', text: 'alpha beta gamma', score: 3.5 },
@@ -65,7 +65,7 @@ describe('buildMessages', () => {
 
 describe('fitDocumentsToTokenBudget', () => {
   it('keeps documents in input order when they fit', async () => {
-    const countTokens = async messages => messages
+    const countTokens = async (messages: ReturnType<typeof buildMessages>) => messages
       .map(message => message.content)
       .join(' ')
       .split(/\s+/)
@@ -77,7 +77,7 @@ describe('fitDocumentsToTokenBudget', () => {
   });
 
   it('never exceeds the token budget and removes lower-ranked evidence first', async () => {
-    const countTokens = async messages => messages
+    const countTokens = async (messages: ReturnType<typeof buildMessages>) => messages
       .map(message => message.content)
       .join('')
       .length;
@@ -97,7 +97,7 @@ describe('fitDocumentsToTokenBudget', () => {
       { id: 'MED-1', title: 'One', text: 'A'.repeat(500) },
       { id: 'MED-2', title: 'Two', text: 'B'.repeat(500) },
     ];
-    const countTokens = async messages => messages
+    const countTokens = async (messages: ReturnType<typeof buildMessages>) => messages
       .map(message => message.content)
       .join('')
       .length;
@@ -119,7 +119,7 @@ describe('fitDocumentsToTokenBudget', () => {
       { id: 'MARCO-22', title: 'Passage 22', text: 'B'.repeat(500) },
       { id: 'MARCO-33', title: 'Passage 33', text: 'C'.repeat(500) },
     ];
-    const countTokens = async messages => messages
+    const countTokens = async (messages: ReturnType<typeof buildMessages>) => messages
       .map(message => message.content)
       .join('')
       .length;
