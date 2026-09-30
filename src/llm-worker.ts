@@ -14,6 +14,7 @@ import {
 } from './rag.ts';
 import { errorMessage } from './errors.ts';
 import type { ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
+import { MODEL_ID, MODEL_REVISION } from './model-cache.ts';
 
 const workerScope = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -25,8 +26,6 @@ env.fetch = (...args) => cacheOnlyFetch
   ? Promise.resolve(new Response(null, { status: 404 }))
   : modelFetch(...args);
 
-const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
-const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
 const MAX_INPUT_TOKENS = 3500;
 
 let generator: TextGenerationPipeline | undefined;

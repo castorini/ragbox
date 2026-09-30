@@ -9,6 +9,7 @@ import { errorMessage, requiredElement } from './boundaries.ts';
 import type { RunTask } from './types.ts';
 import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
+import { setupStorageDashboard } from './storage-dashboard.ts';
 
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
@@ -43,6 +44,25 @@ const run: RunTask = async (action, searchCorpus) => {
 
 const llm = setupLLM((phase, message) => states.set('model', phase, message), loads);
 const capability = llm.initializeCapability();
+let conn: duckdb.AsyncDuckDBConnection | undefined;
+const storage = setupStorageDashboard(states, async () => {
+  busy = true;
+  states.setBusy(true);
+  marco?.setBlocked(true);
+  nfcorpus?.setBlocked(true);
+  requiredElement<HTMLButtonElement>('#llm-load').disabled = true;
+  llm.dispose();
+  await loads.run(async () => {
+    await marco?.close();
+    if (conn) {
+      await conn.query('CHECKPOINT');
+      await conn.close();
+      conn = undefined;
+    }
+    await db?.terminate();
+    db = undefined;
+  });
+});
 
 async function main() {
   if (!window.isSecureContext || !navigator.storage?.getDirectory) {
@@ -66,7 +86,7 @@ async function main() {
     accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
     opfs: { fileHandling: 'auto' },
   });
-  const conn = await db.connect();
+  conn = await db.connect();
   nfcorpus = setupNFCorpus(db, conn, run, llm,
     (phase, message) => states.set('nfcorpus', phase, message), loads);
   marco = setupMSMarco(run, llm,
@@ -86,4 +106,9 @@ main().catch(async error => {
   if (states.get('msmarco').phase !== 'unsupported') states.set('msmarco', 'error', status.textContent);
   console.error(error);
   if (db) await db.terminate().catch(console.error);
+  db = undefined;
+  conn = undefined;
+}).finally(() => {
+  storage.initialized();
+  void storage.refresh();
 });

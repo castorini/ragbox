@@ -73,6 +73,21 @@
         <p id="llm-status" role="status">Checking WebGPU support…</p>
       </div>
     </section>
+    <section class="setup-card" aria-labelledby="storage-heading">
+      <div class="storage-header"><h2 id="storage-heading">Storage dashboard</h2><span id="storage-summary"></span></div>
+      <p>Browse saved collection files. Delete a file or reset collection data to prepare it again. Manage the optional model separately below.</p>
+      <div class="storage-actions"><button id="storage-refresh" type="button">Refresh files</button><button id="storage-reload" type="button">Reload page</button><button id="storage-reset" class="danger" type="button" disabled>Reset collection data</button></div>
+      <p id="storage-status" role="status">Checking browser files…</p>
+      <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
+      <div class="model-cache-header"><h3>Installed LLM data</h3><span id="model-cache-summary"></span></div>
+      <p>MiniCPM5-2B model files in this browser’s cache. Delete the model to free space, then use “Load local LLM” above to download it again. Collection indexes are kept.</p>
+      <div class="storage-actions"><button id="model-cache-refresh" type="button">Refresh model files</button><button id="model-cache-delete" class="danger" type="button" disabled>Delete installed model</button></div>
+      <p id="model-cache-status" role="status">Checking cached model files…</p>
+      <details class="model-cache-details">
+        <summary>View cached model files</summary>
+        <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
+      </details>
+    </section>
     <a id="setup-back" class="setup-back" href="?">← Back to search</a>
   </section>
 </main>

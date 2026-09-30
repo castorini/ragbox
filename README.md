@@ -200,11 +200,15 @@ The workflow downloads the BEIR NFCorpus archive, runs the preparation script, a
 
 Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Load NFCorpus & build FTS index**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
 
-## Reset all demo data
+## Setup storage dashboard
 
-Click **Reset all data** and confirm to close DuckDB, delete `analytics.duckdb` and its WAL/helper files, and remove the demo's OPFS Parquet cache and export. All tables and FTS indexes in that database are removed. The button also works after **Checkpoint & close**. Close other tabs running the demo before resetting.
+Open **Setup** to browse files and their sizes in this origin's browser file storage (OPFS). **Refresh files** updates the listing; **Reload page** reopens saved resources. Files outside ragbox's known database and Parquet paths are listed without deletion controls.
 
-The page reloads after deletion. Startup creates a fresh `transactions` table with one sample row, as on a first visit. NFCorpus and orders remain absent until imported again; searching before rebuilding displays the missing-index message. Downloaded files, repository data, and unrelated files on the same origin are unaffected. Localhost and the hosted site have separate storage, so reset each separately if needed.
+The **Installed LLM data** section lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. **Refresh model files** updates the listing. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the LLM, removes its cached files across cache versions, and reloads the page. Collection files, shared caches, and other models are kept. Use **Load local LLM** to download the model again. Deletion is disabled while loading, downloading, searching, or generating answers.
+
+Click a file's **Delete** button or **Reset collection data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Reset removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting or resetting.
+
+The page reloads after deletion. Prepare NFCorpus again or download MS MARCO again to replace deleted indexes. The model cache, downloaded files outside browser storage, repository data, and unrelated origin files are kept. If closing or deleting a file fails, the dashboard reports the error and provides **Reload page** to recover. Localhost and the hosted site have separate storage, so reset each separately if needed.
 
 ## MS MARCO search
 
