@@ -1,5 +1,8 @@
 node_modules/
 dist/
+dist-single/
 public/data/*.jsonl
 artifacts/
 .env.local
+.DS_Store
+.codex/environments/
