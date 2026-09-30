@@ -139,6 +139,23 @@ describe('MS MARCO search UI', () => {
     expect(elements.get('#marco-results').children).toEqual([]);
   });
 
+  it('identifies MS MARCO as the owner of its search operation', async () => {
+    const { prebuilt } = searchablePrebuilt([]);
+    const owners: Array<string | undefined> = [];
+    const run: RunTask = (task, owner) => {
+      owners.push(owner);
+      return task();
+    };
+    mockedOpenPrebuilt.mockResolvedValue(asIndex(prebuilt));
+    setupMSMarco(run, createLLM());
+    await elements.get('#marco-reopen').onclick();
+    elements.get('#marco-query').value = 'lung cancer';
+
+    await elements.get('#marco-form').onsubmit({ preventDefault() {} });
+
+    expect(owners.at(-1)).toBe('msmarco');
+  });
+
   it('closes a failed statement, reports the failure, and skips generation', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const failure = new Error('query failed');

@@ -44,6 +44,14 @@ it('uses explicit readiness to mute search and keeps the model optional', () => 
   expect(get('#marco-help-text').textContent).toContain('when you select');
   states.set('msmarco', 'ready', 'Ready');
   expect(get('#marco-query').disabled).toBe(false);
+  states.setBusy(true, 'msmarco');
+  expect(get('#marco-query').disabled).toBe(true);
+  expect(get('#marco-help').hidden).toBe(true);
+  expect(get('#fts-help').hidden).toBe(false);
+  expect(get('#fts-help-text').textContent).toContain('temporarily paused');
+  states.setBusy(false);
+  expect(get('#marco-query').disabled).toBe(false);
+  expect(get('#marco-help').hidden).toBe(true);
   states.set('nfcorpus', 'error', 'Startup failed: database unavailable');
   expect(get('#fts-help-text').textContent).toContain('Reload');
 });

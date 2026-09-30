@@ -22,10 +22,10 @@ const chooser = setupCollectionChooser(value => {
 });
 setupSearchGuidance(states);
 
-const run: RunTask = async action => {
+const run: RunTask = async (action, searchCorpus) => {
   if (busy) return;
   busy = true;
-  states.setBusy(true);
+  states.setBusy(true, searchCorpus);
   marco?.setBlocked(true);
   nfcorpus?.setBlocked(true);
   try {

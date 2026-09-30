@@ -34,7 +34,7 @@ export function setupSearchGuidance(states: ResourceStates) {
       button.disabled = unavailable;
       input.disabled = unavailable;
       form.classList.toggle('unavailable', unavailable);
-      help.hidden = !unavailable;
+      help.hidden = !unavailable || states.activeSearch === name;
       helpText.textContent = guidance(name, state, states.busy);
     });
   }

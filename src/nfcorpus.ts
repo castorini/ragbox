@@ -70,7 +70,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       AND table_schema = 'main' AND table_name = 'nfcorpus'
   `))[0].n) > 0;
 
-  async function action<T>(task: () => Promise<T>): Promise<T | undefined> {
+  async function action<T>(task: () => Promise<T>, searching = false): Promise<T | undefined> {
     return run(async () => {
       results.replaceChildren();
       try { return await task(); }
@@ -81,7 +81,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         report('error', `NFCorpus could not be opened or searched. ${errorMessage(error)} Use “Retry preparing NFCorpus” to try again.`);
         throw error;
       }
-    });
+    }, searching ? 'nfcorpus' : undefined);
   }
 
   indexButton.onclick = async () => {
@@ -181,7 +181,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         : `No matches for “${query}”. Try different terms; common stopwords are excluded.`;
       onState?.('ready', 'NFCorpus is ready to search.');
       return rows;
-    }).then(rows => {
+    }, true).then(rows => {
       if (rows?.length) {
         llm.generate({
           corpus: 'nfcorpus',

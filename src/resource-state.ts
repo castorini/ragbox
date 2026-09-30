@@ -1,3 +1,5 @@
+import type { Corpus } from './types.ts';
+
 export type ResourceName = 'nfcorpus' | 'msmarco' | 'model';
 export type ResourcePhase =
   | 'checking' | 'missing' | 'saved' | 'opening' | 'preparing'
@@ -16,6 +18,7 @@ export class ResourceStates {
   };
   private listeners = new Set<() => void>();
   busy = false;
+  activeSearch: Corpus | undefined;
 
   get(name: ResourceName): ResourceState { return this.values[name]; }
 
@@ -24,8 +27,9 @@ export class ResourceStates {
     this.notify();
   }
 
-  setBusy(busy: boolean) {
+  setBusy(busy: boolean, searchCorpus?: Corpus) {
     this.busy = busy;
+    this.activeSearch = busy ? searchCorpus : undefined;
     this.notify();
   }
 

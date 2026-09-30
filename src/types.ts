@@ -28,4 +28,4 @@ export type WorkerResponse =
   | { type: 'cancelled'; requestId: string }
   | { type: 'error'; operation: 'load' | 'generate'; requestId?: string; message: string };
 
-export type RunTask = <T>(task: () => Promise<T>) => Promise<T | undefined>;
+export type RunTask = <T>(task: () => Promise<T>, searchCorpus?: Corpus) => Promise<T | undefined>;

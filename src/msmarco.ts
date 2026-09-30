@@ -55,7 +55,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     reopenButton.disabled = !supported || busy || blocked || openingQueued;
     searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
   }
-  async function action<T>(task: () => Promise<T>, lockDatabase = true): Promise<T | undefined> {
+  async function action<T>(task: () => Promise<T>, lockDatabase = true, searching = false): Promise<T | undefined> {
     if (busy || blocked || !supported) return;
     busy = true;
     updateButtons();
@@ -80,7 +80,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
           throw error;
         }
       };
-      return await (lockDatabase ? run(execute) : execute());
+      return await (lockDatabase ? run(execute, searching ? 'msmarco' : undefined) : execute());
     } catch {
       return undefined;
     } finally {
@@ -207,7 +207,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         ? `Showing ${rows.length} results for “${query}”.`
         : `No results for “${query}”. Try different search words.`;
       return rows;
-    }).then(rows => {
+    }, true, true).then(rows => {
       if (rows?.length) {
         const documents = normalizeMSMarcoResults(rows);
         llm?.generate({
