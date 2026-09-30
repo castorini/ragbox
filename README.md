@@ -211,7 +211,7 @@ The page reloads after deletion. Startup creates a fresh `transactions` table wi
 ### Using the saved index
 
 1. Open the app in a supported desktop browser, such as Chrome.
-2. Click **Download & open index (3.35 GB)** and wait for it to finish. Keep the tab open while downloading.
+2. Click **Download & open index** and wait for it to finish. Keep the tab open while downloading.
 3. Enter a query and click **Search** to see up to ten matching passages. If the shared local model is loaded, a cited answer appears above them using `[MARCO-…]` citations.
 4. After reloading or returning later, click **Reopen saved index** before searching. No second download is needed while the saved file remains in browser storage.
 
