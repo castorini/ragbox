@@ -1,43 +1,50 @@
 import { requiredElement } from './boundaries.ts';
+import { ResourceStates, type ResourceName, type ResourceState } from './resource-state.ts';
 
-export function setupSearchGuidance() {
-  const globalStatus = requiredElement<HTMLElement>('#status');
-  for (const prefix of ['fts', 'marco']) {
-    const button = requiredElement<HTMLButtonElement>(`#${prefix}-search`);
-    const status = requiredElement<HTMLElement>(`#${prefix}-status`);
-    const help = requiredElement<HTMLElement>(`#${prefix}-help`);
-    const update = () => {
-      help.hidden = !button.disabled;
-      if (!button.disabled) { button.removeAttribute('title'); return; }
-      const globalText = globalStatus.textContent;
-      const localText = status.textContent;
-      let instruction;
-      if (prefix === 'fts' && /Prepare NFCorpus|Retry preparing NFCorpus/.test(localText)) {
-        instruction = localText;
-      } else if (/Startup failed|^Error:/.test(globalText)) {
-        instruction = `Search unavailable. ${globalText} Reload the page to try again.`;
-      } else if (/Database closed/.test(globalText)) {
-        instruction = 'Search paused: the database is closed. Reload this page, then reopen your saved index before searching.';
-      } else if (/Opening database/.test(globalText)) {
-        instruction = 'Getting ready: wait for the database to open. Setup controls will become available automatically.';
-      } else if (prefix === 'marco' && /Checking for a saved index|Download the index once|Download or reopen|No saved index|cancelled|Unable to complete/.test(localText)) {
-        instruction = 'Search is locked until the index is open. First visit: click “Download & open index (3.35 GB)” above and wait for it to finish. Saved indexes open automatically. If that fails, use “Retry opening index”.';
-      } else if (/needs a browser/.test(localText)) {
-        instruction = localText;
-      } else if (/Downloading|Starting index|Download complete|Opening the saved|Loading|Building|Searching/.test(localText)) {
-        instruction = `Please wait — ${localText} Search will become available when the operation finishes.`;
-      } else {
-        instruction = 'Search is temporarily paused while another operation runs. Wait for it to finish; search will become available automatically.';
-      }
-      help.textContent = instruction;
-      help.hidden = instruction === localText;
-      button.title = instruction;
-    };
-    button.setAttribute('aria-describedby', `${prefix}-help ${prefix}-status`);
-    const observer = new MutationObserver(update);
-    observer.observe(button, { attributes: true, attributeFilter: ['disabled'] });
-    observer.observe(status, { childList: true, characterData: true, subtree: true });
-    observer.observe(globalStatus, { childList: true, characterData: true, subtree: true });
-    update();
+function guidance(name: ResourceName, state: ResourceState, busy: boolean): string {
+  const label = name === 'nfcorpus' ? 'NFCorpus' : 'MS MARCO';
+  if (busy && state.phase === 'ready') return 'Search is temporarily paused while another database operation finishes.';
+  switch (state.phase) {
+    case 'checking': return `Checking ${label} in this browser…`;
+    case 'saved': return `Opening the saved ${label} index when you select this collection.`;
+    case 'opening': return `Opening the saved ${label} index…`;
+    case 'preparing': return `Preparing ${label} in this browser…`;
+    case 'downloading': return `Downloading the ${label} index…`;
+    case 'missing': return `${label} needs an index before search is available.`;
+    case 'error': return state.message.startsWith('Startup failed:')
+      ? 'Startup failed. Reload this page to retry.'
+      : `${label} could not be opened. Review the error and retry in Setup.`;
+    case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
+    default: return state.message;
   }
+}
+
+export function setupSearchGuidance(states: ResourceStates) {
+  for (const [name, prefix] of [['nfcorpus', 'fts'], ['msmarco', 'marco']] as const) {
+    const button = requiredElement<HTMLButtonElement>(`#${prefix}-search`);
+    const input = requiredElement<HTMLInputElement>(`#${prefix}-query`);
+    const form = requiredElement<HTMLFormElement>(`#${prefix}-form`);
+    const help = requiredElement<HTMLElement>(`#${prefix}-help`);
+    const helpText = requiredElement<HTMLElement>(`#${prefix}-help-text`);
+    button.setAttribute('aria-describedby', `${prefix}-help`);
+    input.setAttribute('aria-describedby', `${prefix}-help`);
+    states.subscribe(() => {
+      const state = states.get(name);
+      const unavailable = state.phase !== 'ready' || states.busy;
+      button.disabled = unavailable;
+      input.disabled = unavailable;
+      form.classList.toggle('unavailable', unavailable);
+      help.hidden = !unavailable;
+      helpText.textContent = guidance(name, state, states.busy);
+    });
+  }
+  const modelStatus = requiredElement<HTMLElement>('#model-search-status');
+  states.subscribe(() => {
+    const phase = states.get('model').phase;
+    modelStatus.textContent = phase === 'ready' || phase === 'generating'
+      ? 'Cited answers ready'
+      : phase === 'loading' || phase === 'checking'
+        ? 'Checking optional cited answers…'
+        : 'Cited answers are optional';
+  });
 }

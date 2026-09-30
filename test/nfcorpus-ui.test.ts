@@ -54,11 +54,26 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('NFCorpus shared LLM integration', () => {
+  it('keeps preparation disabled during the saved-index check, then offers it on first visit', async () => {
+    const { conn } = createConnection([]);
+    conn.query.mockImplementation(async sql => {
+      if (sql.includes('information_schema.schemata')) return resultSet([{ n: 0 }]);
+      return resultSet([]);
+    });
+    const controller = start(conn);
+    expect(elements.get('#fts-index').disabled).toBe(true);
+    await controller.reopenSaved();
+    expect(elements.get('#fts-setup').hidden).toBe(false);
+    expect(elements.get('#fts-index').disabled).toBe(false);
+    expect(elements.get('#fts-search').disabled).toBe(true);
+    expect(elements.get('#fts-status').textContent).toContain('First visit');
+  });
+
   it('hides the entire setup after validating a saved index and keeps search blocked during other work', async () => {
     const { conn } = createConnection([]);
     const controller = start(conn);
     expect(elements.get('#fts-setup').hidden).toBe(false);
-    expect(elements.get('#fts-index').disabled).toBe(false);
+    expect(elements.get('#fts-index').disabled).toBe(true);
     expect(elements.get('#fts-search').disabled).toBe(true);
     await controller.reopenSaved();
     expect(elements.get('#fts-setup').hidden).toBe(true);

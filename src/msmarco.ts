@@ -3,6 +3,8 @@ import { downloadPrebuilt } from './download-prebuilt.ts';
 import { errorMessage, errorName, requiredElement, rowsAs } from './boundaries.ts';
 import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
+import type { ResourcePhase } from './resource-state.ts';
+import type { LoadCoordinator } from './load-coordinator.ts';
 
 type MarcoRow = { id: string | number | bigint; contents: string; score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
@@ -15,8 +17,10 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
   }));
 }
 
-export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator) {
   const status = requiredElement<HTMLElement>('#marco-status');
+  const searchStatus = requiredElement<HTMLElement>('#marco-search-status');
+  const answerPanel = requiredElement<HTMLElement>('#marco-answer-panel');
   const output = requiredElement<HTMLOListElement>('#marco-results');
   const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
   const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
@@ -32,34 +36,51 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
   let blocked = false;
   let checkingSaved = true;
   let retryOpen = false;
+  let hasSaved = false;
+  let openingQueued = false;
+  let checkingPromise: Promise<void> | undefined;
+  const unblockWaiters = new Set<() => void>();
   let downloadController: AbortController | undefined;
   const supported = Boolean(window.isSecureContext && navigator.storage?.getDirectory);
+  function report(phase: ResourcePhase, message: string) {
+    status.textContent = message;
+    onState?.(phase, message);
+  }
   function updateButtons() {
     setup.hidden = !!prebuilt || checkingSaved || !supported;
-    fetchButton.hidden = checkingSaved || !!prebuilt || busy;
-    reopenButton.hidden = checkingSaved || !!prebuilt || busy || !retryOpen;
-    reopenButton.textContent = 'Retry opening index';
-    fetchButton.disabled = !supported || busy || blocked;
-    reopenButton.disabled = !supported || busy || blocked;
-    searchButton.disabled = !supported || busy || blocked || !prebuilt;
+    fetchButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued;
+    reopenButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !(hasSaved || retryOpen);
+    reopenButton.textContent = retryOpen ? 'Retry opening index' : 'Open saved index';
+    fetchButton.disabled = !supported || busy || blocked || openingQueued;
+    reopenButton.disabled = !supported || busy || blocked || openingQueued;
+    searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
   }
-  async function action<T>(task: () => Promise<T>): Promise<T | undefined> {
+  async function action<T>(task: () => Promise<T>, lockDatabase = true): Promise<T | undefined> {
     if (busy || blocked || !supported) return;
     busy = true;
     updateButtons();
     try {
-      return await run(async () => {
+      const execute = async () => {
         try {
           return await task();
         } catch (error) {
-          status.textContent = errorName(error) === 'NotFoundError'
-            ? 'No saved index found. Download the index first.'
-            : `Unable to complete the request: ${errorMessage(error)}`;
-          if (!prebuilt) { checkingSaved = false; retryOpen = errorName(error) !== 'NotFoundError'; }
+          if (!prebuilt) {
+            checkingSaved = false;
+            retryOpen = errorName(error) !== 'NotFoundError';
+            if (errorName(error) === 'NotFoundError') hasSaved = false;
+            report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
+              errorName(error) === 'NotFoundError'
+                ? 'No saved index found. Download the index first.'
+                : `Unable to complete the request: ${errorMessage(error)}`);
+          } else {
+            searchStatus.hidden = false;
+            searchStatus.textContent = `Search failed: ${errorMessage(error)}`;
+          }
           console.error(error);
           throw error;
         }
-      });
+      };
+      return await (lockDatabase ? run(execute) : execute());
     } catch {
       return undefined;
     } finally {
@@ -73,11 +94,12 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
     prebuilt = undefined;
     if (previous) await previous.close();
   }
-  async function connectPrebuilt() {
-    prebuilt = await openPrebuilt();
+  async function connectPrebuilt(coordinated = false) {
+    prebuilt = await (coordinated && loads ? loads.run(openPrebuilt) : openPrebuilt());
     checkingSaved = false;
     retryOpen = false;
-    status.textContent = `Ready to search ${prebuilt.count.toLocaleString()} passages.`;
+    hasSaved = true;
+    report('ready', `Ready to search ${prebuilt.count.toLocaleString()} passages.`);
   }
   cancelDownload.onclick = () => downloadController?.abort();
   fetchButton.onclick = () => {
@@ -99,7 +121,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
       progress.value = 0;
       let lastUpdate = 0;
       try {
-        status.textContent = 'Starting index download…';
+        report('downloading', 'Starting index download…');
         await downloadPrebuilt({ url: downloadUrl, bytes: downloadBytes,
           root, name: PREBUILT_NAME, signal: controller.signal,
           onProgress(received, total) {
@@ -107,15 +129,15 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
             if (now - lastUpdate < 200 && received !== total) return;
             lastUpdate = now;
             progress.value = received / total * 100;
-            status.textContent = `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`;
+            report('downloading', `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`);
           },
         });
         cancelDownload.disabled = true;
-        status.textContent = 'Download complete. Opening the saved index…';
-        await connectPrebuilt();
+        report('opening', 'Download complete. Opening the saved index…');
+        await connectPrebuilt(true);
       } catch (error) {
         if (errorName(error) === 'AbortError') {
-          status.textContent = 'Download cancelled. You can retry or reopen a previously saved index.';
+          report(hasSaved ? 'saved' : 'missing', 'Download cancelled. You can retry or reopen a previously saved index.');
           return;
         }
         throw error;
@@ -125,28 +147,45 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
         progress.hidden = true;
         downloadController = undefined;
       }
-    });
+    }, false);
   };
-  reopenButton.onclick = () => action(async () => {
-    await closePrebuilt();
-    output.replaceChildren();
-    status.textContent = 'Opening the saved index…';
-    await connectPrebuilt();
-  });
+  async function openSaved(automatic = false) {
+    if (openingQueued || busy || !supported) return;
+    openingQueued = true;
+    report('opening', automatic ? 'Opening the saved index automatically…' : 'Opening the saved index…');
+    updateButtons();
+    try {
+      const open = async () => {
+        while (blocked) await new Promise<void>(resolve => unblockWaiters.add(resolve));
+        return action(async () => {
+          await closePrebuilt();
+          output.replaceChildren();
+          await connectPrebuilt();
+        });
+      };
+      return await (loads ? loads.run(open) : open());
+    } finally {
+      openingQueued = false;
+      updateButtons();
+    }
+  }
+  reopenButton.onclick = () => openSaved();
   requiredElement<HTMLFormElement>('#marco-form').onsubmit = event => {
     event.preventDefault();
     const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
     if (!query) return;
+    answerPanel.hidden = false;
+    searchStatus.hidden = false;
     llm?.beginRetrieval('msmarco');
     const activePrebuilt = prebuilt;
     if (!activePrebuilt) {
-      status.textContent = 'Download or reopen the index before searching.';
+      report('missing', 'Download or reopen the index in Setup before searching.');
       llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
       return;
     }
     return action(async () => {
       output.replaceChildren();
-      status.textContent = 'Searching…';
+      searchStatus.textContent = 'Searching…';
       const stmt = await activePrebuilt.conn.prepare(`SELECT id, contents,
         fts_main_msmarco.match_bm25(id, ?) AS score FROM msmarco
         WHERE score IS NOT NULL ORDER BY score DESC, id LIMIT 10`);
@@ -164,7 +203,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
         item.append(heading, text);
         output.append(item);
       }
-      status.textContent = rows.length
+      searchStatus.textContent = rows.length
         ? `Showing ${rows.length} results for “${query}”.`
         : `No results for “${query}”. Try different search words.`;
       return rows;
@@ -189,35 +228,53 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM) {
       return rows;
     });
   };
-  if (!supported) status.textContent = 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.';
+  if (!supported) report('unsupported', 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.');
+  else onState?.('checking', 'Checking for a saved MS MARCO index…');
   updateButtons();
-  return {
-    async reopenSaved() {
-      if (!supported) return;
+  async function checkSaved() {
+    if (!supported || prebuilt) return;
+    if (checkingPromise) return checkingPromise;
+    checkingPromise = (async () => {
       try {
         const root = await navigator.storage.getDirectory();
         await root.getFileHandle(PREBUILT_NAME);
+        hasSaved = true;
+        retryOpen = false;
+        report('saved', 'Saved MS MARCO index found. It opens when you select this collection.');
       } catch (error) {
-        checkingSaved = false;
+        hasSaved = false;
         retryOpen = errorName(error) !== 'NotFoundError';
+        report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
+          errorName(error) === 'NotFoundError'
+            ? 'No saved MS MARCO index in this browser.'
+            : `Could not check saved index: ${errorMessage(error)}. Retry opening the index here.`);
+      } finally {
+        checkingSaved = false;
         updateButtons();
-        status.textContent = errorName(error) === 'NotFoundError'
-          ? 'Download the index once to start searching.'
-          : `Could not check saved index: ${errorMessage(error)}. Use “Retry opening index” to try again.`;
-        return;
       }
-      checkingSaved = false;
-      await action(async () => {
-        if (prebuilt) return;
-        status.textContent = 'Opening the saved index automatically…';
-        await connectPrebuilt();
-      });
+    })();
+    try { await checkingPromise; } finally { checkingPromise = undefined; }
+  }
+  return {
+    checkSaved,
+    async reopenSaved() {
+      if (!supported) return;
+      if (checkingSaved) await checkSaved();
+      if (!hasSaved || prebuilt) return;
+      await openSaved(true);
     },
-    setBlocked(value: boolean) { blocked = value; updateButtons(); },
+    setBlocked(value: boolean) {
+      blocked = value;
+      updateButtons();
+      if (!value) {
+        for (const resolve of unblockWaiters) resolve();
+        unblockWaiters.clear();
+      }
+    },
     async close() {
       await closePrebuilt();
       output.replaceChildren();
-      status.textContent = 'Index closed. Reload to reopen it.';
+      report('saved', 'Index closed. Select MS MARCO again to reopen it.');
       updateButtons();
     },
   };

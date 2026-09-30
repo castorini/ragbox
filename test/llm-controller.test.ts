@@ -137,6 +137,18 @@ describe('LLMController', () => {
     expect(elements.stopButton.hidden).toBe(true);
   });
 
+  it('holds a coordinated model load until the worker reports a terminal state', async () => {
+    const { controller, worker } = createHarness();
+    await controller.initializeCapability();
+    let finished = false;
+    const loading = controller.loadAndWait(true).then(() => { finished = true; });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    worker.emit({ type: 'cache-unavailable', operation: 'load', message: 'not cached' });
+    await loading;
+    expect(finished).toBe(true);
+  });
+
   it('keeps both BM25 result sets usable when WebGPU is unsupported', async () => {
     const harness = createHarness({ supported: false, reason: 'WebGPU is unavailable.' });
 

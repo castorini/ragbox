@@ -1,82 +1,81 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RAGbox</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search · ragbox</title></head>
 <body>
-<a class="skip-link" href="#collection-start">Skip to collection selection</a>
-<header class="topbar"><a class="brand" href="#">RAG<span>box</span><span class="brand-mark" aria-hidden="true">↗</span></a><nav id="workspace-nav" aria-label="Main navigation" hidden><a href="#collections">Collections</a><a href="#model">Answer model</a></nav><span class="local-badge">Runs in your browser</span></header>
+<a class="skip-link" href="#search-heading">Skip to search</a>
+<header class="topbar">
+  <a class="brand" href="?">ragbox<span class="brand-mark" aria-hidden="true">↗</span></a>
+  <nav aria-label="Main navigation"><a id="nav-search" href="?" aria-current="page">Search</a><a id="nav-setup" href="?view=setup">Setup</a></nav>
+  <span class="local-badge">Runs in your browser</span>
+</header>
 <main>
-<div id="collection-welcome" class="collection-welcome">
-<div class="eyebrow">YOUR BROWSER. YOUR RESEARCH SPACE.</div>
-<h1>Which collection would<br>you like to search?</h1>
-<p>Choose a collection to start exploring. You can switch at any time.</p>
-<label for="collection-start">Search collection</label>
-<select id="collection-start"><option value="" disabled selected>Choose a collection</option><option value="nfcorpus">NFCorpus · 3,633 documents</option><option value="msmarco">MS MARCO · 8.8 million passages</option></select>
-<p class="chooser-note">NFCorpus covers health and nutrition research.<br>MS MARCO brings millions of web passages to your browser.</p>
-</div>
-<div id="search-workspace" hidden>
-<p id="status" role="status" hidden>Opening database…</p>
-<section id="collections" class="collection" aria-labelledby="collections-heading">
-<div class="workspace-label"><h2 id="collections-heading">Your search workspace</h2><div class="collection-switch"><label for="collection-switch">Collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="" disabled selected>Choose a collection</option><option value="nfcorpus">NFCorpus · 3,633 documents</option><option value="msmarco">MS MARCO · 8.8 million passages</option></select></div></div>
-<div id="nfcorpus-collection" class="collection-panel" role="region" aria-labelledby="fts-heading" hidden>
-<div class="collection-meta"><span class="eyebrow">HEALTH & NUTRITION</span><span class="pill">3,633 documents</span></div>
-<h3 id="fts-heading" class="collection-heading">NFCorpus</h3>
-<p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
-<div id="fts-setup" class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" data-fts-control disabled>Prepare NFCorpus</button></div>
-<div id="fts-search-tools" class="search-tools">
-<form id="fts-form">
-<label for="fts-query">Search title and document text</label>
-<div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
-<button id="fts-search" data-fts-control class="primary" disabled>Search NFCorpus <span aria-hidden="true">↗</span></button></div>
-</form>
-<aside id="model" class="model-inline" aria-labelledby="llm-heading">
-<h4 id="llm-heading">Cited answers</h4>
-<p id="llm-setup" hidden>Optional local model. Download once for cited answers; search works without it.</p>
-<div id="llm-controls">
-<button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
-<button id="llm-stop" hidden type="button" data-llm-control disabled>Stop generation</button>
-<progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
-<p id="llm-status" role="status">Checking WebGPU support…</p>
-</div>
-</aside>
-</div>
-<p id="fts-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
-<p id="fts-status" role="status">Build the index once, then search. Saved indexes can be reused after reload.</p>
-<article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading">
-<h3 id="fts-answer-heading">Cited answer</h3>
-<p id="fts-answer" class="llm-answer" aria-live="polite">Search this collection to see matching documents. A cited answer is added when the local model is ready.</p>
-</article>
-<ol id="fts-results" aria-label="NFCorpus search results"></ol>
-</div>
-<div id="msmarco-collection" class="collection-panel" role="region" aria-labelledby="marco-heading" hidden>
-<div class="collection-meta"><span class="eyebrow">WEB PASSAGES</span><span class="pill">8.8 million passages</span></div>
-<h3 id="marco-heading" class="collection-heading">MS MARCO</h3>
-<p>Search 8.8 million passages in your browser.</p>
-<div id="marco-setup" class="setup-box" hidden>
-<span class="step-label">GET STARTED</span><h3>Bring the collection to your browser</h3>
-<p>First visit? Download the index once (3.35 GB). It stays in this browser’s storage. On later visits, the saved index opens automatically.</p>
-<button data-marco-control id="marco-fetch" type="button" hidden disabled>Download & open index (3.35 GB)</button>
-<button data-marco-control id="marco-reopen" type="button" hidden disabled>Reopen saved index</button>
-<button data-marco-control id="marco-cancel-download" type="button" disabled hidden>Cancel download</button>
-<progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
-</div>
-<div id="marco-search-tools" class="search-tools">
-<form id="marco-form">
-<label for="marco-query">Search MS MARCO passages</label>
-<div class="search-row"><input id="marco-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
-<button data-marco-control id="marco-search" class="primary" disabled>Search MS MARCO <span aria-hidden="true">↗</span></button></div>
-</form>
-</div>
-<p id="marco-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
-<p id="marco-status" role="status">Checking for a saved index. If none is saved, download it once to start searching.</p>
-<article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
-<h3 id="marco-answer-heading">Cited answer</h3>
-<p id="marco-answer" class="llm-answer" aria-live="polite">Search this collection to see matching documents. A cited answer is added when the local model is ready.</p>
-</article>
-<ol id="marco-results" aria-label="Search results"></ol>
-</div>
-</section>
+  <p id="status" role="status" hidden>Opening database…</p>
+  <section id="search-view" aria-labelledby="search-heading">
+    <div class="search-header">
+      <div><div class="eyebrow">LOCAL RESEARCH SEARCH</div><h1 id="search-heading" tabindex="-1">Search</h1></div>
+      <div class="collection-switch"><label for="collection-switch">Collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="nfcorpus">NFCorpus</option><option value="msmarco">MS MARCO</option></select></div>
+    </div>
+    <p id="collection-description" class="collection-description">3,633 health and nutrition research documents</p>
+    <section id="collections" class="collection" aria-label="Search collection">
+      <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus search">
+        <form id="fts-form">
+          <label for="fts-query">Search title and document text</label>
+          <div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500" disabled>
+          <button id="fts-search" class="primary" disabled>Search <span aria-hidden="true">↗</span></button></div>
+        </form>
+        <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus in this browser…</span> <a id="fts-setup-link" href="?view=setup">Open Setup</a></p>
+        <p id="fts-search-status" role="status" hidden></p>
+        <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading" hidden>
+          <h2 id="fts-answer-heading">Cited answer</h2><p id="fts-answer" class="llm-answer" aria-live="polite"></p>
+        </article>
+        <ol id="fts-results" aria-label="NFCorpus search results"></ol>
+      </div>
+      <div id="msmarco-collection" class="collection-panel" role="region" aria-label="MS MARCO search" hidden>
+        <form id="marco-form">
+          <label for="marco-query">Search passages</label>
+          <div class="search-row"><input id="marco-query" type="search" placeholder="What would you like to explore?" required maxlength="500" disabled>
+          <button id="marco-search" class="primary" disabled>Search <span aria-hidden="true">↗</span></button></div>
+        </form>
+        <p id="marco-help" class="search-help" role="status"><span id="marco-help-text">Checking for a saved MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup">Open Setup</a></p>
+        <p id="marco-search-status" role="status" hidden></p>
+        <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading" hidden>
+          <h2 id="marco-answer-heading">Cited answer</h2><p id="marco-answer" class="llm-answer" aria-live="polite"></p>
+        </article>
+        <ol id="marco-results" aria-label="MS MARCO search results"></ol>
+      </div>
+    </section>
+    <p class="model-note"><span id="model-search-status">Checking optional cited answers…</span> <a id="model-setup-link" href="?view=setup">Model setup</a></p>
+  </section>
 
-
-</div></main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
+  <section id="setup-view" aria-labelledby="setup-heading" hidden>
+    <div class="setup-header"><div class="eyebrow">BROWSER STORAGE</div><h1 id="setup-heading" tabindex="-1">Setup</h1><p>Prepare collections and the optional answer model. Saved resources can be reused on later visits.</p></div>
+    <section class="setup-card" aria-labelledby="fts-setup-heading">
+      <h2 id="fts-setup-heading">NFCorpus</h2><p id="fts-status" role="status">Checking for a saved index…</p>
+      <div id="fts-setup"><p>Prepare this collection once. Its index is saved in this browser.</p><button id="fts-index" type="button" disabled>Prepare NFCorpus</button></div>
+    </section>
+    <section class="setup-card" aria-labelledby="marco-setup-heading">
+      <h2 id="marco-setup-heading">MS MARCO</h2><p id="marco-status" role="status">Checking for a saved index…</p>
+      <div id="marco-setup" hidden>
+        <p>Download the index once (3.35 GB). It stays in this browser’s storage and opens when you select MS MARCO.</p>
+        <button id="marco-fetch" type="button" hidden disabled>Download &amp; open index (3.35 GB)</button>
+        <button id="marco-reopen" type="button" hidden disabled>Open saved index</button>
+        <button id="marco-cancel-download" type="button" hidden disabled>Cancel download</button>
+        <progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
+      </div>
+    </section>
+    <section id="model" class="setup-card" aria-labelledby="llm-heading">
+      <h2 id="llm-heading">Cited answers</h2>
+      <p id="llm-setup" hidden>Optional local model. Download once for cited answers; document search works without it.</p>
+      <div id="llm-controls">
+        <button id="llm-load" hidden type="button" disabled>Load local LLM (~1.84 GB)</button>
+        <button id="llm-stop" hidden type="button" disabled>Stop generation</button>
+        <progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
+        <p id="llm-status" role="status">Checking WebGPU support…</p>
+      </div>
+    </section>
+    <a id="setup-back" class="setup-back" href="?">← Back to search</a>
+  </section>
+</main>
+<footer><span class="brand">ragbox</span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
 <script type="module" src="/src/main.ts"></script>
 </body></html>

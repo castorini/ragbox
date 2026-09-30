@@ -9,6 +9,7 @@ import { openPrebuilt } from '../src/prebuilt-msmarco.ts';
 import { normalizeMSMarcoResults, setupMSMarco } from '../src/msmarco.ts';
 import { FakeElements, fakeElement } from './fake-elements.ts';
 import type { RunTask } from '../src/types.ts';
+import { LoadCoordinator } from '../src/load-coordinator.ts';
 
 const mockedOpenPrebuilt = vi.mocked(openPrebuilt);
 let elements: FakeElements;
@@ -198,11 +199,12 @@ describe('MS MARCO search UI', () => {
     const controller = setupMSMarco(run, llm);
 
     controller.setBlocked(true);
-    await elements.get('#marco-reopen').onclick();
+    const pendingOpen = elements.get('#marco-reopen').onclick();
+    await Promise.resolve();
     expect(openPrebuilt).not.toHaveBeenCalled();
 
     controller.setBlocked(false);
-    await elements.get('#marco-reopen').onclick();
+    await pendingOpen;
     llm.showRetrievalMessage.mockClear();
 
     await elements.get('#marco-reopen').onclick();
@@ -235,4 +237,39 @@ it('does not create or download an index when no saved file exists', async () =>
   expect(elements.get('#marco-fetch').hidden).toBe(false);
   expect(elements.get('#marco-reopen').hidden).toBe(true);
   expect(elements.get('#marco-search').disabled).toBe(true);
+});
+
+it('checks a saved MS MARCO index without opening it until selected', async () => {
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(searchablePrebuilt([]).prebuilt));
+  const controller = setupMSMarco(task => task(), createLLM());
+  await controller.checkSaved();
+  expect(openPrebuilt).not.toHaveBeenCalled();
+  expect(elements.get('#marco-reopen').hidden).toBe(false);
+  expect(elements.get('#marco-search').disabled).toBe(true);
+  await controller.reopenSaved();
+  expect(openPrebuilt).toHaveBeenCalledOnce();
+  expect(elements.get('#marco-search').disabled).toBe(false);
+});
+
+it('queues saved-index opening without blocking unrelated search while a model loads', async () => {
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(searchablePrebuilt([]).prebuilt));
+  const loads = new LoadCoordinator();
+  let finishModel!: () => void;
+  const modelLoad = loads.run(() => new Promise<void>(resolve => { finishModel = resolve; }));
+  await Promise.resolve();
+  let runCalls = 0;
+  const run: RunTask = task => { runCalls++; return task(); };
+  const controller = setupMSMarco(run, createLLM(), undefined, loads);
+  await controller.checkSaved();
+  const opening = controller.reopenSaved();
+  expect(elements.get('#marco-reopen').disabled).toBe(true);
+  expect(runCalls).toBe(0);
+  expect(openPrebuilt).not.toHaveBeenCalled();
+  finishModel();
+  await modelLoad;
+  await opening;
+  expect(runCalls).toBe(1);
+  expect(openPrebuilt).toHaveBeenCalledOnce();
 });
