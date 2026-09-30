@@ -73,11 +73,18 @@ export function setupNFCorpus(db, conn, run, llm) {
     await loadExtension();
     if (!await exists()) {
       status.textContent = 'Loading NFCorpus documents…';
-      const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`);
-      if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
-        throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
+      const embedded = document.querySelector('#nfcorpus-data');
+      let contents;
+      if (embedded) {
+        const bytes = Uint8Array.from(atob(embedded.textContent.trim()), character => character.charCodeAt(0));
+        contents = new TextDecoder().decode(bytes);
+      } else {
+        const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`);
+        if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
+          throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
+        }
+        contents = await response.text();
       }
-      const contents = await response.text();
       const rows = contents.trim().split(/\r?\n/).map(JSON.parse);
       if (rows.length !== 3633 || new Set(rows.map(row => row.id)).size !== 3633) {
         throw new Error('Expected 3,633 unique NFCorpus documents.');

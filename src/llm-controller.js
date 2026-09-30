@@ -1,3 +1,5 @@
+import InlineLLMWorker from './llm-worker.js?worker&inline';
+
 export async function detectWebGPU() {
   if (!globalThis.navigator?.gpu) {
     return { supported: false, reason: 'WebGPU is unavailable in this browser.' };
@@ -11,7 +13,7 @@ export async function detectWebGPU() {
 }
 
 function defaultWorkerFactory() {
-  return new Worker(new URL('./llm-worker.js', import.meta.url), { type: 'module' });
+  return new InlineLLMWorker();
 }
 
 function progressPercent(progress) {

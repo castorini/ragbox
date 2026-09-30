@@ -22,3 +22,17 @@ it('explains initial setup, saved-index reopening, and removes guidance when ena
   updates.forEach(fn => fn());
   expect(nodes.get('#marco-help').hidden).toBe(true);
 });
+
+it('explains how to open a downloaded HTML file when browser storage is unavailable', () => {
+  const nodes = new Map();
+  vi.stubGlobal('location', { protocol: 'file:' });
+  vi.stubGlobal('document', { querySelector(id) {
+    if (!nodes.has(id)) nodes.set(id, { disabled: true, textContent: '', setAttribute: vi.fn(), removeAttribute: vi.fn() });
+    return nodes.get(id);
+  } });
+  vi.stubGlobal('MutationObserver', class { observe() {} });
+  setupSearchGuidance();
+  expect(nodes.get('#marco-help').textContent).toContain('localhost');
+  expect(nodes.get('#marco-help').textContent).not.toContain('Reload');
+  expect(nodes.get('#fts-help').textContent).toContain('localhost');
+});

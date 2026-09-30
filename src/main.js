@@ -36,6 +36,10 @@ async function run(action) {
 const llm = setupLLM();
 
 async function main() {
+  if (location.protocol === 'file:') {
+    document.querySelector('#local-file-notice').hidden = false;
+    throw new Error('Browser storage requires localhost or HTTPS. Follow the instructions above.');
+  }
   if (!window.isSecureContext || !navigator.storage?.getDirectory) {
     throw new Error('OPFS requires a supported browser on localhost or HTTPS');
   }

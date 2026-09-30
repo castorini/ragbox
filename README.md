@@ -196,6 +196,12 @@ The workflow downloads the BEIR NFCorpus archive, runs the preparation script, a
 
 Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Load NFCorpus & build FTS index**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
 
+## Download a single HTML release
+
+Each push to `main` also runs `.github/workflows/release-html.yml`. After tests pass, it prepares NFCorpus, builds `ragbox.html`, and attaches it to a GitHub Release tagged `html-<commit SHA>`. The newest successful build appears as the latest release; rerunning the workflow leaves an existing release in place. The HTML includes the app code, CSS, LLM worker, LLM WebAssembly runtime, and NFCorpus data. The DuckDB runtime and extension files, model weights, and MS MARCO index still download on demand.
+
+To build the same file locally, run `npm run build:single`. The command downloads and prepares NFCorpus if `public/data/nfcorpus.jsonl` is missing; this first build needs internet access and `unzip`. The output is `dist-single/ragbox.html`. Serve the file from a stable localhost or HTTPS origin to use OPFS, for example `python3 -m http.server 8000 --directory dist-single` and open `http://localhost:8000/ragbox.html`. Do not open it directly with `file://`: Chrome blocks the browser storage this app needs. The HTML shows these instructions if opened that way.
+
 ## Reset all demo data
 
 Click **Reset all data** and confirm to close DuckDB, delete `analytics.duckdb` and its WAL/helper files, and remove the demo's OPFS Parquet cache and export. All tables and FTS indexes in that database are removed. The button also works after **Checkpoint & close**. Close other tabs running the demo before resetting.

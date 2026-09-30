@@ -10,7 +10,9 @@ export function setupSearchGuidance() {
       const globalText = globalStatus.textContent;
       const localText = status.textContent;
       let instruction;
-      if (prefix === 'fts' && /Prepare NFCorpus|Retry preparing NFCorpus/.test(localText)) {
+      if (globalThis.location?.protocol === 'file:') {
+        instruction = 'Open RAGbox through localhost to enable browser storage. Follow the setup instructions above.';
+      } else if (prefix === 'fts' && /Prepare NFCorpus|Retry preparing NFCorpus/.test(localText)) {
         instruction = localText;
       } else if (/Startup failed|^Error:/.test(globalText)) {
         instruction = `Search unavailable. ${globalText} Reload the page to try again.`;

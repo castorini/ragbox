@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-single/
 public/data/*.jsonl
 artifacts/
 .env.local
