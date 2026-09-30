@@ -7,3 +7,13 @@
 .search-row button.primary:disabled{opacity:1;background:#e5e9e5;border:1px dashed #9daaa2;color:#59665e;box-shadow:none;cursor:not-allowed}.search-row button.primary:disabled::before{content:'⊘';display:inline-block;margin-right:8px;font-size:18px;vertical-align:middle}.search-help{background:#fff7e7;border:1px solid #ead4a4;border-left:4px solid #b68936;border-radius:8px;padding:13px 16px;color:#695022!important;font-size:14px!important;line-height:1.65;margin:12px 0!important}
 
 #collections{scroll-margin-top:25px}.collection>.workspace-label{padding-bottom:24px;border-bottom:1px solid var(--line);margin-bottom:24px}
+
+/* Keep the optional answer model beside the active search form. */
+.search-tools{display:grid;grid-template-columns:minmax(0,1fr) 240px;gap:20px;align-items:start}
+.search-tools form{min-width:0}
+.model-inline{padding:12px 14px;border:1px solid #d7e1cf;border-radius:10px;background:#f3f6ef;scroll-margin-top:24px;min-width:0}
+.model-inline h4{font-size:13px;margin:0 0 6px;color:var(--accent)}
+.model-inline p{font-size:12px;line-height:1.5;margin:6px 0 0;overflow-wrap:anywhere}
+.model-inline button{font-size:12px;padding:8px 10px;margin-top:8px;max-width:100%;white-space:normal}
+.model-inline progress{margin:10px 0 0}
+@media(max-width:900px){.search-tools{grid-template-columns:minmax(0,1fr);gap:12px}.model-inline{padding:10px 12px}}

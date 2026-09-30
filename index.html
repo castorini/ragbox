@@ -22,11 +22,23 @@
 <h3 id="fts-heading" class="collection-heading">NFCorpus</h3>
 <p>Explore biomedical research with full-text search. A small collection to get started quickly.</p>
 <div id="fts-setup" class="setup-box"><span class="step-label">GET STARTED</span><p>Prepare this collection once. Your index is saved in this browser.</p><button id="fts-index" data-fts-control disabled>Prepare NFCorpus</button></div>
+<div id="fts-search-tools" class="search-tools">
 <form id="fts-form">
 <label for="fts-query">Search title and document text</label>
 <div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
 <button id="fts-search" data-fts-control class="primary" disabled>Search NFCorpus <span aria-hidden="true">↗</span></button></div>
 </form>
+<aside id="model" class="model-inline" aria-labelledby="llm-heading">
+<h4 id="llm-heading">Cited answers</h4>
+<p id="llm-setup" hidden>Optional local model. Download once for cited answers; search works without it.</p>
+<div id="llm-controls">
+<button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
+<button id="llm-stop" hidden type="button" data-llm-control disabled>Stop generation</button>
+<progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
+<p id="llm-status" role="status">Checking WebGPU support…</p>
+</div>
+</aside>
+</div>
 <p id="fts-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
 <p id="fts-status" role="status">Build the index once, then search. Saved indexes can be reused after reload.</p>
 <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading">
@@ -47,11 +59,13 @@
 <button data-marco-control id="marco-cancel-download" type="button" disabled hidden>Cancel download</button>
 <progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
 </div>
+<div id="marco-search-tools" class="search-tools">
 <form id="marco-form">
 <label for="marco-query">Search MS MARCO passages</label>
 <div class="search-row"><input id="marco-query" type="search" placeholder="What would you like to explore?" required maxlength="500">
 <button data-marco-control id="marco-search" class="primary" disabled>Search MS MARCO <span aria-hidden="true">↗</span></button></div>
 </form>
+</div>
 <p id="marco-help" class="search-help" role="status">Search is not ready yet. Follow the setup instructions above.</p>
 <p id="marco-status" role="status">Checking for a saved index. If none is saved, download it once to start searching.</p>
 <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading">
@@ -61,16 +75,7 @@
 <ol id="marco-results" aria-label="Search results"></ol>
 </div>
 </section>
-<section id="model" class="model-card" aria-labelledby="llm-heading">
-<h2 id="llm-heading">Cited answers</h2>
-<p id="llm-setup" hidden>Load the local model to add a cited answer when you search. The download is saved in this browser. You can search without it.</p>
-<div id="llm-controls">
-<button id="llm-load" hidden type="button" data-llm-control disabled>Load local LLM (~1.84 GB)</button>
-<button id="llm-stop" hidden type="button" data-llm-control disabled>Stop generation</button>
-<progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
-<p id="llm-status" role="status">Checking WebGPU support…</p>
-</div>
-</section>
+
 
 </div></main><footer><span class="brand">RAG<span>box</span></span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
 <script type="module" src="/src/main.js"></script>

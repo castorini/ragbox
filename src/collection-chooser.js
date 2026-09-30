@@ -13,6 +13,9 @@ export function setupCollectionChooser() {
     if (!Object.hasOwn(panels, value)) return;
     start.value = swap.value = value;
     for (const [name, panel] of Object.entries(panels)) panel.hidden = name !== value;
+    // Move the shared controls without recreating the model or its event handlers.
+    document.querySelector(value === 'nfcorpus' ? '#fts-search-tools' : '#marco-search-tools')
+      .append(document.querySelector('#model'));
     welcome.hidden = true;
     workspace.hidden = false;
     nav.hidden = false;
