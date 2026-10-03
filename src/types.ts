@@ -7,6 +7,7 @@ export interface EvidenceDocument {
 }
 
 export interface ModelProgress {
+  status?: string;
   progress?: number;
   loaded?: number;
   total?: number;

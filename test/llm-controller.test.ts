@@ -2,12 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LLMController, renderAnswer } from '../src/llm-controller.ts';
 import type { Capability } from '../src/llm-controller.ts';
 
-type FakeNode = { nodeType?: string; tagName?: string; textContent: string; href?: string; title?: string };
+type FakeNode = {
+  nodeType?: string; tagName?: string; textContent: string; href?: string; title?: string; className?: string;
+  children?: FakeNode[]; append?: (...nodes: FakeNode[]) => void;
+};
 
 function fakeDocument() {
   return {
     createTextNode: (text: string): FakeNode => ({ nodeType: 'text', textContent: text }),
-    createElement: (tagName: string): FakeNode => ({ tagName, textContent: '', href: '', title: '' }),
+    createElement: (tagName: string): FakeNode => ({
+      tagName, textContent: '', href: '', title: '', children: [],
+      append(...nodes: FakeNode[]) { this.children!.push(...nodes); },
+    }),
   };
 }
 
@@ -94,6 +100,7 @@ function createHarness(capability: Capability = { supported: true }) {
     status: new FakeEventTarget(),
     progress: new FakeEventTarget(),
     answers,
+    generating: { nfcorpus: new FakeEventTarget(), msmarco: new FakeEventTarget() },
   };
   const workerFactory = vi.fn(() => worker as unknown as Worker);
   const detectWebGPU = vi.fn(async () => capability);
@@ -413,4 +420,48 @@ describe('renderAnswer', () => {
       '<b>Claim</b> [MED-14], passage [MARCO-12], and unknown [MED-404].',
     );
   });
+});
+
+it('shows the generating indicator only for the active corpus and clears it on completion, error, or cancel', async () => {
+  const { controller, elements, worker } = await readyHarness();
+  const start = () => controller.generate({ corpus: 'nfcorpus', question: 'test', documents: [], citationTargets: new Map() });
+  start();
+  expect(elements.generating.nfcorpus.hidden).toBe(false);
+  expect(elements.generating.msmarco.hidden).toBe(true);
+  worker.emit({ type: 'complete', requestId: controller.activeRequest!.id, answer: 'Answer', documentIds: [] });
+  expect(elements.generating.nfcorpus.hidden).toBe(true);
+  start();
+  worker.emit({ type: 'error', operation: 'generate', requestId: controller.activeRequest!.id, message: 'Failed' });
+  expect(elements.generating.nfcorpus.hidden).toBe(true);
+  start();
+  controller.cancel();
+  expect(elements.generating.nfcorpus.hidden).toBe(true);
+});
+
+it('guides the user to repair the model when answer generation fails', async () => {
+  const { controller, elements, worker } = await readyHarness();
+  controller.generate({ corpus: 'nfcorpus', question: 'test', documents: [], citationTargets: new Map() });
+  worker.emit({
+    type: 'error', operation: 'generate', requestId: controller.activeRequest!.id,
+    message: "Cannot read properties of null (reading 'apply_chat_template')",
+  });
+  const [box] = elements.answers.nfcorpus.children;
+  expect(box.className).toBe('answer-repair');
+  const [message, link] = box.children!;
+  expect(message.textContent).toContain('apply_chat_template');
+  expect(message.textContent).toContain('delete the installed model');
+  expect(link.href).toBe('?view=setup#model-storage');
+  expect(link.textContent).toBe('Repair the model →');
+});
+
+it('flags the model card for repair after a failure and clears it once the model works again', async () => {
+  const { controller, elements, worker } = await readyHarness();
+  const card = { toggleAttribute: vi.fn() };
+  (elements as { modelCard?: unknown }).modelCard = card;
+  controller.generate({ corpus: 'nfcorpus', question: 'test', documents: [], citationTargets: new Map() });
+  worker.emit({ type: 'error', operation: 'generate', requestId: controller.activeRequest!.id, message: 'Failed' });
+  expect(card.toggleAttribute).toHaveBeenLastCalledWith('data-repair', true);
+  controller.generate({ corpus: 'nfcorpus', question: 'test', documents: [], citationTargets: new Map() });
+  worker.emit({ type: 'complete', requestId: controller.activeRequest!.id, answer: 'Answer', documentIds: [] });
+  expect(card.toggleAttribute).toHaveBeenLastCalledWith('data-repair', false);
 });

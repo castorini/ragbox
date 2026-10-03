@@ -1,59 +1,80 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search · ragbox</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search · ragbox</title><link rel="stylesheet" href="/src/style.css"></head>
 <body>
 <a class="skip-link" href="#search-heading">Skip to search</a>
-<header class="topbar">
-  <a class="brand" href="?">ragbox<span class="brand-mark" aria-hidden="true">↗</span></a>
-  <nav aria-label="Main navigation"><a id="nav-search" href="?" aria-current="page">Search</a><a id="nav-setup" href="?view=setup">Setup</a></nav>
-  <span class="local-badge">Runs in your browser</span>
-</header>
+
+<nav class="side-rail" aria-label="Main navigation">
+<a id="nav-search" class="rail-link" href="?" title="Search" aria-label="Search"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Search</span></a>
+<a id="nav-results" class="rail-link" href="?view=results" title="Results" aria-label="Results"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Results</span></a>
+<a id="nav-setup" class="rail-link" href="?view=setup" title="Settings" aria-label="Settings"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>Settings</span></a>
+</nav>
 <main>
   <p id="status" role="status" hidden>Opening database…</p>
   <section id="search-view" aria-labelledby="search-heading">
-    <div class="search-header">
-      <div><div class="eyebrow">LOCAL RESEARCH SEARCH</div><h1 id="search-heading" tabindex="-1">Search</h1></div>
-      <div class="collection-switch"><label for="collection-switch">Collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="nfcorpus">NFCorpus</option><option value="msmarco">MS MARCO</option></select></div>
-    </div>
-    <p id="collection-description" class="collection-description">3,633 health and nutrition research documents</p>
+    <h1 id="search-heading" class="search-logo" tabindex="-1"><a id="home-link" class="home-link" href="?" title="Start a new search">RAGbox</a></h1>
     <section id="collections" class="collection" aria-label="Search collection">
+<div class="search-collection-select"><label class="sr-only" for="collection-switch">Document collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="nfcorpus">NFCorpus</option><option value="msmarco">MS MARCO</option></select></div>
       <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus search">
         <form id="fts-form">
-          <label for="fts-query">Search title and document text</label>
-          <div class="search-row"><input id="fts-query" type="search" placeholder="What would you like to explore?" required maxlength="500" disabled>
-          <button id="fts-search" class="primary" disabled>Search <span aria-hidden="true">↗</span></button></div>
+          <label class="sr-only" for="fts-query">Search title and document text</label>
+          <div class="search-row"><input id="fts-query" type="search" placeholder="Search" required maxlength="500" disabled>
+          <button id="fts-search" class="primary search-icon-button" type="submit" aria-label="Search NFCorpus" title="Search NFCorpus" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
         </form>
         <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus in this browser…</span> <a id="fts-setup-link" href="?view=setup">Open Setup</a></p>
         <p id="fts-search-status" role="status" hidden></p>
+<div id="fts-results-area" class="results-area" tabindex="-1" hidden>
+<h2>Results</h2><p class="results-empty">Your results will appear here after you search this collection.</p>
         <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading" hidden>
-          <h2 id="fts-answer-heading">Cited answer</h2><p id="fts-answer" class="llm-answer" aria-live="polite"></p>
+          <div class="answer-header"><h2 id="fts-answer-heading">Cited answer</h2><span id="fts-generating" class="answer-generating" role="status" hidden><span class="answer-spinner" aria-hidden="true"></span>Generating answer…</span></div><p id="fts-answer" class="llm-answer" aria-live="polite"></p>
         </article>
         <ol id="fts-results" aria-label="NFCorpus search results"></ol>
+</div>
       </div>
       <div id="msmarco-collection" class="collection-panel" role="region" aria-label="MS MARCO search" hidden>
         <form id="marco-form">
-          <label for="marco-query">Search passages</label>
-          <div class="search-row"><input id="marco-query" type="search" placeholder="What would you like to explore?" required maxlength="500" disabled>
-          <button id="marco-search" class="primary" disabled>Search <span aria-hidden="true">↗</span></button></div>
+          <label class="sr-only" for="marco-query">Search passages</label>
+          <div class="search-row"><input id="marco-query" type="search" placeholder="Search" required maxlength="500" disabled>
+          <button id="marco-search" class="primary search-icon-button" type="submit" aria-label="Search MS MARCO" title="Search MS MARCO" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
         </form>
         <p id="marco-help" class="search-help" role="status"><span id="marco-help-text">Checking for a saved MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup">Open Setup</a></p>
         <p id="marco-search-status" role="status" hidden></p>
+<div id="marco-results-area" class="results-area" tabindex="-1" hidden>
+<h2>Results</h2><p class="results-empty">Your results will appear here after you search this collection.</p>
         <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading" hidden>
-          <h2 id="marco-answer-heading">Cited answer</h2><p id="marco-answer" class="llm-answer" aria-live="polite"></p>
+          <div class="answer-header"><h2 id="marco-answer-heading">Cited answer</h2><span id="marco-generating" class="answer-generating" role="status" hidden><span class="answer-spinner" aria-hidden="true"></span>Generating answer…</span></div><p id="marco-answer" class="llm-answer" aria-live="polite"></p>
         </article>
         <ol id="marco-results" aria-label="MS MARCO search results"></ol>
+</div>
       </div>
     </section>
-    <p class="model-note"><span id="model-search-status">Checking optional cited answers…</span> <a id="model-setup-link" href="?view=setup">Model setup</a></p>
+    <section id="corpus-dashboard" class="corpus-dashboard" aria-labelledby="corpus-dashboard-heading">
+      <h2 id="corpus-dashboard-heading">Collections in this browser</h2>
+      <ul class="corpus-cards">
+      <li class="corpus-card" data-corpus="nfcorpus" data-status="pending">
+        <div class="corpus-card-head"><span class="status-light" aria-hidden="true"></span><h3><button id="nfcorpus-dashboard-use" class="corpus-select" type="button" aria-pressed="false">NFCorpus</button></h3><span id="nfcorpus-dashboard-status" class="corpus-status-label">Checking…</span></div>
+        <p class="corpus-description">Nutrition and medical research: 3,633 PubMed articles cited by NutritionFacts.org. Best for health and diet questions.</p>
+        <p id="nfcorpus-dashboard-detail" class="corpus-detail">Small · built in your browser in under a minute</p>
+        <div class="corpus-actions"><a id="nfcorpus-dashboard-setup" class="corpus-action" href="?view=setup#setup-nfcorpus" hidden></a><span id="nfcorpus-dashboard-selected" class="corpus-selected" hidden>Selected</span></div>
+      </li>
+      <li class="corpus-card" data-corpus="msmarco" data-status="pending">
+        <div class="corpus-card-head"><span class="status-light" aria-hidden="true"></span><h3><button id="msmarco-dashboard-use" class="corpus-select" type="button" aria-pressed="false">MS MARCO</button></h3><span id="msmarco-dashboard-status" class="corpus-status-label">Checking…</span></div>
+        <p class="corpus-description">General web knowledge: 8.8 million short passages from Bing search results. Best for everyday factual questions.</p>
+        <p id="msmarco-dashboard-detail" class="corpus-detail">Large · one-time 3.35 GB download</p>
+        <div class="corpus-actions"><a id="msmarco-dashboard-setup" class="corpus-action" href="?view=setup#setup-msmarco" hidden></a><span id="msmarco-dashboard-selected" class="corpus-selected" hidden>Selected</span></div>
+      </li>
+      </ul>
+    </section>
+    <p class="model-note" hidden><span id="model-search-status">Checking optional cited answers…</span> <a id="model-setup-link" href="?view=setup#model">Model setup</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Repair model</a></p>
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>
-    <div class="setup-header"><div class="eyebrow">BROWSER STORAGE</div><h1 id="setup-heading" tabindex="-1">Setup</h1><p>Prepare collections and the optional answer model. Saved resources can be reused on later visits.</p></div>
-    <section class="setup-card" aria-labelledby="fts-setup-heading">
+    <div class="setup-header"><div class="eyebrow">BROWSER STORAGE</div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Prepare collections and the optional answer model. Saved resources can be reused on later visits.</p></div>
+    <section id="setup-nfcorpus" tabindex="-1" class="setup-card" aria-labelledby="fts-setup-heading">
       <h2 id="fts-setup-heading">NFCorpus</h2><p id="fts-status" role="status">Checking for a saved index…</p>
       <div id="fts-setup"><p>Prepare this collection once. Its index is saved in this browser.</p><button id="fts-index" type="button" disabled>Prepare NFCorpus</button></div>
     </section>
-    <section class="setup-card" aria-labelledby="marco-setup-heading">
+    <section id="setup-msmarco" tabindex="-1" class="setup-card" aria-labelledby="marco-setup-heading">
       <h2 id="marco-setup-heading">MS MARCO</h2><p id="marco-status" role="status">Checking for a saved index…</p>
       <div id="marco-setup" hidden>
         <p>Download the index once (3.35 GB). It stays in this browser’s storage and opens when you select MS MARCO.</p>
@@ -63,7 +84,7 @@
         <progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
       </div>
     </section>
-    <section id="model" class="setup-card" aria-labelledby="llm-heading">
+    <section id="model" tabindex="-1" class="setup-card" aria-labelledby="llm-heading">
       <h2 id="llm-heading">Cited answers</h2>
       <p id="llm-setup" hidden>Optional local model. Download once for cited answers; document search works without it.</p>
       <div id="llm-controls">
@@ -72,25 +93,27 @@
         <progress id="llm-progress" max="100" hidden aria-label="Model download progress"></progress>
         <p id="llm-status" role="status">Checking WebGPU support…</p>
       </div>
+      <div id="model-storage" tabindex="-1">
+        <div class="model-cache-header"><h3>Installed LLM data</h3><span id="model-cache-summary"></span></div>
+        <p>MiniCPM5-2B model files in this browser’s cache. <mark class="model-hint">Delete the model to free space, then use “Load local LLM” above to download it again.</mark> Collection indexes are kept.</p>
+        <div class="storage-actions"><button id="model-cache-refresh" type="button">Refresh model files</button><button id="model-cache-delete" class="danger" type="button" disabled>Delete installed model</button></div>
+        <p id="model-cache-status" role="status">Checking cached model files…</p>
+        <details class="model-cache-details">
+          <summary>View cached model files</summary>
+          <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
+        </details>
+      </div>
     </section>
     <section class="setup-card" aria-labelledby="storage-heading">
       <div class="storage-header"><h2 id="storage-heading">Storage dashboard</h2><span id="storage-summary"></span></div>
-      <p>Browse saved collection files. Delete a file or reset collection data to prepare it again. Manage the optional model separately below.</p>
+      <p>Browse saved collection files. Delete a file or reset collection data to prepare it again. The optional model is managed under Cited answers above.</p>
       <div class="storage-actions"><button id="storage-refresh" type="button">Refresh files</button><button id="storage-reload" type="button">Reload page</button><button id="storage-reset" class="danger" type="button" disabled>Reset collection data</button><button id="storage-reset-all" class="danger" type="button" disabled>Reset all data</button></div>
       <p id="storage-status" role="status">Checking browser files…</p>
       <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
-      <div class="model-cache-header"><h3>Installed LLM data</h3><span id="model-cache-summary"></span></div>
-      <p>MiniCPM5-2B model files in this browser’s cache. Delete the model to free space, then use “Load local LLM” above to download it again. Collection indexes are kept.</p>
-      <div class="storage-actions"><button id="model-cache-refresh" type="button">Refresh model files</button><button id="model-cache-delete" class="danger" type="button" disabled>Delete installed model</button></div>
-      <p id="model-cache-status" role="status">Checking cached model files…</p>
-      <details class="model-cache-details">
-        <summary>View cached model files</summary>
-        <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
-      </details>
     </section>
     <a id="setup-back" class="setup-back" href="?">← Back to search</a>
   </section>
 </main>
-<footer><span class="brand">ragbox</span><p>Powered by DuckDB-Wasm · Search runs locally in your browser.</p><a href="https://github.com/castorini/ragbox">View source ↗</a></footer>
+
 <script type="module" src="/src/main.ts"></script>
 </body></html>

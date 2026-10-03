@@ -1,3 +1,4 @@
+import { requireCompleteModelCache } from './model-readiness.ts';
 import {
   InterruptableStoppingCriteria,
   TextStreamer,
@@ -60,7 +61,9 @@ async function loadModel(cachedOnly = false) {
     cacheOnlyFetch = cachedOnly;
     env.allowLocalModels = cachedOnly;
     env.allowRemoteModels = !cachedOnly;
-    loading = removeInvalidModelCache().then(() => pipeline('text-generation', MODEL_ID, {
+    loading = removeInvalidModelCache().then(async () => {
+      if (cachedOnly) await requireCompleteModelCache();
+    }).then(() => pipeline('text-generation', MODEL_ID, {
       device: 'webgpu',
       local_files_only: cachedOnly,
       dtype: 'q4f16',
@@ -69,6 +72,7 @@ async function loadModel(cachedOnly = false) {
         report({ type: 'progress', progress: progress as ModelProgress });
       },
     })).then(value => {
+      if (!value.tokenizer) throw new Error('The saved model is missing its tokenizer files.');
       generator = value;
       report({ type: 'ready', model: MODEL_ID, revision: MODEL_REVISION });
       return value;

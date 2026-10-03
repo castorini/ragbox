@@ -1,7 +1,7 @@
+import { openLocalDatabase } from './open-local-database.ts';
 import { setupSearchGuidance } from './search-guidance.ts';
 import { setupCollectionChooser } from './collection-chooser.ts';
 import * as duckdb from '@duckdb/duckdb-wasm';
-import './style.css';
 import { setupNFCorpus } from './nfcorpus.ts';
 import { setupMSMarco } from './msmarco.ts';
 import { setupLLM } from './llm-controller.ts';
@@ -10,6 +10,7 @@ import type { RunTask } from './types.ts';
 import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
+import { setupCorpusDashboard } from './corpus-dashboard.ts';
 
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
@@ -19,9 +20,11 @@ let busy = false;
 let marco: ReturnType<typeof setupMSMarco> | undefined;
 let nfcorpus: ReturnType<typeof setupNFCorpus> | undefined;
 const chooser = setupCollectionChooser(value => {
+  dashboard.render();
   if (value === 'msmarco') void marco?.reopenSaved();
-});
+}, () => llm.cancel(true));
 setupSearchGuidance(states);
+const dashboard = setupCorpusDashboard(states, chooser);
 
 const run: RunTask = async (action, searchCorpus) => {
   if (busy) return;
@@ -81,11 +84,7 @@ async function main() {
   } finally {
     URL.revokeObjectURL(workerUrl);
   }
-  await db.open({
-    path: 'opfs://analytics.duckdb',
-    accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
-    opfs: { fileHandling: 'auto' },
-  });
+  await openLocalDatabase(db, await navigator.storage.getDirectory());
   conn = await db.connect();
   nfcorpus = setupNFCorpus(db, conn, run, llm,
     (phase, message) => states.set('nfcorpus', phase, message), loads);

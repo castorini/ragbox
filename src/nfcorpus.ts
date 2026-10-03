@@ -137,6 +137,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     event.preventDefault();
     const query = requiredElement<HTMLInputElement>('#fts-query').value.trim();
     if (!query) return;
+    requiredElement<HTMLElement>('#fts-results-area').hidden = false;
     answerPanel.hidden = false;
     searchStatus.hidden = false;
     llm.beginRetrieval('nfcorpus');

@@ -10,9 +10,12 @@ type MockEnv = { allowRemoteModels: boolean; allowLocalModels: boolean; fetch: t
 const mocks = vi.hoisted(() => ({
   env: {} as MockEnv,
   pipeline: vi.fn(),
+  requireCache: vi.fn(),
   streamers: [] as MockStreamer[],
   criteria: [] as MockCriterion[],
 }));
+
+vi.mock('../src/model-readiness.ts', () => ({ requireCompleteModelCache: mocks.requireCache }));
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
@@ -80,6 +83,7 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
 beforeEach(() => {
   vi.resetModules();
   mocks.pipeline.mockReset();
+  mocks.requireCache.mockReset().mockResolvedValue(undefined);
   mocks.streamers.length = 0;
   mocks.criteria.length = 0;
 });
@@ -295,4 +299,14 @@ it('removes HTML cached as external weights but preserves valid weights and unre
   expect(cache.delete).toHaveBeenCalledExactlyOnceWith(bad);
   expect(mocks.env.allowLocalModels).toBe(false);
   expect(mocks.env.allowRemoteModels).toBe(true);
+});
+
+it('rejects an incomplete cache before starting model initialization and allows manual download', async () => {
+  const harness = await createHarness();
+  mocks.requireCache.mockRejectedValueOnce(new Error('Missing external weights'));
+  harness.send({ type: 'load', cachedOnly: true });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'cache-unavailable')).toBe(true));
+  expect(mocks.pipeline).not.toHaveBeenCalled();
+  harness.send({ type: 'load' });
+  await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
 });

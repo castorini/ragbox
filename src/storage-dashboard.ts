@@ -139,6 +139,12 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       stopped = true;
       await shutdown();
       await deleteModelCacheFiles(caches);
+      if (window.location.hash === '#model-storage') {
+        // Repair flow: reopen Settings pointing at “Load local LLM” to download it again.
+        const url = new URL(window.location.href);
+        url.hash = 'model';
+        window.history.replaceState(null, '', url);
+      }
       window.location.reload();
     } catch (error) {
       modelStatus.textContent = `Could not delete model data: ${errorMessage(error)}. Reload this page to retry.`;

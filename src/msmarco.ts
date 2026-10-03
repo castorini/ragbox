@@ -174,6 +174,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     event.preventDefault();
     const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
     if (!query) return;
+    requiredElement<HTMLElement>('#marco-results-area').hidden = false;
     answerPanel.hidden = false;
     searchStatus.hidden = false;
     llm?.beginRetrieval('msmarco');

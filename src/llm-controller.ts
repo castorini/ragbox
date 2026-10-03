@@ -13,6 +13,8 @@ interface ControllerElements {
   progress: HTMLProgressElement;
   answers?: Partial<Record<Corpus, HTMLElement>>;
   answer?: HTMLElement;
+  generating?: Partial<Record<Corpus, HTMLElement>>;
+  modelCard?: HTMLElement;
 }
 
 interface ActiveRequest {
@@ -106,6 +108,8 @@ export class LLMController {
   private answers: Partial<Record<Corpus, HTMLElement>>;
   private onState?: (state: ControllerState, message: string) => void;
   private loadWaiters = new Set<() => void>();
+  // Set after a load or generation failure; highlights the delete-and-redownload hint in Settings.
+  repairNeeded = false;
 
   constructor({
     elements,
@@ -130,10 +134,15 @@ export class LLMController {
   }
 
   updateControls() {
+    for (const corpus of ['nfcorpus', 'msmarco'] as const) {
+      const indicator = this.elements.generating?.[corpus];
+      if (indicator) indicator.hidden = this.state !== 'generating' || this.activeRequest?.corpus !== corpus;
+    }
     if (this.elements.setup) {
       this.elements.setup.hidden = !['idle', 'error'].includes(this.state);
     }
     this.elements.stopButton.hidden = this.state !== 'generating';
+    this.elements.modelCard?.toggleAttribute?.('data-repair', this.repairNeeded);
     this.onState?.(this.state, this.elements.status.textContent);
   }
 
@@ -229,6 +238,21 @@ export class LLMController {
         ? 'BM25 results are ready. Local answer generation is unavailable on this device.'
         : 'BM25 results are ready. Load the local LLM to generate an answer from the retrieved evidence.';
       renderAnswer(answer, message);
+      if (this.state !== 'unsupported' && answer.ownerDocument) {
+        const doc = answer.ownerDocument;
+        const link = doc.createElement('a');
+        link.href = '?view=setup#model';
+        link.textContent = 'Load';
+        link.onclick = event => {
+          if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          doc.querySelector<HTMLAnchorElement>('#model-setup-link')?.click();
+        };
+        answer.replaceChildren(
+          doc.createTextNode('BM25 results are ready. '), link,
+          doc.createTextNode(' the local LLM to generate an answer from the retrieved evidence.'),
+        );
+      }
       return false;
     }
     if (this.activeRequest) this.cancel(true);
@@ -293,11 +317,12 @@ export class LLMController {
 
   handleWorkerMessage(message: WorkerResponse) {
     if (message.type === 'cache-unavailable') {
+      this.repairNeeded = true;
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = false;
-      this.elements.status.textContent = 'The saved model is unavailable or could not be opened. Click “Load local LLM” to download or retry. Search still works without it.';
+      this.elements.status.textContent = 'The saved model is incomplete or could not be opened. Click “Load local LLM” to download missing files or retry. Search still works without it.';
       return;
     }
     if (message.type === 'progress' && this.state === 'loading') {
@@ -305,7 +330,9 @@ export class LLMController {
       const file = message.progress?.file ? ` ${message.progress.file}` : '';
       if (percent === null) {
         this.elements.progress.removeAttribute?.('value');
-        this.elements.status.textContent = `Loading model${file}…`;
+        this.elements.status.textContent = message.progress.status === 'done'
+          ? `Loaded${file}. Preparing remaining model files and the GPU session…`
+          : `Reading model file${file}… Progress is not available for this step.`;
       } else {
         this.elements.progress.max = 100;
         this.elements.progress.value = percent;
@@ -314,6 +341,7 @@ export class LLMController {
       return;
     }
     if (message.type === 'ready') {
+      this.repairNeeded = false;
       this.elements.loadButton.hidden = true;
       this.state = 'ready';
       this.elements.progress.hidden = true;
@@ -364,6 +392,7 @@ export class LLMController {
       );
       request.answerText = message.answer;
       renderAnswer(request.answer, request.answerText, request.includedTargets);
+      this.repairNeeded = false;
       this.activeRequest = null;
       this.state = 'ready';
       this.elements.stopButton.disabled = true;
@@ -380,6 +409,7 @@ export class LLMController {
       return;
     }
     if (message.type === 'error') {
+      this.repairNeeded = true;
       if (message.operation === 'load') {
         this.elements.loadButton.hidden = false;
         this.state = 'error';
@@ -391,6 +421,7 @@ export class LLMController {
         this.state = 'ready';
         this.elements.stopButton.disabled = true;
         this.elements.status.textContent = `Answer generation failed: ${message.message}. BM25 results remain available.`;
+        if (request) showRepairGuidance(request.answer, message.message);
       }
     }
   }
@@ -404,13 +435,44 @@ export class LLMController {
   }
 }
 
+// A failed generation usually means damaged model files; walk the user through reinstalling.
+function showRepairGuidance(answer: HTMLElement, reason: string) {
+  const text = `The local model couldn’t write an answer (${reason}). Its saved files may be damaged. `
+    + 'To fix it, delete the installed model in Settings, then download it again. The search results below are unaffected.';
+  const doc = answer.ownerDocument;
+  if (!doc || typeof answer.replaceChildren !== 'function') {
+    answer.textContent = text;
+    return;
+  }
+  const box = doc.createElement('span');
+  box.className = 'answer-repair';
+  const message = doc.createElement('span');
+  message.textContent = text;
+  const link = doc.createElement('a');
+  link.className = 'answer-repair-link';
+  link.href = '?view=setup#model-storage';
+  link.textContent = 'Repair the model →';
+  link.onclick = event => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    doc.querySelector<HTMLAnchorElement>('#model-repair-link')?.click();
+  };
+  box.append(message, link);
+  answer.replaceChildren(box);
+}
+
 export function setupLLM(onState?: (state: ControllerState, message: string) => void, loads?: LoadCoordinator) {
   const elements = {
     setup: requiredElement<HTMLElement>('#llm-setup'),
     loadButton: requiredElement<HTMLButtonElement>('#llm-load'),
     stopButton: requiredElement<HTMLButtonElement>('#llm-stop'),
+    modelCard: requiredElement<HTMLElement>('#model'),
     status: requiredElement<HTMLElement>('#llm-status'),
     progress: requiredElement<HTMLProgressElement>('#llm-progress'),
+    generating: {
+      nfcorpus: requiredElement<HTMLElement>('#fts-generating'),
+      msmarco: requiredElement<HTMLElement>('#marco-generating'),
+    },
     answers: {
       nfcorpus: requiredElement<HTMLElement>('#fts-answer'),
       msmarco: requiredElement<HTMLElement>('#marco-answer'),
