@@ -169,14 +169,14 @@ export class LLMController {
     }
     if (!this.capability.supported) {
       this.state = 'unsupported';
-      this.elements.status.textContent = `${this.capability.reason} BM25 search remains available.`;
+      this.elements.status.textContent = `${this.capability.reason} Document search is available.`;
       this.elements.loadButton.disabled = true;
       this.updateControls();
       return this.capability;
     }
     this.state = 'idle';
     this.elements.loadButton.hidden = false;
-    this.elements.status.textContent = 'WebGPU is ready. Load the local model when you want cited answers.';
+    this.elements.status.textContent = 'Not loaded.';
     this.elements.loadButton.disabled = false;
     this.updateControls();
     return this.capability;
@@ -211,7 +211,7 @@ export class LLMController {
     this.elements.stopButton.disabled = true;
     this.elements.progress.hidden = false;
     this.elements.progress.removeAttribute?.('value');
-    this.elements.status.textContent = cachedOnly ? 'Loading saved model from this browser…' : 'Starting the local model download…';
+    this.elements.status.textContent = cachedOnly ? 'Loading saved model…' : 'Starting model download…';
     this.updateControls();
     this.send(cachedOnly ? { type: 'load', cachedOnly: true } : { type: 'load' });
     return true;
@@ -332,7 +332,7 @@ export class LLMController {
       this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = false;
-      this.elements.status.textContent = 'The saved model is incomplete or could not be opened. Click “Load local LLM” to download missing files or retry. Search still works without it.';
+      this.elements.status.textContent = 'Model unavailable. Use “Load local LLM” to download or retry.';
       return;
     }
     if (message.type === 'progress' && this.state === 'loading') {
@@ -341,8 +341,8 @@ export class LLMController {
       if (percent === null) {
         this.elements.progress.removeAttribute?.('value');
         this.elements.status.textContent = message.progress.status === 'done'
-          ? `Loaded${file}. Preparing remaining model files and the GPU session…`
-          : `Reading model file${file}… Progress is not available for this step.`;
+          ? `Loaded${file}. Preparing model…`
+          : `Reading model file${file}…`;
       } else {
         this.elements.progress.max = 100;
         this.elements.progress.value = percent;
@@ -357,7 +357,7 @@ export class LLMController {
       this.elements.progress.hidden = true;
       this.elements.loadButton.disabled = true;
       this.elements.stopButton.disabled = true;
-      this.elements.status.textContent = 'Local MiniCPM5-2B model ready. Searches will now generate cited answers.';
+      this.elements.status.textContent = 'MiniCPM5-2B ready for cited answers.';
       return;
     }
     if ('requestId' in message && message.requestId && message.requestId !== this.activeRequest?.id) return;

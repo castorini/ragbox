@@ -61,7 +61,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   }
   async function loadExtension() {
     if (loaded) return;
-    report('preparing', 'Loading the DuckDB FTS extension…');
+    report('preparing', 'Preparing index…');
     await conn.query('INSTALL fts');
     await conn.query('LOAD fts');
     loaded = true;
@@ -80,7 +80,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         ready = false;
         indexButton.textContent = 'Retry preparing NFCorpus';
         updateControls();
-        report('error', `NFCorpus could not be opened or searched. ${errorMessage(error)} Use “Retry preparing NFCorpus” to try again.`);
+        report('error', `Could not open or search NFCorpus: ${errorMessage(error)}. Retry preparing NFCorpus.`);
         throw error;
       }
     }, searching ? 'nfcorpus' : undefined);
@@ -90,7 +90,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     if (queued || checking || blocked) return;
     queued = true;
     updateControls();
-    report('preparing', 'Waiting to prepare NFCorpus…');
+    report('preparing', 'Waiting to prepare index…');
     try {
       const prepare = () => action(async () => {
         ready = false;
@@ -98,7 +98,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         llm.showRetrievalMessage('nfcorpus', '');
         await loadExtension();
         if (!await exists()) {
-          report('preparing', 'Loading NFCorpus documents…');
+          report('preparing', 'Loading documents…');
           const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`);
           if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
             throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
@@ -118,15 +118,13 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
           }
         }
         await readSchema();
-        report('preparing', 'Building the full-text index in your browser…');
-        const start = performance.now();
+        report('preparing', 'Building index…');
         await conn.query(INDEX_SQL);
         await conn.query('CHECKPOINT');
         const count = rowsAs<{ n: number | bigint }>(await conn.query('SELECT count(*) AS n FROM nfcorpus'))[0].n;
-        const version = rowsAs<{ version: string }>(await conn.query('SELECT version() AS version'))[0].version;
         ready = true;
         updateControls();
-        report('ready', `${count} documents indexed in ${((performance.now() - start) / 1000).toFixed(2)} s. ${version}. Ready to search.`);
+        report('ready', `Ready to search · ${count.toLocaleString()} documents.`);
       });
       return await (loads ? loads.run(prepare) : prepare());
     } finally {
@@ -150,7 +148,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       if (!await exists() || Number(rowsAs<{ n: number | bigint }>(index)[0].n) === 0) {
         ready = false;
         updateControls();
-        report('missing', 'Prepare NFCorpus in Setup before searching.');
+        report('missing', 'Not prepared. Prepare NFCorpus to search.');
         return null;
       }
       await readSchema();
@@ -215,13 +213,13 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     });
   };
   updateControls();
-  onState?.('checking', 'Checking for a saved NFCorpus index…');
+  onState?.('checking', 'Checking saved index…');
   return {
     setBlocked(value: boolean) { blocked = value; updateControls(); },
     async reopenSaved() {
       checking = true;
       updateControls();
-      report('checking', 'Checking for a saved NFCorpus index…');
+      report('checking', 'Checking saved index…');
       try {
         return await action(async () => {
           const indexed = Number(rowsAs<{ n: number | bigint }>(await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
@@ -233,10 +231,10 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
             const statement = await conn.prepare(searchSQL);
             await statement.close();
             ready = true;
-            report('ready', 'Saved NFCorpus index opened automatically. Ready to search.');
+            report('ready', 'Ready to search.');
           } else {
             ready = false;
-            report('missing', 'First visit: prepare NFCorpus here, then enter a query on Search.');
+            report('missing', 'Not prepared.');
           }
           updateControls();
         });

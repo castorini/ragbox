@@ -54,8 +54,7 @@ it('resets only known files, removes WAL before the database, and keeps director
   expect(cache.removeEntry).toHaveBeenCalledExactlyOnceWith('monthly_totals.parquet');
 });
 
-function harness(shutdown = vi.fn(async () => {})) {
-  const root = directory({ 'analytics.duckdb': 2048, 'personal.txt': 1 });
+function harness(shutdown = vi.fn(async () => {}), root = directory({ 'analytics.duckdb': 2048, 'personal.txt': 1 })) {
   const elements = new FakeElements();
   vi.stubGlobal('document', {
     querySelector: (id: string) => elements.get(id),
@@ -64,19 +63,134 @@ function harness(shutdown = vi.fn(async () => {})) {
   const confirm = vi.fn(() => true);
   const reload = vi.fn();
   vi.stubGlobal('window', { isSecureContext: true, confirm, location: { reload } });
-  vi.stubGlobal('navigator', { storage: { getDirectory: async () => root } });
+  const getDirectory = vi.fn(async () => root);
+  vi.stubGlobal('navigator', { storage: { getDirectory } });
   const states = new ResourceStates();
   const dashboard = setupStorageDashboard(states, shutdown);
-  return { root, elements, states, dashboard, shutdown, confirm, reload };
+  return { root, elements, states, dashboard, shutdown, confirm, reload, getDirectory };
 }
 
 async function ready(ui: ReturnType<typeof harness>) {
-  await vi.waitFor(() => expect(ui.elements.get('#storage-status').textContent).toContain('Files saved'));
+  await vi.waitFor(() => {
+    expect(ui.elements.get('#storage-summary').textContent).not.toBe('');
+    expect(ui.elements.get('#storage-refresh').disabled).toBe(false);
+  });
   ui.dashboard.initialized();
   ui.states.set('nfcorpus', 'ready', '');
   ui.states.set('msmarco', 'missing', '');
   ui.states.set('model', 'idle', '');
 }
+
+function modelCache(files: Record<string, number | null> = { 'model.onnx': 1024 }) {
+  const responses = new Map(Object.entries(files).map(([name, size]) => [
+    new Request(`https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX/resolve/main/${name}`),
+    new Response(null, size === null ? undefined : { headers: { 'content-length': String(size) } }),
+  ]));
+  const cache = {
+    keys: vi.fn(async () => [...responses.keys()]),
+    match: vi.fn(async (request: Request) => responses.get(request)),
+  };
+  const storage = {
+    keys: vi.fn(async () => ['transformers-cache']),
+    open: vi.fn(async () => cache),
+  };
+  vi.stubGlobal('caches', storage);
+  return { cache, storage };
+}
+
+it('uses summaries and file listings without redundant success messages', async () => {
+  modelCache();
+  const ui = harness();
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
+  expect(ui.elements.get('#storage-summary').textContent).toBe('2 files · 2.0 KB');
+  expect(ui.elements.get('#storage-files').children).toHaveLength(2);
+  expect(ui.elements.get('#model-cache-summary').textContent).toBe('1 cached file · 1.0 KB');
+  expect(ui.elements.get('#model-cache-files').children).toHaveLength(1);
+  for (const id of ['#storage-status', '#model-cache-status']) {
+    expect(ui.elements.get(id).hidden).toBe(true);
+    expect(ui.elements.get(id).textContent).toBe('');
+  }
+});
+
+it('shows concise empty states for both file listings', async () => {
+  modelCache({});
+  const ui = harness(undefined, directory());
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
+  expect(ui.elements.get('#storage-summary').textContent).toBe('0 files · 0 B');
+  expect(ui.elements.get('#model-cache-summary').textContent).toBe('0 cached files · 0 B');
+  expect(ui.elements.get('#storage-status').textContent).toBe('No files saved.');
+  expect(ui.elements.get('#model-cache-status').textContent).toBe('No model files saved.');
+  expect(ui.elements.get('#storage-status').hidden).toBe(false);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(false);
+  expect(ui.elements.get('#storage-files').children).toHaveLength(0);
+  expect(ui.elements.get('#model-cache-files').children).toHaveLength(0);
+});
+
+it('keeps unknown model sizes visible and excludes them from the known-size total', async () => {
+  modelCache({ 'model.onnx': 1024, 'config.json': null });
+  const ui = harness();
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
+  expect(ui.elements.get('#model-cache-summary').textContent).toBe('2 cached files · at least 1.0 KB');
+  expect(ui.elements.get('#model-cache-files').children[0].children[1].textContent).toBe('Unknown');
+  expect(ui.elements.get('#model-cache-status').textContent).toBe('Some file sizes are unknown.');
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(false);
+});
+
+it('reveals refresh errors after hidden success messages and hides them after recovery', async () => {
+  const { storage } = modelCache();
+  const ui = harness();
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-status').hidden).toBe(true));
+  ui.getDirectory.mockRejectedValueOnce(new Error('Collection read failed'));
+  storage.keys.mockRejectedValueOnce(new Error('Cache read failed'));
+  await ui.dashboard.refresh();
+  expect(ui.elements.get('#storage-status').textContent).toContain('Collection read failed');
+  expect(ui.elements.get('#model-cache-status').textContent).toContain('Cache read failed');
+  expect(ui.elements.get('#storage-status').hidden).toBe(false);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(false);
+  await ui.dashboard.refresh();
+  expect(ui.elements.get('#storage-status').hidden).toBe(true);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(true);
+});
+
+it('refreshes each listing independently, showing loading and blocking duplicate refreshes', async () => {
+  const { storage } = modelCache();
+  const ui = harness();
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
+  const collectionReads = ui.getDirectory.mock.calls.length;
+  const modelReads = storage.keys.mock.calls.length;
+  let finishCollection!: (root: FileSystemDirectoryHandle) => void;
+  let finishModel!: (names: string[]) => void;
+  ui.getDirectory.mockImplementationOnce(() => new Promise(resolve => { finishCollection = resolve; }));
+  storage.keys.mockImplementationOnce(() => new Promise(resolve => { finishModel = resolve; }));
+  ui.elements.get('#storage-refresh').onclick();
+  expect(ui.elements.get('#storage-refresh').disabled).toBe(true);
+  expect(ui.elements.get('#storage-status').hidden).toBe(false);
+  expect(ui.elements.get('#storage-status').textContent).toContain('Reading');
+  expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false);
+  expect(storage.keys).toHaveBeenCalledTimes(modelReads);
+  ui.elements.get('#storage-refresh').onclick();
+  expect(ui.getDirectory).toHaveBeenCalledTimes(collectionReads + 1);
+  ui.elements.get('#model-cache-refresh').onclick();
+  expect(ui.elements.get('#model-cache-refresh').disabled).toBe(true);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(false);
+  expect(ui.elements.get('#model-cache-status').textContent).toContain('Reading');
+  expect(ui.getDirectory).toHaveBeenCalledTimes(collectionReads + 1);
+  ui.elements.get('#model-cache-refresh').onclick();
+  expect(storage.keys).toHaveBeenCalledTimes(modelReads + 1);
+  finishCollection(ui.root);
+  finishModel(['transformers-cache']);
+  await vi.waitFor(() => {
+    expect(ui.elements.get('#storage-refresh').disabled).toBe(false);
+    expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false);
+  });
+  expect(ui.elements.get('#storage-status').hidden).toBe(true);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(true);
+});
 
 it('blocks deletion during active work and leaves storage alone when confirmation is cancelled', async () => {
   const ui = harness();
@@ -110,6 +224,7 @@ it('reports a shutdown failure without deleting files and allows reloading to re
   await ready(ui);
   ui.elements.get('#storage-reset').onclick();
   await vi.waitFor(() => expect(ui.elements.get('#storage-status').textContent).toContain('File locked'));
+  expect(ui.elements.get('#storage-status').hidden).toBe(false);
   expect(ui.root.removeEntry).not.toHaveBeenCalled();
   expect(ui.elements.get('#storage-reset').disabled).toBe(true);
   expect(ui.elements.get('#storage-reload').disabled).toBe(false);

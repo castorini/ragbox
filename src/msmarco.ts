@@ -72,7 +72,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             if (errorName(error) === 'NotFoundError') hasSaved = false;
             report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
               errorName(error) === 'NotFoundError'
-                ? 'No saved index found. Download the index first.'
+                ? 'No saved index. Download the index first.'
                 : `Unable to complete the request: ${errorMessage(error)}`);
           } else {
             searchStatus.hidden = false;
@@ -135,11 +135,11 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
           },
         });
         cancelDownload.disabled = true;
-        report('opening', 'Download complete. Opening the saved index…');
+        report('opening', 'Opening saved index…');
         await connectPrebuilt(true);
       } catch (error) {
         if (errorName(error) === 'AbortError') {
-          report(hasSaved ? 'saved' : 'missing', 'Download cancelled. You can retry or reopen a previously saved index.');
+          report(hasSaved ? 'saved' : 'missing', hasSaved ? 'Download cancelled. Retry or open the saved index.' : 'Download cancelled. Retry downloading the index.');
           return;
         }
         throw error;
@@ -151,10 +151,10 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       }
     }, false);
   };
-  async function openSaved(automatic = false) {
+  async function openSaved() {
     if (openingQueued || busy || !supported) return;
     openingQueued = true;
-    report('opening', automatic ? 'Opening the saved index automatically…' : 'Opening the saved index…');
+    report('opening', 'Opening saved index…');
     updateButtons();
     try {
       const open = async () => {
@@ -182,7 +182,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     llm?.beginRetrieval('msmarco');
     const activePrebuilt = prebuilt;
     if (!activePrebuilt) {
-      report('missing', 'Download or reopen the index in Setup before searching.');
+      report('missing', 'Download or open the index to search.');
       llm?.showRetrievalMessage('msmarco', 'Open the MS MARCO index before generating an answer.');
       return;
     }
@@ -237,8 +237,8 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       return rows;
     });
   };
-  if (!supported) report('unsupported', 'This app needs a browser with file storage support, such as desktop Chrome, on HTTPS or localhost.');
-  else onState?.('checking', 'Checking for a saved MS MARCO index…');
+  if (!supported) report('unsupported', 'File storage unavailable. Use desktop Chrome on HTTPS or localhost.');
+  else onState?.('checking', 'Checking saved index…');
   updateButtons();
   async function checkSaved() {
     if (!supported || prebuilt) return;
@@ -249,14 +249,14 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         await root.getFileHandle(PREBUILT_NAME);
         hasSaved = true;
         retryOpen = false;
-        report('saved', 'Saved MS MARCO index found. It opens when you select this collection.');
+        report('saved', 'Saved index available.');
       } catch (error) {
         hasSaved = false;
         retryOpen = errorName(error) !== 'NotFoundError';
         report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
           errorName(error) === 'NotFoundError'
-            ? 'No saved MS MARCO index in this browser.'
-            : `Could not check saved index: ${errorMessage(error)}. Retry opening the index here.`);
+            ? 'Not downloaded.'
+            : `Could not check saved index: ${errorMessage(error)}. Retry opening the index.`);
       } finally {
         checkingSaved = false;
         updateButtons();
@@ -270,7 +270,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       if (!supported) return;
       if (checkingSaved) await checkSaved();
       if (!hasSaved || prebuilt) return;
-      await openSaved(true);
+      await openSaved();
     },
     setBlocked(value: boolean) {
       blocked = value;
@@ -283,7 +283,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     async close() {
       await closePrebuilt();
       output.replaceChildren();
-      report('saved', 'Index closed. Select MS MARCO again to reopen it.');
+      report('saved', 'Saved index available.');
       updateButtons();
     },
   };

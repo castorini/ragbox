@@ -66,7 +66,7 @@ describe('NFCorpus shared LLM integration', () => {
     expect(elements.get('#fts-setup').hidden).toBe(false);
     expect(elements.get('#fts-index').disabled).toBe(false);
     expect(elements.get('#fts-search').disabled).toBe(true);
-    expect(elements.get('#fts-status').textContent).toContain('First visit');
+    expect(elements.get('#fts-status').textContent).toBe('Not prepared.');
   });
 
   it('hides the entire setup after validating a saved index and keeps search blocked during other work', async () => {
@@ -77,6 +77,7 @@ describe('NFCorpus shared LLM integration', () => {
     expect(elements.get('#fts-search').disabled).toBe(true);
     await controller.reopenSaved();
     expect(elements.get('#fts-setup').hidden).toBe(true);
+    expect(elements.get('#fts-status').textContent).toBe('Ready to search.');
     expect(elements.get('#fts-search').disabled).toBe(false);
     controller.setBlocked(true);
     expect(elements.get('#fts-search').disabled).toBe(true);

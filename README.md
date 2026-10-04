@@ -200,11 +200,11 @@ The workflow downloads the BEIR NFCorpus archive, runs the preparation script, a
 
 Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Load NFCorpus & build FTS index**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
 
-## Setup storage dashboard
+## Settings storage dashboard
 
-Open **Setup** to browse files and their sizes in this origin's browser file storage (OPFS). **Refresh files** updates the listing; **Reload page** reopens saved resources. Files outside ragbox's known database and Parquet paths are listed without deletion controls.
+Open **Settings** to browse files and their sizes in this origin's browser file storage (OPFS). The refresh icon beside the file summary (**Refresh collection files**) updates the listing; **Reload page** reopens saved resources. Files outside ragbox's known database and Parquet paths are listed without deletion controls.
 
-The **Installed LLM data** section lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. **Refresh model files** updates the listing. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the LLM, removes its cached files across cache versions, and reloads the page. Collection files, shared caches, and other models are kept. Use **Load local LLM** to download the model again. Deletion is disabled while loading, downloading, searching, or generating answers.
+The **Installed LLM data** section lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. The refresh icon beside its summary (**Refresh model files**) updates the listing. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the LLM, removes its cached files across cache versions, and reloads the page. Collection files, shared caches, and other models are kept. Use **Load local LLM** to download the model again. Deletion is disabled while loading, downloading, searching, or generating answers.
 
 Click a file's **Delete** button or **Reset collection data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Reset removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting or resetting.
 

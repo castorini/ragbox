@@ -75,16 +75,15 @@
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>
-    <div class="setup-header"><div class="eyebrow">BROWSER STORAGE</div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Prepare collections and the optional answer model. Saved resources can be reused on later visits.</p></div>
+    <div class="setup-header"><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Manage data saved in this browser.</p></div>
     <section id="setup-nfcorpus" tabindex="-1" class="setup-card" aria-labelledby="fts-setup-heading">
-      <h2 id="fts-setup-heading">NFCorpus</h2><p id="fts-status" role="status">Checking for a saved index…</p>
-      <div id="fts-setup"><p>Prepare this collection once. Its index is saved in this browser.</p><button id="fts-index" type="button" disabled>Prepare NFCorpus</button></div>
+      <h2 id="fts-setup-heading">NFCorpus</h2><p id="fts-status" role="status">Checking saved index…</p>
+      <div id="fts-setup"><button id="fts-index" type="button" disabled>Prepare NFCorpus</button></div>
     </section>
     <section id="setup-msmarco" tabindex="-1" class="setup-card" aria-labelledby="marco-setup-heading">
-      <h2 id="marco-setup-heading">MS MARCO</h2><p id="marco-status" role="status">Checking for a saved index…</p>
+      <h2 id="marco-setup-heading">MS MARCO</h2><p id="marco-status" role="status">Checking saved index…</p>
       <div id="marco-setup" hidden>
-        <p>Download the index once (3.35 GB). It stays in this browser’s storage and opens when you select MS MARCO.</p>
-        <button id="marco-fetch" type="button" hidden disabled>Download &amp; open index</button>
+        <button id="marco-fetch" type="button" hidden disabled>Download &amp; open index (3.35 GB)</button>
         <button id="marco-reopen" type="button" hidden disabled>Open saved index</button>
         <button id="marco-cancel-download" type="button" hidden disabled>Cancel download</button>
         <progress id="marco-progress" max="100" value="0" hidden aria-label="Index download progress"></progress>
@@ -92,7 +91,7 @@
     </section>
     <section id="model" tabindex="-1" class="setup-card" aria-labelledby="llm-heading">
       <h2 id="llm-heading">Cited answers</h2>
-      <p id="llm-setup" hidden>Optional local model. Download once for cited answers; document search works without it.</p>
+      <p id="llm-setup" hidden>Optional local model for cited answers.</p>
       <div id="llm-controls">
         <button id="llm-load" hidden type="button" disabled>Load local LLM (~1.84 GB)</button>
         <button id="llm-stop" hidden type="button" disabled>Stop generation</button>
@@ -100,9 +99,9 @@
         <p id="llm-status" role="status">Checking WebGPU support…</p>
       </div>
       <div id="model-storage" tabindex="-1">
-        <div class="model-cache-header"><h3>Installed LLM data</h3><span id="model-cache-summary"></span></div>
-        <p>MiniCPM5-2B model files in this browser’s cache. <mark class="model-hint">Delete the model to free space, then use “Load local LLM” above to download it again.</mark> Collection indexes are kept.</p>
-        <div class="storage-actions"><button id="model-cache-refresh" type="button">Refresh model files</button><button id="model-cache-delete" class="danger" type="button" disabled>Delete installed model</button></div>
+        <div class="model-cache-header"><h3>Installed LLM data</h3><div class="storage-header-tools"><span id="model-cache-summary"></span><button id="model-cache-refresh" class="refresh-icon-button" type="button" aria-label="Refresh model files" title="Refresh model files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
+        <p class="model-hint">Delete the model, then use “Load local LLM” to reinstall.</p>
+        <div class="storage-actions"><button id="model-cache-delete" class="danger" type="button" disabled>Delete installed model</button></div>
         <p id="model-cache-status" role="status">Checking cached model files…</p>
         <details class="model-cache-details">
           <summary>View cached model files</summary>
@@ -111,9 +110,8 @@
       </div>
     </section>
     <section class="setup-card" aria-labelledby="storage-heading">
-      <div class="storage-header"><h2 id="storage-heading">Storage dashboard</h2><span id="storage-summary"></span></div>
-      <p>Browse saved collection files. Delete a file or reset collection data to prepare it again. The optional model is managed under Cited answers above.</p>
-      <div class="storage-actions"><button id="storage-refresh" type="button">Refresh files</button><button id="storage-reload" type="button">Reload page</button><button id="storage-reset" class="danger" type="button" disabled>Reset collection data</button><button id="storage-reset-all" class="danger" type="button" disabled>Reset all data</button></div>
+      <div class="storage-header"><h2 id="storage-heading">Storage dashboard</h2><div class="storage-header-tools"><span id="storage-summary"></span><button id="storage-refresh" class="refresh-icon-button" type="button" aria-label="Refresh collection files" title="Refresh collection files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
+      <div class="storage-actions"><button id="storage-reload" type="button">Reload page</button><button id="storage-reset" class="danger" type="button" disabled>Reset collection data</button><button id="storage-reset-all" class="danger" type="button" disabled>Reset all data</button></div>
       <p id="storage-status" role="status">Checking browser files…</p>
       <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
     </section>

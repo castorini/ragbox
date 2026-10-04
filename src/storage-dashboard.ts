@@ -30,6 +30,11 @@ export function formatBytes(bytes: number): string {
   return `${size.toFixed(1)} ${units[unit]}`;
 }
 
+function showStatus(element: HTMLElement, message: string) {
+  element.textContent = message;
+  element.hidden = !message;
+}
+
 export function setupStorageDashboard(states: ResourceStates, shutdown: () => Promise<void>) {
   const rows = requiredElement<HTMLTableSectionElement>('#storage-files');
   const status = requiredElement<HTMLElement>('#storage-status');
@@ -77,7 +82,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!window.confirm(`${message} The page will reload.${all ? '' : ' The model cache is kept.'} Close other ragbox tabs first.`)) return;
     deleting = true;
     updateControls();
-    status.textContent = all ? 'Stopping the LLM, closing databases, and removing all ragbox data…' : 'Closing databases and removing saved files…';
+    showStatus(status, all ? 'Removing all ragbox data…' : 'Removing saved files…');
     try {
       stopped = true;
       await shutdown();
@@ -90,7 +95,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       if (all) await deleteModelCacheFiles(caches);
       window.location.reload();
     } catch (error) {
-      status.textContent = `Could not remove saved files: ${errorMessage(error)}. Close other ragbox tabs and reload this page to retry.`;
+      showStatus(status, `Could not remove saved files: ${errorMessage(error)}. Close other ragbox tabs and reload to retry.`);
     } finally {
       deleting = false;
       updateControls();
@@ -100,7 +105,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!cacheSupported || refreshingModel || deleting) return;
     refreshingModel = true;
     updateControls();
-    modelStatus.textContent = 'Reading cached model files…';
+    showStatus(modelStatus, 'Reading model files…');
     try {
       modelFiles = await listModelCacheFiles(caches);
       modelRows.replaceChildren();
@@ -116,14 +121,14 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       const unknown = modelFiles.some(file => file.size === null);
       const total = modelFiles.reduce((sum, file) => sum + (file.size ?? 0), 0);
       modelSummary.textContent = `${modelFiles.length} cached file${modelFiles.length === 1 ? '' : 's'} · ${unknown ? 'at least ' : ''}${formatBytes(total)}`;
-      modelStatus.textContent = modelFiles.length
-        ? `Cached files may include an incomplete download.${unknown ? ' Some files have no size header; the total includes only known sizes.' : ''} Refresh after downloading to update this list.`
-        : 'No installed LLM files found. Use “Load local LLM” above to download the model.';
+      showStatus(modelStatus, modelFiles.length
+        ? (unknown ? 'Some file sizes are unknown.' : '')
+        : 'No model files saved.');
     } catch (error) {
       modelFiles = [];
       modelSummary.textContent = '';
       modelRows.replaceChildren();
-      modelStatus.textContent = `Could not read model cache: ${errorMessage(error)}`;
+      showStatus(modelStatus, `Could not read model cache: ${errorMessage(error)}`);
     } finally {
       refreshingModel = false;
       updateControls();
@@ -134,7 +139,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!window.confirm('Delete all cached MiniCPM5-2B model files? The local LLM will stop and the page will reload. Collection indexes are kept. Close other ragbox tabs first.')) return;
     deleting = true;
     updateControls();
-    modelStatus.textContent = 'Stopping the local LLM and deleting cached model files…';
+    showStatus(modelStatus, 'Deleting model files…');
     try {
       stopped = true;
       await shutdown();
@@ -147,7 +152,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       }
       window.location.reload();
     } catch (error) {
-      modelStatus.textContent = `Could not delete model data: ${errorMessage(error)}. Reload this page to retry.`;
+      showStatus(modelStatus, `Could not delete model data: ${errorMessage(error)}. Reload to retry.`);
     } finally {
       deleting = false;
       updateControls();
@@ -157,7 +162,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!supported || refreshing || deleting) return;
     refreshing = true;
     updateControls();
-    status.textContent = 'Reading browser files…';
+    showStatus(status, 'Reading collection files…');
     try {
       const root = await navigator.storage.getDirectory();
       files = await listStoredFiles(root);
@@ -185,9 +190,9 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
         rows.append(row);
       }
       summary.textContent = `${files.length} file${files.length === 1 ? '' : 's'} · ${formatBytes(files.reduce((total, file) => total + file.size, 0))}`;
-      status.textContent = files.length ? 'Files saved in this browser for this origin. Refresh to see current sizes.' : 'No files saved in browser file storage.';
+      showStatus(status, files.length ? '' : 'No files saved.');
     } catch (error) {
-      status.textContent = `Could not read browser files: ${errorMessage(error)}`;
+      showStatus(status, `Could not read browser files: ${errorMessage(error)}`);
     } finally {
       refreshing = false;
       updateControls();
@@ -200,8 +205,8 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   resetAllButton.onclick = () => { void remove(undefined, true); };
   modelRefresh.onclick = () => { void refreshModel(); };
   modelDelete.onclick = () => { void removeModel(); };
-  if (!supported) status.textContent = 'Browser file storage requires a supported browser on localhost or HTTPS.';
-  if (!cacheSupported) modelStatus.textContent = 'Model cache management is unavailable in this browser. Try a supported browser on localhost or HTTPS.';
+  if (!supported) showStatus(status, 'File storage unavailable. Use a supported browser on HTTPS or localhost.');
+  if (!cacheSupported) showStatus(modelStatus, 'Model cache unavailable. Use a supported browser on HTTPS or localhost.');
   void refresh();
   void refreshModel();
   return { refresh: async () => { await Promise.all([refresh(), refreshModel()]); }, initialized() { initialized = true; updateControls(); } };

@@ -127,15 +127,18 @@ describe('LLMController', () => {
     const { controller, elements, worker } = createHarness();
     await controller.initializeCapability();
     expect(elements.setup.hidden).toBe(false);
+    expect(elements.status.textContent).toBe('Not loaded.');
     expect(elements.loadButton.hidden).toBe(false);
     expect(elements.stopButton.hidden).toBe(true);
     await controller.load(true);
     expect(elements.setup.hidden).toBe(true);
     worker.emit({ type: 'cache-unavailable' });
+    expect(elements.status.textContent).toContain('download or retry');
     expect(elements.setup.hidden).toBe(false);
     expect(elements.loadButton.hidden).toBe(false);
     await controller.load();
     worker.emit({ type: 'ready' });
+    expect(elements.status.textContent).toBe('MiniCPM5-2B ready for cited answers.');
     expect(elements.setup.hidden).toBe(true);
     expect(elements.loadButton.hidden).toBe(true);
     controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });

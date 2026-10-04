@@ -262,6 +262,7 @@ it('checks a saved MS MARCO index without opening it until selected', async () =
   const controller = setupMSMarco(task => task(), createLLM());
   await controller.checkSaved();
   expect(openPrebuilt).not.toHaveBeenCalled();
+  expect(elements.get('#marco-status').textContent).toBe('Saved index available.');
   expect(elements.get('#marco-reopen').hidden).toBe(false);
   expect(elements.get('#marco-search').disabled).toBe(true);
   await controller.reopenSaved();
