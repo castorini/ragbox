@@ -25,6 +25,7 @@ interface ActiveRequest {
   citationTargets: Map<string, string>;
   includedTargets: Map<string, string>;
   evidenceLabel: string;
+  onComplete?: (answer: string, citedIds: string[]) => void;
 }
 
 export type ControllerState = 'checking' | 'unsupported' | 'idle' | 'loading' | 'ready' | 'generating' | 'error';
@@ -35,6 +36,8 @@ export interface GenerateOptions {
   documents: EvidenceDocument[];
   citationTargets: CitationTargets;
   evidenceLabel?: string;
+  // Called once with the final answer and the evidence IDs it cites.
+  onComplete?: (answer: string, citedIds: string[]) => void;
 }
 
 export async function detectWebGPU(): Promise<Capability> {
@@ -69,6 +72,12 @@ function citationTargetMap(citationTargets?: CitationTargets): Map<string, strin
   return new Map(Object.entries(citationTargets ?? {}).map(([id, target]) => [String(id), String(target)]));
 }
 
+const CITATION = /\[([A-Za-z0-9_.:-]+)\]/g;
+
+export function citedIds(text: string, available: Map<string, string>): string[] {
+  return [...new Set([...text.matchAll(CITATION)].map(match => match[1]))].filter(id => available.has(id));
+}
+
 export function renderAnswer(container: HTMLElement, text: unknown, citationTargets: CitationTargets = new Map()) {
   const value = String(text ?? '');
   const targets = citationTargetMap(citationTargets);
@@ -78,7 +87,7 @@ export function renderAnswer(container: HTMLElement, text: unknown, citationTarg
   }
   const nodes = [];
   let position = 0;
-  for (const match of value.matchAll(/\[([A-Za-z0-9_.:-]+)\]/g)) {
+  for (const match of value.matchAll(CITATION)) {
     if (match.index > position) nodes.push(container.ownerDocument.createTextNode(value.slice(position, match.index)));
     const id = match[1];
     if (targets.has(id)) {
@@ -231,7 +240,7 @@ export class LLMController {
     renderAnswer(this.answerFor(corpus), '');
   }
 
-  generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents' }: GenerateOptions) {
+  generate({ corpus, question, documents, citationTargets, evidenceLabel = 'documents', onComplete }: GenerateOptions) {
     const answer = this.answerFor(corpus);
     if (!this.ready || this.state === 'loading') {
       const message = this.state === 'unsupported'
@@ -265,6 +274,7 @@ export class LLMController {
       citationTargets: citationTargetMap(citationTargets),
       includedTargets: new Map(),
       evidenceLabel,
+      onComplete,
     };
     this.state = 'generating';
     renderAnswer(answer, '');
@@ -399,6 +409,7 @@ export class LLMController {
       const count = message.documentIds?.length ?? 0;
       const label = count === 1 ? request.evidenceLabel.replace(/s$/, '') : request.evidenceLabel;
       this.elements.status.textContent = `Answer generated using ${count} ${label}.`;
+      request.onComplete?.(request.answerText, citedIds(request.answerText, request.includedTargets));
       return;
     }
     if (message.type === 'cancelled') {

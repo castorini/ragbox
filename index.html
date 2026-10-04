@@ -6,7 +6,7 @@
 
 <nav class="side-rail" aria-label="Main navigation">
 <a id="nav-search" class="rail-link" href="?" title="Search" aria-label="Search"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Search</span></a>
-<a id="nav-results" class="rail-link" href="?view=results" title="Results" aria-label="Results"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Results</span></a>
+<a id="nav-history" class="rail-link" href="?view=history" title="History" aria-label="History"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 7.5V12l3 2"/></svg><span>History</span></a>
 <a id="nav-setup" class="rail-link" href="?view=setup" title="Settings" aria-label="Settings"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>Settings</span></a>
 </nav>
 <main>
@@ -66,6 +66,12 @@
       </ul>
     </section>
     <p class="model-note" hidden><span id="model-search-status">Checking optional cited answers…</span> <a id="model-setup-link" href="?view=setup#model">Model setup</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Repair model</a></p>
+  </section>
+
+  <section id="history-view" aria-labelledby="history-heading" hidden>
+    <div class="setup-header"><div class="history-title"><h1 id="history-heading" tabindex="-1">History</h1><button id="history-clear" class="danger" type="button" hidden>Clear history</button></div><p>Past searches with their collection, results, and any cited answer. Stored only in this browser.</p></div>
+    <p id="history-empty" class="results-empty">No search history yet. Your searches will appear here after you <a id="history-search-link" href="?">search a collection</a>.</p>
+    <ol id="history-list" class="history-list" aria-label="Search history"></ol>
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>

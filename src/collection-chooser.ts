@@ -1,7 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import type { Corpus } from './types.ts';
 
-type View = 'search' | 'results' | 'setup';
+type View = 'search' | 'history' | 'setup';
 const setupSections = ['model', 'model-storage', 'setup-nfcorpus', 'setup-msmarco'];
 // Sections whose guidance points at one button; focus it so Enter performs the next step.
 const sectionActions: Record<string, string> = { '#model': '#llm-load', '#model-storage': '#model-cache-delete' };
@@ -13,8 +13,9 @@ export function setupCollectionChooser(
   const selector = requiredElement<HTMLSelectElement>('#collection-switch');
   const search = requiredElement<HTMLElement>('#search-view');
   const setup = requiredElement<HTMLElement>('#setup-view');
+  const history = requiredElement<HTMLElement>('#history-view');
   const searchLink = requiredElement<HTMLAnchorElement>('#nav-search');
-  const resultsLink = requiredElement<HTMLAnchorElement>('#nav-results');
+  const historyLink = requiredElement<HTMLAnchorElement>('#nav-history');
   const setupLink = requiredElement<HTMLAnchorElement>('#nav-setup');
   const skipLink = requiredElement<HTMLAnchorElement>('.skip-link');
   const panels = {
@@ -32,30 +33,27 @@ export function setupCollectionChooser(
 
   function currentView(): View {
     const view = new URL(window.location.href).searchParams.get('view');
-    return view === 'setup' || view === 'results' ? view : 'search';
+    return view === 'setup' || view === 'history' ? view : 'search';
   }
 
   function showView(view: View, focus = false) {
-    search.hidden = view === 'setup';
-    search.setAttribute('data-view', view);
+    search.hidden = view !== 'search';
+    history.hidden = view !== 'history';
     setup.hidden = view !== 'setup';
-    for (const [name, link] of [['search', searchLink], ['results', resultsLink], ['setup', setupLink]] as const) {
+    for (const [name, link] of [['search', searchLink], ['history', historyLink], ['setup', setupLink]] as const) {
       if (name === view) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     }
-    const label = view === 'setup' ? 'Settings' : view === 'results' ? 'Results' : 'Search';
+    const label = view === 'setup' ? 'Settings' : view === 'history' ? 'History' : 'Search';
     document.title = `${label} · ragbox`;
     const hash = new URL(window.location.href).hash;
     const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1)) ? hash : undefined;
-    let target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'results'
-      ? (selected() === 'nfcorpus' ? '#fts-results-area' : '#marco-results-area')
+    const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'history'
+      ? '#history-heading'
       : (selected() === 'nfcorpus' ? '#fts-query' : '#marco-query');
-    if (view === 'results' && requiredElement<HTMLElement>(target).hidden) {
-      target = selected() === 'nfcorpus' ? '#fts-query' : '#marco-query';
-    }
     skipLink.href = target;
     skipLink.textContent = `Skip to ${label.toLowerCase()}`;
-    if (focus || view === 'results' || sectionTarget) {
+    if (focus || sectionTarget) {
       const element = requiredElement<HTMLElement>(target);
       const action = sectionTarget && sectionActions[sectionTarget]
         ? document.querySelector<HTMLButtonElement>(sectionActions[sectionTarget]) : null;
@@ -76,7 +74,7 @@ export function setupCollectionChooser(
     url.hash = '';
     window.history.pushState(null, '', url);
     showView(view, true);
-    if (view !== 'results') window.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
   }
 
   function openSetupSection(section: string) {
@@ -108,9 +106,10 @@ export function setupCollectionChooser(
   };
 
   for (const [id, view] of [
-    ['#nav-search', 'search'], ['#nav-results', 'results'], ['#nav-setup', 'setup'],
+    ['#nav-search', 'search'], ['#nav-history', 'history'], ['#nav-setup', 'setup'],
     ['#fts-setup-link', 'setup'], ['#marco-setup-link', 'setup'],
     ['#model-setup-link', 'setup'], ['#model-repair-link', 'setup'], ['#setup-back', 'search'],
+    ['#history-search-link', 'search'],
   ] as const) {
     requiredElement<HTMLAnchorElement>(id).onclick = event => {
       event.preventDefault();

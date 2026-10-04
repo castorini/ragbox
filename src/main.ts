@@ -11,10 +11,13 @@ import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
 import { setupCorpusDashboard } from './corpus-dashboard.ts';
+import { SearchHistory, setupHistoryView } from './history.ts';
 
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
 const loads = new LoadCoordinator();
+const history = new SearchHistory();
+setupHistoryView(history);
 let db: duckdb.AsyncDuckDB | undefined;
 let busy = false;
 let marco: ReturnType<typeof setupMSMarco> | undefined;
@@ -87,9 +90,9 @@ async function main() {
   await openLocalDatabase(db, await navigator.storage.getDirectory());
   conn = await db.connect();
   nfcorpus = setupNFCorpus(db, conn, run, llm,
-    (phase, message) => states.set('nfcorpus', phase, message), loads);
+    (phase, message) => states.set('nfcorpus', phase, message), loads, history);
   marco = setupMSMarco(run, llm,
-    (phase, message) => states.set('msmarco', phase, message), loads);
+    (phase, message) => states.set('msmarco', phase, message), loads, history);
   status.textContent = 'Ready.';
   await loads.run(() => nfcorpus!.reopenSaved());
   await marco.checkSaved();

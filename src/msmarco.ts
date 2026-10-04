@@ -5,9 +5,11 @@ import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
 import type { ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
+import type { SearchHistory } from './history.ts';
 
 type MarcoRow = { id: string | number | bigint; contents: string; score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 
 export function normalizeMSMarcoResults<T extends { id: string | number | bigint; contents?: string | null }>(rows: T[]): EvidenceDocument[] {
   return rows.map(row => ({
@@ -17,7 +19,7 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
   }));
 }
 
-export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator) {
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#marco-status');
   const searchStatus = requiredElement<HTMLElement>('#marco-search-status');
   const answerPanel = requiredElement<HTMLElement>('#marco-answer-panel');
@@ -209,8 +211,13 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         : `No results for “${query}”. Try different search words.`;
       return rows;
     }, true, true).then(rows => {
+      const documents = rows ? normalizeMSMarcoResults(rows) : [];
+      const entry = rows && history?.record({
+        corpus: 'msmarco',
+        query,
+        results: documents.map((document, index) => ({ ...document, score: Number(rows[index].score) })),
+      });
       if (rows?.length) {
-        const documents = normalizeMSMarcoResults(rows);
         llm?.generate({
           corpus: 'msmarco',
           question: query,
@@ -220,6 +227,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             `#marco-result-${encodeURIComponent(String(row.id))}`,
           ])),
           evidenceLabel: 'passages',
+          onComplete: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited) : undefined,
         });
       } else if (rows) {
         llm?.showRetrievalMessage('msmarco', 'No retrieved passages support an answer for this query.');

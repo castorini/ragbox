@@ -83,20 +83,21 @@ it('opens direct Setup links and supports in-page navigation and Back/Forward', 
   expect(ui.get('#setup-view').hidden).toBe(false);
 });
 
-it('opens the active collection results from Settings without losing the query', () => {
+it('opens History from Settings as its own view without losing the query', () => {
   const ui = harness();
   setupCollectionChooser();
   ui.get('#collection-switch').value = 'msmarco';
   ui.get('#collection-switch').onchange?.();
   ui.get('#marco-query').value = 'example query';
   ui.click('#nav-setup');
-  ui.click('#nav-results');
-  expect(ui.href).toContain('view=results');
-  expect(ui.get('#search-view').hidden).toBe(false);
+  ui.click('#nav-history');
+  expect(ui.href).toContain('view=history');
+  expect(ui.get('#history-view').hidden).toBe(false);
+  expect(ui.get('#search-view').hidden).toBe(true);
   expect(ui.get('#setup-view').hidden).toBe(true);
-  expect(ui.get('#marco-results-area').scrollIntoView).toHaveBeenCalled();
+  expect(ui.get('#history-heading').focus).toHaveBeenCalled();
   expect(ui.get('#marco-query').value).toBe('example query');
-  expect(ui.get('#nav-results').setAttribute).toHaveBeenCalledWith('aria-current', 'page');
+  expect(ui.get('#nav-history').setAttribute).toHaveBeenCalledWith('aria-current', 'page');
 });
 
 it('opens the model settings from the load shortcut and focuses the load button', () => {
@@ -120,7 +121,7 @@ it('focuses the model section instead when the load button is unavailable', () =
 });
 
 it('returns to the starting search page from the logo, clearing results and stopping generation', () => {
-  const ui = harness('https://example.com/ragbox/?view=results');
+  const ui = harness('https://example.com/ragbox/?view=history');
   const onHome = vi.fn();
   setupCollectionChooser(undefined, onHome);
   for (const prefix of ['fts', 'marco']) {

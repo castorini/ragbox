@@ -4,9 +4,11 @@ import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
 import type { ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
+import type { SearchHistory } from './history.ts';
 
 type SearchRow = EvidenceDocument & { score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 
 // FTS executes through the same DuckDB-Wasm worker and persistent OPFS database.
 export const SEARCH_SQL = `
@@ -21,7 +23,7 @@ export const INDEX_SQL = `PRAGMA create_fts_index(
   'nfcorpus', 'id', 'contents', overwrite = 1
 )`;
 
-export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator) {
+export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#fts-status');
   const searchStatus = requiredElement<HTMLElement>('#fts-search-status');
   const answerPanel = requiredElement<HTMLElement>('#fts-answer-panel');
@@ -183,6 +185,11 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       onState?.('ready', 'NFCorpus is ready to search.');
       return rows;
     }, true).then(rows => {
+      const entry = rows && history?.record({
+        corpus: 'nfcorpus',
+        query,
+        results: rows.map(row => ({ id: String(row.id), title: row.title, text: row.text, score: Number(row.score) })),
+      });
       if (rows?.length) {
         llm.generate({
           corpus: 'nfcorpus',
@@ -193,6 +200,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
             `#fts-result-${encodeURIComponent(String(row.id))}`,
           ])),
           evidenceLabel: 'documents',
+          onComplete: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited) : undefined,
         });
       } else if (rows) {
         llm.showRetrievalMessage(
