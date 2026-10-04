@@ -258,7 +258,8 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #llm-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #llm-controls:has(button:not([hidden])){margin-top:14px}
 #llm-controls progress{flex-basis:100%;margin:0}
-.storage-overview{margin-top:14px}
+.storage-overview{margin-top:14px;border-top:1px solid var(--line)}
+.settings-resource+.storage-overview{margin-top:0}
 .storage-overview-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0}
 .storage-overview-row+.storage-overview-row{border-top:1px solid var(--line)}
 .storage-overview-row>div{min-width:0;flex:1}
@@ -267,11 +268,8 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #setup-view .storage-overview-row p{font-size:12px;line-height:1.5;margin:4px 0 0}
 .storage-overview-row>button{flex:none}
 .storage-reset-all{border-top:1px solid var(--line)}
-#setup-view .storage-management{margin-top:6px}
-#storage-management{border-top:1px solid var(--line);padding-top:4px}
-#storage-management>details{padding:0 12px;border-left:2px solid var(--line);margin-bottom:12px}
-#storage-management>summary{font-size:13px}
-#storage-management .storage-actions{gap:8px;margin-top:12px}
+#setup-view .storage-management{margin-top:6px;border-top:1px solid var(--line);padding-top:4px}
+#setup-view .storage-management .storage-actions{gap:8px;margin-top:12px}
 #setup-view #model-installed-status{font-size:12px;margin:8px 0}
 #setup-view #storage-status,#setup-view #model-cache-status{font-size:12px;margin:4px 0 8px}
 @media(max-width:700px){
@@ -282,5 +280,4 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
   .settings-resource{align-items:flex-start;flex-direction:column;gap:12px;padding:16px 0}
   .storage-overview-row{align-items:flex-start;flex-direction:column;gap:10px}
   .settings-resource-actions button,.storage-overview-row>button{max-width:100%;text-align:left}
-  #storage-management>details{padding-right:0}
 }

@@ -76,9 +76,9 @@
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>
-    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Search collections, AI answers, and storage in this browser.</p></div><a id="setup-back" class="setup-back" href="?">← Back to search</a></div>
+    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Manage search indexes and the answer model saved in this browser.</p></div><a id="setup-back" class="setup-back" href="?">← Back to search</a></div>
     <section class="setup-card settings-collections" aria-labelledby="settings-collections-heading">
-      <h2 id="settings-collections-heading">Collections</h2>
+      <h2 id="settings-collections-heading">Indexes</h2>
       <section id="setup-nfcorpus" tabindex="-1" class="settings-resource" aria-labelledby="fts-setup-heading">
         <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="fts-setup-heading">NFCorpus</h3><span id="fts-settings-state" class="settings-state" role="status">Checking…</span></div><p class="settings-description">Nutrition and medical research · 3,633 articles</p><p id="fts-status" class="settings-detail" role="status">Checking saved collection…</p></div>
         <div class="settings-resource-actions"><div id="fts-setup"><button id="fts-index" class="primary" type="button" disabled>Set up collection</button></div><button id="fts-settings-search" type="button" hidden aria-label="Search NFCorpus">Search this collection</button></div>
@@ -91,9 +91,20 @@
           <button id="marco-cancel-download" type="button" hidden disabled>Cancel download</button>
         </div><button id="marco-settings-search" type="button" hidden aria-label="Search MS MARCO">Search this collection</button></div>
       </section>
+      <div class="storage-overview">
+        <div class="storage-overview-row"><div><h3>Indexes and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3><p id="storage-delete-description">Deleting removes both indexes and saved app files. The answer model is kept.</p></div><button id="storage-reset" class="danger" type="button" aria-describedby="storage-delete-description" disabled>Delete index data</button></div>
+      </div>
+      <p id="storage-status" role="status">Checking browser files…</p>
+      <details id="collection-management" tabindex="-1" class="storage-management"><summary>Advanced file management</summary>
+        <div class="storage-header"><h3>Saved files</h3><div class="storage-header-tools"><span id="storage-summary"></span><button id="storage-refresh" class="refresh-icon-button" type="button" aria-label="Refresh index files" title="Refresh index files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
+        <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
+        <div class="storage-actions"><button id="marco-replace" type="button" hidden disabled>Replace downloaded collection · 3.35 GB</button></div>
+        <div class="storage-overview-row storage-reset-all"><div><h3>Start over</h3><p id="storage-delete-all-description">Remove index files and the answer model. Search history is kept.</p></div><button id="storage-reset-all" class="danger" type="button" aria-describedby="storage-delete-all-description" disabled>Delete indexes and model</button></div>
+        <div class="storage-actions"><button id="storage-reload" type="button">Reload page</button></div>
+      </details>
     </section>
     <section id="model" tabindex="-1" class="setup-card" aria-labelledby="llm-heading">
-      <div class="settings-resource-heading"><h2 id="llm-heading">AI answers <span class="settings-optional">Optional</span></h2><span id="llm-status" class="settings-state" aria-live="off">Checking model…</span></div>
+      <div class="settings-resource-heading"><h2 id="llm-heading">Model <span class="settings-optional">Optional</span></h2><span id="llm-status" class="settings-state" aria-live="off">Checking model…</span></div>
       <p class="settings-description">Generate answers with citations from your search results. Runs on your device.</p>
       <p id="llm-settings-detail" class="settings-detail" hidden></p>
       <div id="llm-controls">
@@ -101,30 +112,16 @@
         <button id="llm-cancel-load" hidden type="button">Cancel loading</button>
         <progress id="llm-progress" max="100" hidden aria-label="Model loading progress"></progress>
       </div>
-    </section>
-    <section class="setup-card" aria-labelledby="storage-heading">
-      <h2 id="storage-heading">Storage</h2><p class="settings-description">Saved in this browser for this site. Clearing browser data removes these files.</p>
       <div class="storage-overview">
-        <div class="storage-overview-row"><div><h3>Collections and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3><p id="storage-delete-description">Deleting removes both collections and saved app files. The answer model is kept.</p></div><button id="storage-reset" class="danger" type="button" aria-describedby="storage-delete-description" disabled>Delete collection data</button></div>
-        <div class="storage-overview-row"><div><h3>AI answer model <span id="model-storage-usage" class="storage-usage">Checking…</span></h3><p id="model-delete-description">Deleting stops AI answers. Search collections are kept.</p></div><button id="model-cache-delete" class="danger" type="button" aria-describedby="model-delete-description" disabled>Delete answer model</button></div>
+        <div class="storage-overview-row"><div><h3>Model files <span id="model-storage-usage" class="storage-usage">Checking…</span></h3><p id="model-delete-description">Deleting stops AI answers. Search indexes are kept.</p></div><button id="model-cache-delete" class="danger" type="button" aria-describedby="model-delete-description" disabled>Delete model</button></div>
       </div>
-      <p id="storage-status" role="status">Checking browser files…</p>
       <p id="model-cache-status" role="status">Checking saved model files…</p>
-      <div class="storage-overview-row storage-reset-all"><div><h3>Start over</h3><p id="storage-delete-all-description">Remove collection files and the answer model. Search history is kept.</p></div><button id="storage-reset-all" class="danger" type="button" aria-describedby="storage-delete-all-description" disabled>Delete collections and model</button></div>
-      <details id="storage-management" tabindex="-1" class="storage-management"><summary>Advanced file management</summary>
-        <details id="collection-management" tabindex="-1" class="storage-management"><summary>Collection and app files</summary>
-          <div class="storage-header"><h3>Saved files</h3><div class="storage-header-tools"><span id="storage-summary"></span><button id="storage-refresh" class="refresh-icon-button" type="button" aria-label="Refresh collection files" title="Refresh collection files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
-          <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
-          <div class="storage-actions"><button id="marco-replace" type="button" hidden disabled>Replace downloaded collection · 3.35 GB</button></div>
-        </details>
-        <details id="model-management" tabindex="-1" class="model-cache-details storage-management"><summary>Answer model files</summary><div id="model-storage" tabindex="-1">
+      <details id="model-management" tabindex="-1" class="model-cache-details storage-management"><summary>Advanced file management</summary><div id="model-storage" tabindex="-1">
           <div class="model-cache-header"><h3>MiniCPM5-2B</h3><div class="storage-header-tools"><span id="model-cache-summary"></span><button id="model-cache-refresh" class="refresh-icon-button" type="button" aria-label="Refresh model files" title="Refresh model files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
           <p id="model-installed-status" class="installed-status">Checking installed files…</p>
-          <p class="model-hint">Some saved model files are invalid. <a id="model-storage-repair" href="?view=setup#model">Go to AI answers to repair the download</a>.</p>
+          <p class="model-hint">Some saved model files are invalid. <a id="model-storage-repair" href="?view=setup#model">Go to Model to repair the download</a>.</p>
           <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
-        </div></details>
-        <div class="storage-actions"><button id="storage-reload" type="button">Reload page</button></div>
-      </details>
+      </div></details>
     </section>
   </section>
 </main>

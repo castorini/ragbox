@@ -48,7 +48,8 @@ export function setupCollectionChooser(
     const label = view === 'setup' ? 'Settings' : view === 'history' ? 'History' : 'Search';
     document.title = `${label} · ragbox`;
     const hash = new URL(window.location.href).hash;
-    const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1)) ? hash : undefined;
+    const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1))
+      ? (hash === '#storage-management' ? '#collection-management' : hash) : undefined;
     const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'history'
       ? '#history-heading'
       : (selected() === 'nfcorpus' ? '#fts-query' : '#marco-query');

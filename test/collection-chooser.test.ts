@@ -150,20 +150,16 @@ it('returns to the starting search page from the logo, clearing results and stop
   expect(ui.get('#fts-query').focus).toHaveBeenCalled();
 });
 
-it('opens all enclosing management sections and focuses guidance for a model-files deep link', () => {
+it('opens model management and focuses guidance for a model-files deep link', () => {
   const ui = harness('https://example.com/ragbox/?view=setup#model-storage');
   const management = ui.get('#model-management');
   management.tagName = 'DETAILS';
   management.open = false;
-  const advanced = ui.get('#storage-management');
-  advanced.tagName = 'DETAILS';
-  advanced.open = false;
-  management.parentElement = advanced;
+  management.parentElement = ui.get('#model');
   ui.get('#model-storage').parentElement = management;
   ui.get('#model-storage').scrollIntoView.mockImplementation(() => expect(management.open).toBe(true));
   setupCollectionChooser();
   expect(management.open).toBe(true);
-  expect(advanced.open).toBe(true);
   expect(ui.get('#model-cache-delete').focus).not.toHaveBeenCalled();
   expect(ui.get('#model-storage').focus).toHaveBeenCalled();
   expect(ui.get('#model-storage').scrollIntoView).toHaveBeenCalled();
@@ -190,8 +186,8 @@ it('searches a collection from Settings, preserving both searches and supporting
   expect(ui.get('#marco-results').textContent).toBe('existing results');
 });
 
-it('opens and focuses collection management on a direct link', () => {
-  const ui = harness('https://example.com/ragbox/?view=setup#collection-management');
+it.each(['collection-management', 'storage-management'])('opens and focuses index file management from #%s', section => {
+  const ui = harness(`https://example.com/ragbox/?view=setup#${section}`);
   ui.get('#collection-management').tagName = 'DETAILS';
   ui.get('#collection-management').open = false;
   setupCollectionChooser();
