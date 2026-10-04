@@ -232,6 +232,6 @@ For native index construction and previous scaling measurements, see [the experi
 
 ### Automatic loading on return visits
 
-At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry. Runtime assets may still require internet access.
+At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. Model loading and tokenizer discovery both use the same pinned revision. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry; the underlying failure is logged in the browser console. Runtime assets may still require internet access.
 
 First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.

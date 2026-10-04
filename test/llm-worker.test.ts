@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { WorkerRequest } from '../src/types.ts';
+import { MODEL_REMOTE_PATH_TEMPLATE } from '../src/model-cache.ts';
 
 type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string };
 type StreamerOptions = { callback_function: (text: string) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
 type MockStreamer = { options: StreamerOptions };
 type MockCriterion = { interrupt: ReturnType<typeof vi.fn> };
-type MockEnv = { allowRemoteModels: boolean; allowLocalModels: boolean; fetch: typeof fetch };
+type MockEnv = { allowRemoteModels: boolean; allowLocalModels: boolean; fetch: typeof fetch; remotePathTemplate: string };
 
 const mocks = vi.hoisted(() => ({
   env: {} as MockEnv,
@@ -54,7 +55,7 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
   const generator = Object.assign(vi.fn(async (messages: Array<{ role: string; content: string }>, options: { streamer: MockStreamer }) => {
     for (const chunk of chunks) options.streamer.options.callback_function(chunk);
     return [{ generated_text: [...messages, { role: 'assistant', content: final ?? chunks.join('') }] }];
-  }), { tokenizer });
+  }), { tokenizer, dispose: vi.fn(async () => []) });
   mocks.pipeline.mockImplementation(async () => {
     if (load) await load;
     return generator;
@@ -83,6 +84,7 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
 beforeEach(() => {
   vi.resetModules();
   mocks.pipeline.mockReset();
+  mocks.env.fetch = vi.fn(async () => new Response(null));
   mocks.requireCache.mockReset().mockResolvedValue(undefined);
   mocks.streamers.length = 0;
   mocks.criteria.length = 0;
@@ -257,6 +259,7 @@ it('automatically loads cached model files without remote model downloads', asyn
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
   expect(mocks.env.allowRemoteModels).toBe(false);
   expect(mocks.env.allowLocalModels).toBe(true);
+  expect(mocks.env.remotePathTemplate).toBe(MODEL_REMOTE_PATH_TEMPLATE);
 });
 it('offers a manual retry when the cache is missing, without automatic download fallback', async () => {
   const harness = await createHarness();
@@ -267,6 +270,18 @@ it('offers a manual retry when the cache is missing, without automatic download 
   harness.send({ type: 'load' });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
   expect(mocks.pipeline.mock.calls[1][2].local_files_only).toBe(false);
+});
+
+it('releases an unusable model session before reporting a tokenizer failure and permits retry', async () => {
+  const harness = await createHarness();
+  const dispose = vi.fn(async () => {});
+  mocks.pipeline.mockResolvedValueOnce({ tokenizer: null, dispose });
+  harness.send({ type: 'load', cachedOnly: true });
+  await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'cache-unavailable')).toBe(true));
+  expect(dispose).toHaveBeenCalledOnce();
+  expect(harness.messages.some(message => message.type === 'ready')).toBe(false);
+  harness.send({ type: 'load' });
+  await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
 });
 
 it('skips local model URLs on manual load and after a cache-only miss', async () => {

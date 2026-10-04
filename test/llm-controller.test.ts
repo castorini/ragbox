@@ -124,6 +124,7 @@ describe('LLMController', () => {
   beforeEach(() => vi.restoreAllMocks());
 
   it('shows model setup only when it offers a load action and stop only during generation', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { controller, elements, worker } = createHarness();
     await controller.initializeCapability();
     expect(elements.setup.hidden).toBe(false);
@@ -132,7 +133,9 @@ describe('LLMController', () => {
     expect(elements.stopButton.hidden).toBe(true);
     await controller.load(true);
     expect(elements.setup.hidden).toBe(true);
-    worker.emit({ type: 'cache-unavailable' });
+    worker.emit({ type: 'cache-unavailable', operation: 'load', message: 'Saved model could not load' });
+    expect(controller.repairNeeded).toBe(false);
+    expect(warn).toHaveBeenCalledWith('Could not load saved model:', 'Saved model could not load');
     expect(elements.status.textContent).toContain('download or retry');
     expect(elements.setup.hidden).toBe(false);
     expect(elements.loadButton.hidden).toBe(false);

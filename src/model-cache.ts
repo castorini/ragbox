@@ -1,5 +1,6 @@
 export const MODEL_ID = 'Mike0021/MiniCPM5-2B-ONNX';
 export const MODEL_REVISION = '04a6c49fcba3a65a0351c92644c3a7e9d4343059';
+export const MODEL_REMOTE_PATH_TEMPLATE = `{model}/resolve/${MODEL_REVISION}/`;
 
 export interface ModelCacheFile {
   cache: string;

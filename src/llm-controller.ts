@@ -327,7 +327,9 @@ export class LLMController {
 
   handleWorkerMessage(message: WorkerResponse) {
     if (message.type === 'cache-unavailable') {
-      this.repairNeeded = true;
+      // A cache-only load failure does not establish that installed files are damaged.
+      this.repairNeeded = false;
+      console.warn('Could not load saved model:', message.message);
       this.state = 'idle';
       this.elements.loadButton.hidden = false;
       this.elements.progress.hidden = true;

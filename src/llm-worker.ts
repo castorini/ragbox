@@ -15,12 +15,15 @@ import {
 } from './rag.ts';
 import { errorMessage } from './errors.ts';
 import type { ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
-import { MODEL_ID, MODEL_REVISION } from './model-cache.ts';
+import { MODEL_ID, MODEL_REMOTE_PATH_TEMPLATE, MODEL_REVISION } from './model-cache.ts';
 
 const workerScope = self as unknown as DedicatedWorkerGlobalScope;
 
 // This app hosts no model files under /models. Browser cache is still used.
 env.allowLocalModels = false;
+// Transformers.js 4.2 tokenizer discovery omits revision and defaults to `main`.
+// Pin the shared URL template so discovery finds the same cache as model loading.
+env.remotePathTemplate = MODEL_REMOTE_PATH_TEMPLATE;
 const modelFetch = env.fetch ?? globalThis.fetch;
 let cacheOnlyFetch = false;
 env.fetch = (...args) => cacheOnlyFetch
@@ -71,8 +74,11 @@ async function loadModel(cachedOnly = false) {
       progress_callback(progress) {
         report({ type: 'progress', progress: progress as ModelProgress });
       },
-    })).then(value => {
-      if (!value.tokenizer) throw new Error('The saved model is missing its tokenizer files.');
+    })).then(async value => {
+      if (!value.tokenizer) {
+        await value.dispose();
+        throw new Error('The saved model is missing its tokenizer files.');
+      }
       generator = value;
       report({ type: 'ready', model: MODEL_ID, revision: MODEL_REVISION });
       return value;
