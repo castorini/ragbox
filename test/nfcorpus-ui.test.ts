@@ -156,7 +156,7 @@ describe('NFCorpus shared LLM integration', () => {
     expect(elements.get('#fts-setup').hidden).toBe(false);
     expect(elements.get('#fts-index').hidden).toBe(false);
     expect(elements.get('#fts-index').disabled).toBe(false);
-    expect(elements.get('#fts-index').textContent).toBe('Retry preparing NFCorpus');
+    expect(elements.get('#fts-index').textContent).toBe('Retry setup');
     expect(elements.get('#fts-search').disabled).toBe(true);
     expect(elements.get('#fts-status').textContent).toContain('Retry preparing NFCorpus');
     await controller.reopenSaved();

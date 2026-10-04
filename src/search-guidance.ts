@@ -60,9 +60,10 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
     const marco = states.get('msmarco');
     prepare.hidden = !['missing', 'error'].includes(nf.phase);
     prepare.disabled = states.busy || prepare.hidden;
-    download.hidden = !['missing', 'error'].includes(marco.phase);
+    download.hidden = marco.phase !== 'missing' && !(marco.phase === 'error' && marco.savedAvailable === false);
     download.disabled = states.busy || download.hidden;
-    open.hidden = !['saved', 'error'].includes(marco.phase);
+    open.hidden = marco.phase !== 'saved' && !(marco.phase === 'error' && marco.savedAvailable !== false);
+    open.textContent = marco.phase === 'error' ? 'Retry opening collection' : 'Open downloaded collection';
     open.disabled = states.busy || open.hidden;
     cancel.hidden = marco.phase !== 'downloading';
     progress.hidden = marco.phase !== 'downloading';

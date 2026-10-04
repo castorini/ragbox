@@ -103,9 +103,11 @@ it('uses summaries and file listings without redundant success messages', async 
   const ui = harness();
   await ready(ui);
   await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
-  expect(ui.elements.get('#storage-summary').textContent).toBe('2 files · 2.0 KB');
+  expect(ui.elements.get('#storage-summary').textContent).toBe('1 app file · 2.0 KB');
+  expect(ui.elements.get('#storage-usage').textContent).toBe('2.0 KB');
   expect(ui.elements.get('#storage-files').children).toHaveLength(2);
   expect(ui.elements.get('#model-cache-summary').textContent).toBe('1 cached file · 1.0 KB');
+  expect(ui.elements.get('#model-storage-usage').textContent).toBe('1.0 KB');
   expect(ui.elements.get('#model-cache-files').children).toHaveLength(1);
   for (const id of ['#storage-status', '#model-cache-status']) {
     expect(ui.elements.get(id).hidden).toBe(true);
@@ -118,7 +120,7 @@ it('shows concise empty states for both file listings', async () => {
   const ui = harness(undefined, directory());
   await ready(ui);
   await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
-  expect(ui.elements.get('#storage-summary').textContent).toBe('0 files · 0 B');
+  expect(ui.elements.get('#storage-summary').textContent).toBe('0 app files · 0 B');
   expect(ui.elements.get('#model-cache-summary').textContent).toBe('0 cached files · 0 B');
   expect(ui.elements.get('#storage-status').textContent).toBe('No files saved.');
   expect(ui.elements.get('#model-cache-status').textContent).toBe('No model files saved.');
@@ -128,12 +130,25 @@ it('shows concise empty states for both file listings', async () => {
   expect(ui.elements.get('#model-cache-files').children).toHaveLength(0);
 });
 
+it('refreshes visible storage totals after collection setup and excludes unrelated files', async () => {
+  const ui = harness();
+  await ready(ui);
+  ui.getDirectory.mockResolvedValue(directory({ 'analytics.duckdb': 4096, 'msmarco-prebuilt.duckdb': 1024, 'personal.txt': 50_000 }));
+  ui.states.set('msmarco', 'downloading', 'Downloading…');
+  ui.states.set('msmarco', 'opening', 'Opening…');
+  ui.states.set('msmarco', 'ready', 'Ready');
+  await vi.waitFor(() => expect(ui.elements.get('#storage-usage').textContent).toBe('5.0 KB'));
+  expect(ui.elements.get('#storage-summary').textContent).toBe('2 app files · 5.0 KB');
+  expect(ui.elements.get('#storage-files').children).toHaveLength(3);
+});
+
 it('keeps unknown model sizes visible and excludes them from the known-size total', async () => {
   modelCache({ 'model.onnx': 1024, 'config.json': null });
   const ui = harness();
   await ready(ui);
   await vi.waitFor(() => expect(ui.elements.get('#model-cache-refresh').disabled).toBe(false));
   expect(ui.elements.get('#model-cache-summary').textContent).toBe('2 cached files · at least 1.0 KB');
+  expect(ui.elements.get('#model-storage-usage').textContent).toBe('At least 1.0 KB');
   expect(ui.elements.get('#model-cache-files').children[0].children[1].textContent).toBe('Unknown');
   expect(ui.elements.get('#model-cache-status').textContent).toBe('Some file sizes are unknown.');
   expect(ui.elements.get('#model-cache-status').hidden).toBe(false);

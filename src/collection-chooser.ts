@@ -2,9 +2,9 @@ import { requiredElement } from './boundaries.ts';
 import type { Corpus } from './types.ts';
 
 type View = 'search' | 'history' | 'setup';
-const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management'];
+const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management', 'storage-management'];
 // Sections whose guidance points at one button; focus it so Enter performs the next step.
-const sectionActions: Record<string, string> = { '#model': '#llm-load', '#model-storage': '#model-cache-delete' };
+const sectionActions: Record<string, string> = { '#model': '#llm-load' };
 
 export function setupCollectionChooser(
   onCollectionChange: (value: Corpus) => void = () => {},
@@ -116,11 +116,12 @@ export function setupCollectionChooser(
     ['#nav-search', 'search'], ['#nav-history', 'history'], ['#nav-setup', 'setup'],
     ['#fts-setup-link', 'setup'], ['#marco-setup-link', 'setup'],
     ['#model-setup-link', 'setup'], ['#model-repair-link', 'setup'], ['#setup-back', 'search'],
+    ['#model-storage-repair', 'setup'],
     ['#history-search-link', 'search'],
   ] as const) {
     requiredElement<HTMLAnchorElement>(id).onclick = event => {
       event.preventDefault();
-      if (id === '#model-setup-link') openSetupSection('model');
+      if (id === '#model-setup-link' || id === '#model-storage-repair') openSetupSection('model');
       else if (id === '#model-repair-link') openSetupSection('model-storage');
       else if (id === '#fts-setup-link') openSetupSection('setup-nfcorpus');
       else if (id === '#marco-setup-link') openSetupSection('setup-msmarco');
@@ -140,6 +141,10 @@ export function setupCollectionChooser(
     choose(value: Corpus) {
       select(value);
       requiredElement<HTMLInputElement>(value === 'nfcorpus' ? '#fts-query' : '#marco-query').focus();
+    },
+    search(value: Corpus) {
+      select(value);
+      navigate('search');
     },
     openSetup(corpus: Corpus) { openSetupSection(`setup-${corpus}`); },
   };

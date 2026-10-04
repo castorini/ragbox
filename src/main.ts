@@ -11,6 +11,7 @@ import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
 import { setupCorpusDashboard } from './corpus-dashboard.ts';
+import { setupSettingsView } from './settings-view.ts';
 import { SearchHistory, setupHistoryView } from './history.ts';
 
 const status = requiredElement<HTMLElement>('#status');
@@ -37,6 +38,7 @@ const setupActions = {
 };
 setupSearchGuidance(states, setupActions);
 const dashboard = setupCorpusDashboard(states, chooser, setupActions);
+setupSettingsView(states, chooser);
 
 const run: RunTask = async (action, searchCorpus) => {
   if (busy) return;
@@ -102,7 +104,7 @@ async function main() {
   nfcorpus = setupNFCorpus(db, conn, run, llm,
     (phase, message) => states.set('nfcorpus', phase, message), loads, history);
   marco = setupMSMarco(run, llm,
-    (phase, message, progress) => states.set('msmarco', phase, message, undefined, progress), loads, history);
+    (phase, message, progress, savedAvailable) => states.set('msmarco', phase, message, undefined, progress, savedAvailable), loads, history);
   status.textContent = 'Ready.';
   await loads.run(() => nfcorpus!.reopenSaved());
   await marco.checkSaved();

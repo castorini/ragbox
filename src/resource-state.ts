@@ -10,6 +10,7 @@ export interface ResourceState {
   message: string;
   model?: ModelStatus;
   progress?: number;
+  savedAvailable?: boolean;
 }
 
 export class ResourceStates {
@@ -24,8 +25,8 @@ export class ResourceStates {
 
   get(name: ResourceName): ResourceState { return this.values[name]; }
 
-  set(name: ResourceName, phase: ResourcePhase, message: string, model?: ModelStatus, progress?: number) {
-    this.values[name] = { phase, message, model, progress };
+  set(name: ResourceName, phase: ResourcePhase, message: string, model?: ModelStatus, progress?: number, savedAvailable?: boolean) {
+    this.values[name] = { phase, message, model, progress, savedAvailable };
     this.notify();
   }
 

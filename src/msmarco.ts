@@ -19,7 +19,7 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
   }));
 }
 
-export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number) => void, loads?: LoadCoordinator, history?: History) {
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number, savedAvailable?: boolean) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#marco-status');
   const announcement = requiredElement<HTMLElement>('#marco-announcement');
   const searchStatus = requiredElement<HTMLElement>('#marco-search-status');
@@ -27,6 +27,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   const output = requiredElement<HTMLOListElement>('#marco-results');
   const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
   const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
+  const replaceButton = requiredElement<HTMLButtonElement>('#marco-replace');
   const searchButton = requiredElement<HTMLButtonElement>('#marco-search');
   const progress = requiredElement<HTMLProgressElement>('#marco-progress');
   const cancelDownload = requiredElement<HTMLButtonElement>('#marco-cancel-download');
@@ -39,7 +40,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   let blocked = false;
   let checkingSaved = true;
   let retryOpen = false;
-  let hasSaved = false;
+  let hasSaved: boolean | undefined;
   let openingQueued = false;
   let checkingPromise: Promise<void> | undefined;
   const unblockWaiters = new Set<() => void>();
@@ -52,15 +53,16 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       announcedPhase = phase;
       announcement.textContent = phase === 'downloading' ? 'Downloading MS MARCO index…' : message;
     }
-    status.closest?.('.setup-card')?.setAttribute('data-phase', phase);
-    if (percent === undefined) onState?.(phase, message);
-    else onState?.(phase, message, percent);
+    status.closest?.('.settings-resource')?.setAttribute('data-phase', phase);
+    onState?.(phase, message, percent, hasSaved);
   }
   function updateButtons() {
     setup.hidden = !!prebuilt || checkingSaved || !supported;
-    fetchButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued;
-    reopenButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !(hasSaved || retryOpen);
-    reopenButton.textContent = retryOpen ? 'Retry opening index' : 'Open saved index';
+    fetchButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !!hasSaved || retryOpen;
+    reopenButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !retryOpen;
+    reopenButton.textContent = 'Retry opening collection';
+    replaceButton.hidden = !hasSaved;
+    replaceButton.disabled = !supported || checkingSaved || busy || blocked || openingQueued;
     fetchButton.disabled = !supported || busy || blocked || openingQueued;
     reopenButton.disabled = !supported || busy || blocked || openingQueued;
     searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
@@ -76,8 +78,9 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         } catch (error) {
           if (!prebuilt) {
             checkingSaved = false;
-            retryOpen = errorName(error) !== 'NotFoundError';
             if (errorName(error) === 'NotFoundError') hasSaved = false;
+            retryOpen = errorName(error) !== 'NotFoundError' && hasSaved !== false;
+            fetchButton.textContent = 'Retry download · 3.35 GB';
             report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
               errorName(error) === 'NotFoundError'
                 ? 'No saved index. Download the index first.'
@@ -142,11 +145,13 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             report('downloading', `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`, progress.value);
           },
         });
+        hasSaved = true;
         cancelDownload.disabled = true;
         report('opening', 'Opening index…');
         await connectPrebuilt(true);
       } catch (error) {
         if (errorName(error) === 'AbortError') {
+          retryOpen = false;
           report(hasSaved ? 'saved' : 'missing', hasSaved ? 'Download cancelled. Retry or open the saved index.' : 'Download cancelled. Retry downloading the index.');
           return;
         }
@@ -160,6 +165,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     }, false);
   }
   fetchButton.onclick = () => download();
+  replaceButton.onclick = () => download();
   async function openSaved() {
     if (openingQueued || busy || !supported) return;
     openingQueued = true;
@@ -265,7 +271,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         retryOpen = false;
         report('saved', 'Saved index available.');
       } catch (error) {
-        hasSaved = false;
+        hasSaved = errorName(error) === 'NotFoundError' ? false : undefined;
         retryOpen = errorName(error) !== 'NotFoundError';
         report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
           errorName(error) === 'NotFoundError'

@@ -269,7 +269,9 @@ it('checks a saved MS MARCO index without opening it until selected', async () =
   await controller.checkSaved();
   expect(openPrebuilt).not.toHaveBeenCalled();
   expect(elements.get('#marco-status').textContent).toBe('Saved index available.');
-  expect(elements.get('#marco-reopen').hidden).toBe(false);
+  expect(elements.get('#marco-reopen').hidden).toBe(true);
+  expect(elements.get('#marco-fetch').hidden).toBe(true);
+  expect(elements.get('#marco-replace')).toMatchObject({ hidden: false, disabled: false });
   expect(elements.get('#marco-search').disabled).toBe(true);
   await controller.reopenSaved();
   expect(openPrebuilt).toHaveBeenCalledOnce();
@@ -337,12 +339,13 @@ it('shares confirmed downloads and cancellation, retaining a saved index and ann
   await vi.waitFor(() => expect(mockedDownload).toHaveBeenCalledOnce());
   const options = mockedDownload.mock.calls[0][0];
   options.onProgress?.(options.bytes / 2, options.bytes);
-  expect(onState).toHaveBeenLastCalledWith('downloading', expect.stringContaining('50.0%'), 50);
+  expect(onState).toHaveBeenLastCalledWith('downloading', expect.stringContaining('50.0%'), 50, true);
   expect(elements.get('#marco-announcement').textContent).toBe('Downloading MS MARCO index…');
   controller.cancelDownload();
   await downloading;
   expect(options.signal!.aborted).toBe(true);
-  expect(elements.get('#marco-reopen').hidden).toBe(false);
+  expect(elements.get('#marco-reopen').hidden).toBe(true);
+  expect(onState).toHaveBeenLastCalledWith('saved', expect.stringContaining('Download cancelled'), undefined, true);
   expect(elements.get('#marco-query').value).toBe('keep query');
   expect(elements.get('#marco-announcement').textContent).toContain('Download cancelled');
   expect(openPrebuilt).not.toHaveBeenCalled();
@@ -360,9 +363,43 @@ it('opens a completed shared download without submitting the preserved query', a
   await controller.checkSaved();
   elements.get('#marco-query').value = 'query after setup';
   await controller.download();
-  expect(onState).toHaveBeenCalledWith('opening', 'Opening index…');
+  expect(onState).toHaveBeenCalledWith('opening', 'Opening index…', undefined, true);
   expect(elements.get('#marco-query').value).toBe('query after setup');
   expect(elements.get('#marco-search').disabled).toBe(false);
   expect(statement.query).not.toHaveBeenCalled();
   expect(confirm).toHaveBeenCalledOnce();
+});
+
+it('offers retry opening after a saved collection fails to open, without offering a primary download', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  mockedOpenPrebuilt.mockRejectedValue(new Error('File locked'));
+  const onState = vi.fn();
+  const controller = setupMSMarco(task => task(), undefined, onState);
+  await controller.reopenSaved();
+  expect(onState).toHaveBeenLastCalledWith('error', expect.stringContaining('File locked'), undefined, true);
+  expect(elements.get('#marco-fetch').hidden).toBe(true);
+  expect(elements.get('#marco-reopen')).toMatchObject({ hidden: false, disabled: false });
+  expect(mockedDownload).not.toHaveBeenCalled();
+});
+
+it('offers retry downloading when a first download fails, and keeps a completed download after opening fails', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  vi.stubGlobal('confirm', vi.fn(() => true));
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) });
+  vi.stubGlobal('navigator', { storage: { getDirectory, estimate: async () => ({ quota: 8e9, usage: 0 }) } });
+  const onState = vi.fn();
+  const controller = setupMSMarco(task => task(), undefined, onState);
+  await controller.checkSaved();
+  mockedDownload.mockRejectedValueOnce(new Error('Network interrupted'));
+  await controller.download();
+  expect(onState).toHaveBeenLastCalledWith('error', expect.stringContaining('Network interrupted'), undefined, false);
+  expect(elements.get('#marco-fetch')).toMatchObject({ hidden: false, disabled: false, textContent: 'Retry download · 3.35 GB' });
+  expect(elements.get('#marco-reopen').hidden).toBe(true);
+  mockedDownload.mockResolvedValueOnce(3346542592);
+  mockedOpenPrebuilt.mockRejectedValueOnce(new Error('GPU busy'));
+  await controller.download();
+  expect(onState).toHaveBeenLastCalledWith('error', expect.stringContaining('GPU busy'), undefined, true);
+  expect(elements.get('#marco-fetch').hidden).toBe(true);
+  expect(elements.get('#marco-reopen').hidden).toBe(false);
 });

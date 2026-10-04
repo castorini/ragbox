@@ -98,4 +98,10 @@ it('runs shared setup actions, keeps queries, and displays the same download pro
   expect(get('#marco-query').value).toBe('broccoli');
   expect(get('#fts-search').disabled).toBe(false);
   expect(get('#marco-search').disabled).toBe(false);
+  states.set('msmarco', 'error', 'Opening failed', undefined, undefined, true);
+  expect(get('#marco-open').hidden).toBe(false);
+  expect(get('#marco-download').hidden).toBe(true);
+  states.set('msmarco', 'error', 'Download failed', undefined, undefined, false);
+  expect(get('#marco-open').hidden).toBe(true);
+  expect(get('#marco-download').hidden).toBe(false);
 });

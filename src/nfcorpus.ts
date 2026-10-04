@@ -39,7 +39,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   let checking = true;
   function report(phase: ResourcePhase, message: string) {
     status.textContent = message;
-    status.closest?.('.setup-card')?.setAttribute('data-phase', phase);
+    status.closest?.('.settings-resource')?.setAttribute('data-phase', phase);
     onState?.(phase, message);
   }
   function updateControls() {
@@ -79,7 +79,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       try { return await task(); }
       catch (error) {
         ready = false;
-        indexButton.textContent = 'Retry preparing NFCorpus';
+        indexButton.textContent = 'Retry setup';
         updateControls();
         report('error', `Could not open or search NFCorpus: ${errorMessage(error)}. Retry preparing NFCorpus.`);
         throw error;

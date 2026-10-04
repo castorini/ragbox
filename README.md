@@ -126,7 +126,7 @@ The test suite covers retrieval/RAG integration. The build runs strict TypeScrip
 
 ## Choosing a search collection
 
-Both collections share one Search workspace. Use the **Document collection** dropdown or a collection card to switch. **Prepare NFCorpus**, **Download MS MARCO index (3.35 GB)**, and **Open saved index** run directly on Search using the same actions and progress as Settings. You can edit the query during preparation; submission becomes available when the selected index is searchable. Preparation keeps the query and does not submit it automatically.
+Both collections share one Search workspace. Use the **Document collection** dropdown or a collection card to switch. **Prepare NFCorpus**, **Download MS MARCO index (3.35 GB)**, and **Open downloaded collection** run directly on Search using the same actions and progress as Settings. You can edit the query during preparation; submission becomes available when the selected index is searchable. Preparation keeps the query and does not submit it automatically.
 
 Switching preserves each collection’s query, results, and partial answer for the current page session, while stopping any waiting or active answer. Navigating to Settings or History keeps the current search. Clicking the RAGbox logo clears both searches and invalidates unfinished retrieval and answer requests.
 
@@ -144,7 +144,7 @@ npm run dev
 The preparation script validates document IDs and copies title/text fields to `public/data/nfcorpus.jsonl`. It does not build a search index. Generated dataset files are excluded from Git; each checkout needs this preparation step. The source dataset is described in the [QuackIR NFCorpus guide](https://github.com/castorini/quackir/blob/main/docs/experiments-nfcorpus.md).
 
 1. Open the lab and wait for Ready.
-2. Click **Prepare NFCorpus** on Search or Settings. The application installs/loads `fts`, imports the local JSONL file if the table is missing, indexes combined title and text using the extension defaults, and checkpoints.
+2. Click **Prepare NFCorpus** on Search or **Set up collection** in Settings. The application installs/loads `fts`, imports the local JSONL file if the table is missing, indexes combined title and text using the extension defaults, and checkpoints.
 3. Search for `breast cancer`. Results show document IDs, titles, BM25 scores, excerpts, and expandable full text. Higher scores appear first, with document ID breaking ties.
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
@@ -194,7 +194,7 @@ Model transfer shows cumulative **Downloaded …** bytes with an indeterminate b
 
 Recovery depends on the failure: **Download model** for no files, **Download missing files** for an incomplete install, **Retry loading** for initialization failures, and **Retry answer** for generation failures. Retrying initialization creates a fresh worker and uses cached files. Invalid cached JSON or HTML stored as model data can trigger repair guidance; an explicit download selectively removes those invalid entries, keeping valid weights. Generic GPU and generation failures do not imply corrupted files. Retrieved text is treated as quoted evidence, and rendering uses text nodes. If WebGPU is unavailable, document search remains usable.
 
-The model runs entirely on the device. No API key, inference server, or document upload is used. **Reset collection data** keeps the model cache; **Reset all data** also removes the installed model after confirmation. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
+The model runs entirely on the device. No API key, inference server, or document upload is used. **Delete collection data** keeps the model cache; **Delete collections and model** also removes the installed model after confirmation. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
 
 ## Publish on GitHub Pages
 
@@ -208,26 +208,30 @@ The workflow downloads the BEIR NFCorpus archive, runs the preparation script, a
 
 Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Prepare NFCorpus**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
 
-## Settings storage dashboard
+## Settings and storage
 
-Open **Settings** for compact collection and model statuses. **Manage model files** and **Manage collection files** are collapsed initially. Expand them to browse files, sizes, and management actions, grouped at the bottom. Settings deep links open the required section before scrolling and focusing its target. The refresh icon beside each summary has a tooltip, an accessible label, and a 44 × 44 px target. **Refresh collection files** and **Refresh model files** refresh only their respective listings; **Reload page** reopens saved resources. Files outside ragbox’s known database and Parquet paths are listed without deletion controls.
+**Settings** groups the page into **Collections**, **AI answers**, and **Storage**. Each collection shows its purpose, status, and one next action. **Search this collection** returns to Search with that collection selected, keeping existing queries and results. A saved MS MARCO collection shows **Downloaded → Opens when selected**; replacing its download is available only under **Advanced file management → Collection and app files**. Opening failures offer a retry without starting another download.
 
-Model management lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. Installed-file status is distinct from runtime readiness. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the worker, removes its files across cache versions, and reloads the page after confirmation. Collection files, shared caches, and other models are kept. Use **Download model** to install it again. Deletion is disabled while loading, downloading, searching, or generating answers.
+**AI answers** explains the optional local model and shows its current runtime status. The model name and installed-file status appear in **Advanced file management → Answer model files**. **Storage** shows collection/app and answer-model sizes before expanding file details; collection totals include only known ragbox-owned files and refresh after setup or downloads. Unknown model sizes are excluded from the known total and displayed as **At least …**.
 
-Click a file's **Delete** button or **Reset collection data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Reset removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting or resetting.
+**Advanced file management** contains the file tables, refresh controls, replacement download, and **Reload page**. Settings deep links expand all enclosing sections before scrolling and focusing their target. Model-files repair links focus the guidance section rather than a delete button. The refresh icons have tooltips, accessible labels, and 44 × 44 px targets. **Refresh collection files** and **Refresh model files** refresh only their respective listings. Files outside ragbox’s known database and Parquet paths are listed without deletion controls.
+
+Model management lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. Installed-file status is distinct from runtime readiness. Sizes come from cached response headers; files without a size header are marked unknown. **Delete answer model** stops the worker, removes its files across cache versions, and reloads the page after confirmation. Collection files, shared caches, and other models are kept. Use **Download model** to install it again. Deletion is disabled while loading, downloading, searching, or generating answers.
+
+Click a file's **Delete** button or **Delete collection data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Collection deletion removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting.
 
 The page reloads after deletion. Prepare NFCorpus again or download MS MARCO again to replace deleted indexes. The model cache, downloaded files outside browser storage, repository data, and unrelated origin files are kept. If closing or deleting a file fails, the dashboard reports the error and provides **Reload page** to recover. Localhost and the hosted site have separate storage, so reset each separately if needed.
 
-For a fresh start, **Reset all data** removes both collection data and the installed MiniCPM5-2B model cache after confirmation, then reloads the page. Prepare collections and download the model again to use them. Unrelated origin files and other models are kept. This option requires both browser file storage and cache access and is disabled during active work.
+For a fresh start, **Delete collections and model** removes both collection data and the installed MiniCPM5-2B model cache after confirmation, then reloads the page. Prepare collections and download the model again to use them. Search history, unrelated origin files, and other models are kept. This option requires both browser file storage and cache access and is disabled during active work.
 
 ## MS MARCO search
 
 ### Using the saved index
 
 1. Open the app in a supported desktop browser, such as Chrome.
-2. Click **Download MS MARCO index (3.35 GB)** on Search or **Download & open index (3.35 GB)** in Settings and confirm. Progress shows known total bytes and percentage, followed by **Opening index…**. Keep the tab open while downloading.
+2. Click **Download MS MARCO index (3.35 GB)** on Search or **Download · 3.35 GB** in Settings and confirm. Progress shows known total bytes and percentage, followed by **Opening index…**. Keep the tab open while downloading.
 3. Enter a query and click **Search** to see up to ten matching passages. If the shared local model is loaded, a cited answer appears above them using `[MARCO-…]` citations.
-4. After reloading or returning later, selecting MS MARCO opens its saved index automatically. **Open saved index** remains available while an index is saved but not open. No second download is needed while the saved file remains in browser storage.
+4. After reloading or returning later, selecting MS MARCO opens its saved index automatically. In Settings, use **Search this collection**. **Open downloaded collection** remains available on Search while a collection is saved but not open. No second download is needed while the saved file remains in browser storage.
 
 The index is stored in the browser’s Origin Private File System (OPFS), not the Downloads folder. Localhost and the public site have separate storage. Clearing browser storage removes the saved index. Downloads can be cancelled but cannot resume across reloads. Cancelling replacement preserves an older saved index. Allow sufficient free disk space; replacing an index can temporarily require additional space.
 

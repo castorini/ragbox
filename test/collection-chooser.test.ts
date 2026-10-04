@@ -150,18 +150,44 @@ it('returns to the starting search page from the logo, clearing results and stop
   expect(ui.get('#fts-query').focus).toHaveBeenCalled();
 });
 
-it('opens the enclosing management section before focusing a model-files deep link', () => {
+it('opens all enclosing management sections and focuses guidance for a model-files deep link', () => {
   const ui = harness('https://example.com/ragbox/?view=setup#model-storage');
   const management = ui.get('#model-management');
   management.tagName = 'DETAILS';
   management.open = false;
+  const advanced = ui.get('#storage-management');
+  advanced.tagName = 'DETAILS';
+  advanced.open = false;
+  management.parentElement = advanced;
   ui.get('#model-storage').parentElement = management;
   ui.get('#model-storage').scrollIntoView.mockImplementation(() => expect(management.open).toBe(true));
-  ui.get('#model-cache-delete').focus.mockImplementation(() => expect(management.open).toBe(true));
   setupCollectionChooser();
   expect(management.open).toBe(true);
-  expect(ui.get('#model-cache-delete').focus).toHaveBeenCalled();
+  expect(advanced.open).toBe(true);
+  expect(ui.get('#model-cache-delete').focus).not.toHaveBeenCalled();
+  expect(ui.get('#model-storage').focus).toHaveBeenCalled();
   expect(ui.get('#model-storage').scrollIntoView).toHaveBeenCalled();
+});
+
+it('searches a collection from Settings, preserving both searches and supporting Back/Forward', () => {
+  const ui = harness('https://example.com/ragbox/?view=setup');
+  const changed = vi.fn();
+  const chooser = setupCollectionChooser(changed);
+  ui.get('#fts-query').value = 'nutrition';
+  ui.get('#marco-query').value = 'web query';
+  ui.get('#marco-results').textContent = 'existing results';
+  chooser.search('msmarco');
+  expect(changed).toHaveBeenCalledExactlyOnceWith('msmarco');
+  expect(ui.href).toBe('https://example.com/ragbox/');
+  expect(ui.get('#marco-query').focus).toHaveBeenCalled();
+  expect(ui.get('#fts-query').value).toBe('nutrition');
+  expect(ui.get('#marco-query').value).toBe('web query');
+  expect(ui.get('#marco-results').textContent).toBe('existing results');
+  ui.setHref('https://example.com/ragbox/?view=setup');
+  expect(ui.get('#setup-view').hidden).toBe(false);
+  ui.setHref('https://example.com/ragbox/');
+  expect(ui.get('#msmarco-collection').hidden).toBe(false);
+  expect(ui.get('#marco-results').textContent).toBe('existing results');
 });
 
 it('opens and focuses collection management on a direct link', () => {
