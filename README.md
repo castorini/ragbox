@@ -126,7 +126,9 @@ The test suite covers retrieval/RAG integration. The build runs strict TypeScrip
 
 ## Choosing a search collection
 
-Choose NFCorpus or MS MARCO on the welcome screen. Both collections share one search workspace; use the **Collection** dropdown at the top of its card to switch. Only the selected collection’s setup controls, search form, cited answer, and results are shown. Switching preserves each collection’s query and results, along with any loaded index, for the current page session. Setup instructions disappear once the collection is ready; a failed NFCorpus setup or search restores the preparation action. The cited-answer controls show a load action when needed and a stop action only during generation.
+Both collections share one Search workspace. Use the **Document collection** dropdown or a collection card to switch. **Prepare NFCorpus**, **Download MS MARCO index (3.35 GB)**, and **Open saved index** run directly on Search using the same actions and progress as Settings. You can edit the query during preparation; submission becomes available when the selected index is searchable. Preparation keeps the query and does not submit it automatically.
+
+Switching preserves each collection’s query, results, and partial answer for the current page session, while stopping any waiting or active answer. Navigating to Settings or History keeps the current search. Clicking the RAGbox logo clears both searches and invalidates unfinished retrieval and answer requests.
 
 ## NFCorpus full-text search in the browser
 
@@ -142,7 +144,7 @@ npm run dev
 The preparation script validates document IDs and copies title/text fields to `public/data/nfcorpus.jsonl`. It does not build a search index. Generated dataset files are excluded from Git; each checkout needs this preparation step. The source dataset is described in the [QuackIR NFCorpus guide](https://github.com/castorini/quackir/blob/main/docs/experiments-nfcorpus.md).
 
 1. Open the lab and wait for Ready.
-2. Click **Load NFCorpus & build FTS index**. The application installs/loads `fts`, imports the local JSONL file if the table is missing, indexes combined title and text using the extension defaults, and checkpoints.
+2. Click **Prepare NFCorpus** on Search or Settings. The application installs/loads `fts`, imports the local JSONL file if the table is missing, indexes combined title and text using the extension defaults, and checkpoints.
 3. Search for `breast cancer`. Results show document IDs, titles, BM25 scores, excerpts, and expandable full text. Higher scores appear first, with document ID breaking ties.
 4. Try a different query or an unlikely term to exercise the no-match case.
 5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
@@ -178,15 +180,21 @@ In the Chrome walkthrough, all 3,633 documents were indexed successfully. Search
 
 Internet access is still needed for DuckDB runtime/extension downloads. A successful native SQL check or Vite build does not verify that the browser can download and load its matching Wasm extension. Extension errors appear in the FTS status message. Retrieval evaluation against NFCorpus relevance judgments is outside this demo.
 
-## Local LLM answers (browser RAG)
+## Local model answers (browser RAG)
 
 The page can generate a cited answer locally from either corpus's BM25 results. This is an optional second stage: DuckDB still performs retrieval, and each corpus keeps its own answer panel beside the original ranked result list.
 
-Click **Load local LLM (~1.84 GB)** to download the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). The model runs in a Web Worker through [Transformers.js](https://huggingface.co/docs/transformers.js) with WebGPU and `q4f16` weights. The first download is large and requires a desktop browser whose WebGPU adapter exposes `shader-f16`; Chrome with a supported GPU is the tested target. The model is cached by the browser for later visits, subject to normal browser cache eviction and storage quotas.
+Click **Download model (~1.84 GB)** on Search or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). The model runs in a Web Worker through [Transformers.js](https://huggingface.co/docs/transformers.js) with WebGPU and `q4f16` weights. It requires a desktop browser whose WebGPU adapter exposes `shader-f16`; Chrome with a supported GPU is the tested target. Model files are cached for later visits, subject to browser eviction and storage quotas. Downloads always require an explicit action.
 
-The application loads one shared model worker. When the model is ready, submit an NFCorpus or MS MARCO search as usual. The application passes the highest-ranked retrieved evidence that fits the fixed prompt budget to the model and streams the answer into that corpus's panel. Factual claims should cite IDs such as `[MED-14]` or `[MARCO-123]`; links are enabled only for evidence included in the fitted model context and jump to the corresponding result. Starting a new search cancels any active generation, while late worker output is ignored. Retrieved text is treated as quoted evidence, not instructions, and answer rendering uses text nodes rather than HTML. If WebGPU is unavailable, both BM25 searches remain usable without downloading the model.
+Search shows the model’s current stage separately from collection readiness. Cached files load automatically on supported devices. Retrieved documents appear immediately; an answer waits if the model is checking or loading, then generates once ready without repeating retrieval or adding a History entry. A newer search, collection switch, home reset, or **Stop** invalidates the waiting answer. Missing files and loading failures leave the results visible with a recovery action.
 
-The model runs entirely on the device. No API key, inference server, or document upload is used. **Reset all data** removes the DuckDB database and demo Parquet files but does not intentionally remove the model from the browser cache. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
+The shared model receives the highest-ranked evidence that fits the fixed prompt budget. Factual claims should cite IDs such as `[MED-14]` or `[MARCO-123]`; links are enabled only for evidence included in the fitted context. **Stop**, **Copy**, and **Retry answer** sit beside the answer. Stop retains generated text and valid citation links and ignores late output. Copy includes citation markers and reports success or failure. Retry generates from the same query and evidence and updates the same History entry. Nonempty stopped answers are saved with a **Stopped** label; stopping before any text leaves only the existing search and results in History. Older saved answers without a status remain compatible.
+
+Model transfer shows cumulative **Downloaded …** bytes with an indeterminate bar, excluding reads from cache. File sizes reported by the library do not form a reliable whole-model denominator. **Initializing model…** follows transfer. **Cancel download** or **Cancel loading** also works for queued initialization: it invalidates that attempt, terminates an active loading worker, and refreshes installed-file status. Completed cached files remain available; unfinished files may download again on retry. There is no byte-range resume.
+
+Recovery depends on the failure: **Download model** for no files, **Download missing files** for an incomplete install, **Retry loading** for initialization failures, and **Retry answer** for generation failures. Retrying initialization creates a fresh worker and uses cached files. Invalid cached JSON or HTML stored as model data can trigger repair guidance; an explicit download selectively removes those invalid entries, keeping valid weights. Generic GPU and generation failures do not imply corrupted files. Retrieved text is treated as quoted evidence, and rendering uses text nodes. If WebGPU is unavailable, document search remains usable.
+
+The model runs entirely on the device. No API key, inference server, or document upload is used. **Reset collection data** keeps the model cache; **Reset all data** also removes the installed model after confirmation. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
 
 ## Publish on GitHub Pages
 
@@ -198,13 +206,13 @@ The workflow in `.github/workflows/pages.yml` builds and deploys the demo on pus
 
 The workflow downloads the BEIR NFCorpus archive, runs the preparation script, and includes the generated dataset in the published `dist/` artifact. The dataset does not need to be committed. Vite's base path is set from GitHub Pages metadata so scripts and dataset requests resolve under the repository URL.
 
-Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Load NFCorpus & build FTS index**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
+Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Prepare NFCorpus**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
 
 ## Settings storage dashboard
 
-Open **Settings** to browse files and their sizes in this origin's browser file storage (OPFS). The refresh icon beside the file summary (**Refresh collection files**) updates the listing; **Reload page** reopens saved resources. Files outside ragbox's known database and Parquet paths are listed without deletion controls.
+Open **Settings** for compact collection and model statuses. **Manage model files** and **Manage collection files** are collapsed initially. Expand them to browse files, sizes, and management actions, grouped at the bottom. Settings deep links open the required section before scrolling and focusing its target. The refresh icon beside each summary has a tooltip, an accessible label, and a 44 × 44 px target. **Refresh collection files** and **Refresh model files** refresh only their respective listings; **Reload page** reopens saved resources. Files outside ragbox’s known database and Parquet paths are listed without deletion controls.
 
-The **Installed LLM data** section lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. The refresh icon beside its summary (**Refresh model files**) updates the listing. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the LLM, removes its cached files across cache versions, and reloads the page. Collection files, shared caches, and other models are kept. Use **Load local LLM** to download the model again. Deletion is disabled while loading, downloading, searching, or generating answers.
+Model management lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. Installed-file status is distinct from runtime readiness. Sizes come from cached response headers; files without a size header are marked unknown and excluded from the known-size total. **Delete installed model** stops the worker, removes its files across cache versions, and reloads the page after confirmation. Collection files, shared caches, and other models are kept. Use **Download model** to install it again. Deletion is disabled while loading, downloading, searching, or generating answers.
 
 Click a file's **Delete** button or **Reset collection data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Reset removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting or resetting.
 
@@ -217,21 +225,21 @@ For a fresh start, **Reset all data** removes both collection data and the insta
 ### Using the saved index
 
 1. Open the app in a supported desktop browser, such as Chrome.
-2. Click **Download & open index** and wait for it to finish. Keep the tab open while downloading.
+2. Click **Download MS MARCO index (3.35 GB)** on Search or **Download & open index (3.35 GB)** in Settings and confirm. Progress shows known total bytes and percentage, followed by **Opening index…**. Keep the tab open while downloading.
 3. Enter a query and click **Search** to see up to ten matching passages. If the shared local model is loaded, a cited answer appears above them using `[MARCO-…]` citations.
-4. After reloading or returning later, click **Reopen saved index** before searching. No second download is needed while the saved file remains in browser storage.
+4. After reloading or returning later, selecting MS MARCO opens its saved index automatically. **Open saved index** remains available while an index is saved but not open. No second download is needed while the saved file remains in browser storage.
 
-The index is stored in the browser’s Origin Private File System (OPFS), not the Downloads folder. Localhost and the public site have separate storage. Clearing browser storage removes the saved index. Downloads can be cancelled but cannot resume across reloads. Allow sufficient free disk space; replacing an existing index can temporarily require additional space.
+The index is stored in the browser’s Origin Private File System (OPFS), not the Downloads folder. Localhost and the public site have separate storage. Clearing browser storage removes the saved index. Downloads can be cancelled but cannot resume across reloads. Cancelling replacement preserves an older saved index. Allow sufficient free disk space; replacing an index can temporarily require additional space.
 
 No Hugging Face account or local `collection.tsv` is needed. Internet access is required to download the index and load DuckDB runtime and extension assets. Search itself executes on the visitor’s computer. Full-corpus queries can take several seconds, depending on the device and query.
 
 
-The MS MARCO section uses the prebuilt index only. Local TSV import, browser index building, source selection, and benchmark controls have been removed from the UI. NFCorpus, the local LLM, and OPFS experiments remain available.
+The MS MARCO section uses the prebuilt index only. Local TSV import, browser index building, source selection, and benchmark controls have been removed from the UI. NFCorpus, the local model, and OPFS experiments remain available.
 
 For native index construction and previous scaling measurements, see [the experiment notes](docs/experiments.md).
 
 ### Automatic loading on return visits
 
-At startup, saved NFCorpus and MS MARCO indexes are opened automatically. The local answer model also attempts to initialize from its browser cache on supported WebGPU devices. Model loading and tokenizer discovery both use the same pinned revision. This automatic attempt uses `local_files_only`, so missing model files do not trigger a new remote model download. If the cache is missing or loading fails, use the model load button to download or retry; the underlying failure is logged in the browser console. Runtime assets may still require internet access.
+At startup, a saved NFCorpus index opens automatically; a saved MS MARCO index opens when selected. A complete cached answer model also initializes automatically on supported WebGPU devices. Model loading and tokenizer discovery use the same pinned revision. Automatic loading uses `local_files_only`, so missing files never trigger a remote model download. Search remains available while the model loads, and a waiting answer continues automatically when ready. Runtime assets may still require internet access.
 
 First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.

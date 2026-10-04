@@ -1,5 +1,6 @@
 import { it, expect, vi } from 'vitest';
-import { HISTORY_KEY, HISTORY_LIMIT, SearchHistory } from '../src/history.ts';
+import { HISTORY_KEY, HISTORY_LIMIT, SearchHistory, setupHistoryView } from '../src/history.ts';
+import { FakeElements, fakeElement } from './fake-elements.ts';
 import { citedIds } from '../src/llm-controller.ts';
 
 function memoryStorage() {
@@ -64,4 +65,35 @@ it('ignores corrupt saved data and still works when storage is full', () => {
 it('lists only citations that refer to evidence given to the model, once each', () => {
   const targets = new Map([['MED-1', '#a'], ['MED-2', '#b']]);
   expect(citedIds('A [MED-2] and [MED-9], again [MED-2] then [MED-1].', targets)).toEqual(['MED-2', 'MED-1']);
+});
+
+it('persists a stopped answer and replaces it on retry within the same search', () => {
+  const storage = memoryStorage();
+  const history = new SearchHistory(storage);
+  const entry = history.record({ corpus: 'nfcorpus', query: 'q', results: [result('MED-1')] });
+  history.attachAnswer(entry.id, 'Partial [MED-1]', ['MED-1'], 'stopped');
+  expect(new SearchHistory(storage).entries()[0]).toMatchObject({ answer: 'Partial [MED-1]', answerStatus: 'stopped' });
+  history.attachAnswer(entry.id, 'Complete [MED-1].', ['MED-1']);
+  expect(history.entries()).toHaveLength(1);
+  expect(new SearchHistory(storage).entries()[0]).toMatchObject({ id: entry.id, answerStatus: 'complete', answer: 'Complete [MED-1].' });
+});
+
+it('renders stopped answers and treats older answers without a status as complete', () => {
+  const storage = memoryStorage();
+  storage.values.set(HISTORY_KEY, JSON.stringify([
+    { id: 'old', time: 1, corpus: 'nfcorpus', query: 'old', results: [], answer: 'Old complete answer' },
+    { id: 'stopped', time: 2, corpus: 'msmarco', query: 'new', results: [], answer: 'Partial', answerStatus: 'stopped' },
+  ]));
+  const nodes = new FakeElements();
+  const doc = { querySelector: (selector: string) => nodes.get(selector), createElement: fakeElement };
+  Object.assign(nodes.get('#history-list'), { ownerDocument: doc });
+  vi.stubGlobal('document', doc);
+  try {
+    setupHistoryView(new SearchHistory(storage));
+    const details = nodes.get('#history-list').children.map(item => item.children[0]);
+    expect(details[0].children[1].children[0].textContent).toBe('Cited answer');
+    expect(details[1].children[1].children[0].textContent).toBe('Cited answer · Stopped');
+    expect(details[0].children[0].children[1].textContent).not.toContain('Stopped');
+    expect(details[1].children[0].children[1].textContent).toContain('Stopped');
+  } finally { vi.unstubAllGlobals(); }
 });

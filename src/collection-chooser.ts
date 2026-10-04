@@ -2,7 +2,7 @@ import { requiredElement } from './boundaries.ts';
 import type { Corpus } from './types.ts';
 
 type View = 'search' | 'history' | 'setup';
-const setupSections = ['model', 'model-storage', 'setup-nfcorpus', 'setup-msmarco'];
+const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management'];
 // Sections whose guidance points at one button; focus it so Enter performs the next step.
 const sectionActions: Record<string, string> = { '#model': '#llm-load', '#model-storage': '#model-cache-delete' };
 
@@ -28,6 +28,7 @@ export function setupCollectionChooser(
     selector.value = value;
     panels.nfcorpus.hidden = value !== 'nfcorpus';
     panels.msmarco.hidden = value !== 'msmarco';
+    if (currentView() === 'search') skipLink.href = value === 'nfcorpus' ? '#fts-query' : '#marco-query';
     if (notify) onCollectionChange(value);
   }
 
@@ -55,6 +56,12 @@ export function setupCollectionChooser(
     skipLink.textContent = `Skip to ${label.toLowerCase()}`;
     if (focus || sectionTarget) {
       const element = requiredElement<HTMLElement>(target);
+      // Reveal management panels before scrolling or focusing a deep-link target.
+      let ancestor: HTMLElement | null = element;
+      while (ancestor) {
+        if (ancestor.tagName === 'DETAILS') (ancestor as HTMLDetailsElement).open = true;
+        ancestor = ancestor.parentElement;
+      }
       const action = sectionTarget && sectionActions[sectionTarget]
         ? document.querySelector<HTMLButtonElement>(sectionActions[sectionTarget]) : null;
       element.scrollIntoView({ block: 'start' });
@@ -115,6 +122,8 @@ export function setupCollectionChooser(
       event.preventDefault();
       if (id === '#model-setup-link') openSetupSection('model');
       else if (id === '#model-repair-link') openSetupSection('model-storage');
+      else if (id === '#fts-setup-link') openSetupSection('setup-nfcorpus');
+      else if (id === '#marco-setup-link') openSetupSection('setup-msmarco');
       else navigate(view);
     };
   }

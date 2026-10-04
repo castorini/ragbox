@@ -7,7 +7,7 @@ import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
 
 type SearchRow = EvidenceDocument & { score: number };
-type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'> & Partial<Pick<LLMController, 'isCurrentSearch'>>;
 type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 
 // FTS executes through the same DuckDB-Wasm worker and persistent OPFS database.
@@ -39,6 +39,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   let checking = true;
   function report(phase: ResourcePhase, message: string) {
     status.textContent = message;
+    status.closest?.('.setup-card')?.setAttribute('data-phase', phase);
     onState?.(phase, message);
   }
   function updateControls() {
@@ -86,7 +87,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     }, searching ? 'nfcorpus' : undefined);
   }
 
-  indexButton.onclick = async () => {
+  async function prepare() {
     if (queued || checking || blocked) return;
     queued = true;
     updateControls();
@@ -131,16 +132,18 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       queued = false;
       updateControls();
     }
-  };
+  }
+  indexButton.onclick = () => prepare();
 
   requiredElement<HTMLFormElement>('#fts-form').onsubmit = event => {
     event.preventDefault();
+    if (!ready || blocked || queued || checking) return;
     const query = requiredElement<HTMLInputElement>('#fts-query').value.trim();
     if (!query) return;
     requiredElement<HTMLElement>('#fts-results-area').hidden = false;
     answerPanel.hidden = false;
     searchStatus.hidden = false;
-    llm.beginRetrieval('nfcorpus');
+    const searchToken = llm.beginRetrieval('nfcorpus');
     return action(async () => {
       await loadExtension();
       const index = await conn.query(`SELECT count(*) AS n FROM information_schema.schemata
@@ -158,6 +161,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       let rows;
       try { rows = rowsAs<SearchRow>(await statement.query(query)); }
       finally { await statement.close(); }
+      if (llm.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       for (const row of rows) {
         const item = document.createElement('li');
         item.id = `fts-result-${encodeURIComponent(String(row.id))}`;
@@ -183,6 +187,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       onState?.('ready', 'NFCorpus is ready to search.');
       return rows;
     }, true).then(rows => {
+      if (llm.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       const entry = rows && history?.record({
         corpus: 'nfcorpus',
         query,
@@ -192,12 +197,14 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         llm.generate({
           corpus: 'nfcorpus',
           question: query,
+          searchToken,
           documents: rows,
           citationTargets: new Map(rows.map(row => [
             String(row.id),
             `#fts-result-${encodeURIComponent(String(row.id))}`,
           ])),
           evidenceLabel: 'documents',
+          onStopped: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited, 'stopped') : undefined,
           onComplete: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited) : undefined,
         });
       } else if (rows) {
@@ -215,6 +222,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   updateControls();
   onState?.('checking', 'Checking saved index…');
   return {
+    prepare,
     setBlocked(value: boolean) { blocked = value; updateControls(); },
     async reopenSaved() {
       checking = true;

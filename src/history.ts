@@ -17,6 +17,7 @@ export interface HistoryEntry {
   results: HistoryResult[];
   answer?: string;
   citedIds?: string[];
+  answerStatus?: 'complete' | 'stopped';
 }
 
 type HistoryStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
@@ -74,11 +75,12 @@ export class SearchHistory {
     return entry;
   }
 
-  attachAnswer(id: string, answer: string, citedIds: string[]) {
+  attachAnswer(id: string, answer: string, citedIds: string[], status: 'complete' | 'stopped' = 'complete') {
     const entry = this.items.find(item => item.id === id);
     if (!entry) return;
     entry.answer = answer;
     entry.citedIds = citedIds;
+    entry.answerStatus = status;
     this.save();
   }
 
@@ -121,7 +123,7 @@ function entryElement(doc: Document, entry: HistoryEntry) {
     corpusNames[entry.corpus] ?? entry.corpus,
     new Date(entry.time).toLocaleString(),
     `${entry.results.length} ${entry.results.length === 1 ? 'result' : 'results'}`,
-    entry.answer ? `${cited.length} cited` : 'No answer',
+    entry.answer ? `${cited.length} cited${entry.answerStatus === 'stopped' ? ' · Stopped' : ''}` : 'No answer',
   ].join(' · ');
   summary.append(query, meta);
   details.append(summary);
@@ -130,7 +132,7 @@ function entryElement(doc: Document, entry: HistoryEntry) {
     const panel = doc.createElement('div');
     panel.className = 'llm-answer-panel';
     const heading = doc.createElement('h3');
-    heading.textContent = 'Cited answer';
+    heading.textContent = entry.answerStatus === 'stopped' ? 'Cited answer · Stopped' : 'Cited answer';
     const answer = doc.createElement('p');
     answer.className = 'llm-answer';
     renderAnswer(answer, entry.answer, new Map(cited.map(id => [id, `#${entry.id}-${encodeURIComponent(id)}`])));

@@ -8,18 +8,25 @@ function guidance(name: ResourceName, state: ResourceState, busy: boolean): stri
     case 'checking': return `Checking ${label} in this browser…`;
     case 'saved': return `Opening the saved ${label} index when you select this collection.`;
     case 'opening': return `Opening the saved ${label} index…`;
-    case 'preparing': return `Preparing ${label} in this browser…`;
-    case 'downloading': return `Downloading the ${label} index…`;
+    case 'preparing':
+    case 'downloading': return state.message;
     case 'missing': return `${label} needs an index before search is available.`;
     case 'error': return state.message.startsWith('Startup failed:')
       ? 'Startup failed. Reload this page to retry.'
-      : `${label} could not be opened. Review the error and retry in Setup.`;
+      : `${label} could not be opened. Review the error and retry in Settings.`;
     case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
     default: return state.message;
   }
 }
 
-export function setupSearchGuidance(states: ResourceStates) {
+export interface SetupActions {
+  prepare(): unknown;
+  download(): unknown;
+  openSaved(): unknown;
+  cancelDownload(): unknown;
+}
+
+export function setupSearchGuidance(states: ResourceStates, actions?: SetupActions) {
   for (const [name, prefix] of [['nfcorpus', 'fts'], ['msmarco', 'marco']] as const) {
     const button = requiredElement<HTMLButtonElement>(`#${prefix}-search`);
     const input = requiredElement<HTMLInputElement>(`#${prefix}-query`);
@@ -32,19 +39,34 @@ export function setupSearchGuidance(states: ResourceStates) {
       const state = states.get(name);
       const unavailable = state.phase !== 'ready' || states.busy;
       button.disabled = unavailable;
-      input.disabled = unavailable;
+      input.disabled = false;
       form.classList.toggle('unavailable', unavailable);
       help.hidden = !unavailable || states.activeSearch === name;
       helpText.textContent = guidance(name, state, states.busy);
     });
   }
-  const modelStatus = requiredElement<HTMLElement>('#model-search-status');
+  if (!actions) return;
+  const prepare = requiredElement<HTMLButtonElement>('#fts-prepare');
+  const download = requiredElement<HTMLButtonElement>('#marco-download');
+  const open = requiredElement<HTMLButtonElement>('#marco-open');
+  const cancel = requiredElement<HTMLButtonElement>('#marco-search-cancel');
+  const progress = requiredElement<HTMLProgressElement>('#marco-search-progress');
+  prepare.onclick = () => { void actions.prepare(); };
+  download.onclick = () => { void actions.download(); };
+  open.onclick = () => { void actions.openSaved(); };
+  cancel.onclick = () => { actions.cancelDownload(); };
   states.subscribe(() => {
-    const phase = states.get('model').phase;
-    modelStatus.textContent = phase === 'ready' || phase === 'generating'
-      ? 'Cited answers ready'
-      : phase === 'loading' || phase === 'checking'
-        ? 'Checking optional cited answers…'
-        : 'Cited answers are optional';
+    const nf = states.get('nfcorpus');
+    const marco = states.get('msmarco');
+    prepare.hidden = !['missing', 'error'].includes(nf.phase);
+    prepare.disabled = states.busy || prepare.hidden;
+    download.hidden = !['missing', 'error'].includes(marco.phase);
+    download.disabled = states.busy || download.hidden;
+    open.hidden = !['saved', 'error'].includes(marco.phase);
+    open.disabled = states.busy || open.hidden;
+    cancel.hidden = marco.phase !== 'downloading';
+    progress.hidden = marco.phase !== 'downloading';
+    if (marco.progress === undefined) progress.removeAttribute?.('value');
+    else progress.value = marco.progress;
   });
 }

@@ -4,14 +4,18 @@ vi.mock('../src/prebuilt-msmarco.ts', () => ({
   openPrebuilt: vi.fn(),
   PREBUILT_NAME: 'msmarco-prebuilt.duckdb',
 }));
+vi.mock('../src/download-prebuilt.ts', () => ({ downloadPrebuilt: vi.fn() }));
 
 import { openPrebuilt } from '../src/prebuilt-msmarco.ts';
+import { downloadPrebuilt } from '../src/download-prebuilt.ts';
+import { SearchHistory } from '../src/history.ts';
 import { normalizeMSMarcoResults, setupMSMarco } from '../src/msmarco.ts';
 import { FakeElements, fakeElement } from './fake-elements.ts';
 import type { RunTask } from '../src/types.ts';
 import { LoadCoordinator } from '../src/load-coordinator.ts';
 
 const mockedOpenPrebuilt = vi.mocked(openPrebuilt);
+const mockedDownload = vi.mocked(downloadPrebuilt);
 let elements: FakeElements;
 let getDirectory = vi.fn();
 
@@ -20,6 +24,7 @@ function createLLM() {
     beginRetrieval: vi.fn(),
     generate: vi.fn(),
     showRetrievalMessage: vi.fn(),
+    isCurrentSearch: vi.fn(() => true),
   };
 }
 
@@ -67,6 +72,7 @@ beforeEach(() => {
   getDirectory = vi.fn();
   vi.stubGlobal('navigator', { storage: { getDirectory } });
   mockedOpenPrebuilt.mockReset();
+  mockedDownload.mockReset();
 });
 
 afterEach(() => vi.unstubAllGlobals());
@@ -290,4 +296,73 @@ it('queues saved-index opening without blocking unrelated search while a model l
   await opening;
   expect(runCalls).toBe(1);
   expect(openPrebuilt).toHaveBeenCalledOnce();
+});
+
+it('ignores stale retrieval after a collection switch or home reset', async () => {
+  const rows = [{ id: '1', contents: 'Old evidence', score: 1 }];
+  const { prebuilt, statement } = searchablePrebuilt(rows);
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(prebuilt));
+  const llm = createLLM();
+  llm.beginRetrieval.mockReturnValue(3);
+  const history = new SearchHistory(undefined);
+  const controller = setupMSMarco(task => task(), llm, undefined, undefined, history);
+  await controller.openSaved();
+  let finish!: (value: ReturnType<typeof resultSet>) => void;
+  statement.query.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  elements.get('#marco-query').value = 'old';
+  const searching = elements.get('#marco-form').onsubmit({ preventDefault() {} });
+  await vi.waitFor(() => expect(statement.query).toHaveBeenCalled());
+  llm.isCurrentSearch.mockReturnValue(false);
+  elements.get('#marco-search-status').textContent = '';
+  finish(resultSet(rows));
+  await searching;
+  expect(elements.get('#marco-results').children).toEqual([]);
+  expect(elements.get('#marco-search-status').textContent).toBe('');
+  expect(history.entries()).toEqual([]);
+  expect(llm.generate).not.toHaveBeenCalled();
+});
+
+it('shares confirmed downloads and cancellation, retaining a saved index and announcing only stages', async () => {
+  vi.stubGlobal('confirm', vi.fn(() => true));
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  vi.stubGlobal('navigator', { storage: { getDirectory, estimate: async () => ({ quota: 8e9, usage: 0 }) } });
+  const onState = vi.fn();
+  const controller = setupMSMarco(task => task(), createLLM(), onState);
+  await controller.checkSaved();
+  elements.get('#marco-query').value = 'keep query';
+  mockedDownload.mockImplementation(options => new Promise((_resolve, reject) => {
+    options.signal!.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')));
+  }));
+  const downloading = controller.download();
+  await vi.waitFor(() => expect(mockedDownload).toHaveBeenCalledOnce());
+  const options = mockedDownload.mock.calls[0][0];
+  options.onProgress?.(options.bytes / 2, options.bytes);
+  expect(onState).toHaveBeenLastCalledWith('downloading', expect.stringContaining('50.0%'), 50);
+  expect(elements.get('#marco-announcement').textContent).toBe('Downloading MS MARCO index…');
+  controller.cancelDownload();
+  await downloading;
+  expect(options.signal!.aborted).toBe(true);
+  expect(elements.get('#marco-reopen').hidden).toBe(false);
+  expect(elements.get('#marco-query').value).toBe('keep query');
+  expect(elements.get('#marco-announcement').textContent).toContain('Download cancelled');
+  expect(openPrebuilt).not.toHaveBeenCalled();
+});
+
+it('opens a completed shared download without submitting the preserved query', async () => {
+  vi.stubGlobal('confirm', vi.fn(() => true));
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockRejectedValue(new DOMException('missing', 'NotFoundError')) });
+  vi.stubGlobal('navigator', { storage: { getDirectory, estimate: async () => ({ quota: 8e9, usage: 0 }) } });
+  mockedDownload.mockResolvedValue(3346542592);
+  const { prebuilt, statement } = searchablePrebuilt([]);
+  mockedOpenPrebuilt.mockResolvedValue(asIndex(prebuilt));
+  const onState = vi.fn();
+  const controller = setupMSMarco(task => task(), createLLM(), onState);
+  await controller.checkSaved();
+  elements.get('#marco-query').value = 'query after setup';
+  await controller.download();
+  expect(onState).toHaveBeenCalledWith('opening', 'Opening index…');
+  expect(elements.get('#marco-query').value).toBe('query after setup');
+  expect(elements.get('#marco-search').disabled).toBe(false);
+  expect(statement.query).not.toHaveBeenCalled();
+  expect(confirm).toHaveBeenCalledOnce();
 });

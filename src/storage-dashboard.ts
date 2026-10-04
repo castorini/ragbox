@@ -35,7 +35,7 @@ function showStatus(element: HTMLElement, message: string) {
   element.hidden = !message;
 }
 
-export function setupStorageDashboard(states: ResourceStates, shutdown: () => Promise<void>) {
+export function setupStorageDashboard(states: ResourceStates, shutdown: () => Promise<void>, onModelCacheChanged?: () => void) {
   const rows = requiredElement<HTMLTableSectionElement>('#storage-files');
   const status = requiredElement<HTMLElement>('#storage-status');
   const summary = requiredElement<HTMLElement>('#storage-summary');
@@ -132,11 +132,12 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     } finally {
       refreshingModel = false;
       updateControls();
+      onModelCacheChanged?.();
     }
   }
   async function removeModel() {
     if (!cacheSupported || blocked() || !modelFiles.length) return;
-    if (!window.confirm('Delete all cached MiniCPM5-2B model files? The local LLM will stop and the page will reload. Collection indexes are kept. Close other ragbox tabs first.')) return;
+    if (!window.confirm('Delete all cached MiniCPM5-2B model files? The local model will stop and the page will reload. Collection indexes are kept. Close other ragbox tabs first.')) return;
     deleting = true;
     updateControls();
     showStatus(modelStatus, 'Deleting model files…');
@@ -145,7 +146,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       await shutdown();
       await deleteModelCacheFiles(caches);
       if (window.location.hash === '#model-storage') {
-        // Repair flow: reopen Settings pointing at “Load local LLM” to download it again.
+        // Reopen Settings at the model action after deletion.
         const url = new URL(window.location.href);
         url.hash = 'model';
         window.history.replaceState(null, '', url);

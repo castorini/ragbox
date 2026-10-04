@@ -1,6 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import type { ResourcePhase, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
+import type { SetupActions } from './search-guidance.ts';
 
 type Light = 'available' | 'unavailable' | 'pending';
 
@@ -18,8 +19,8 @@ interface DashboardChooser {
 }
 
 const corpora = {
-  nfcorpus: { name: 'NFCorpus', missing: 'Not set up', setup: 'Set up in Settings (under a minute)' },
-  msmarco: { name: 'MS MARCO', missing: 'Not downloaded', setup: 'Download in Settings (3.35 GB)' },
+  nfcorpus: { name: 'NFCorpus', missing: 'Not prepared', setup: 'Prepare NFCorpus' },
+  msmarco: { name: 'MS MARCO', missing: 'Not downloaded', setup: 'Download MS MARCO index (3.35 GB)' },
 } as const;
 
 export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string): CardStatus {
@@ -30,26 +31,29 @@ export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string
     case 'missing': return { light: 'unavailable', label: info.missing, setup: info.setup };
     case 'checking': return { light: 'pending', label: 'Checking…' };
     case 'opening': return { light: 'pending', label: 'Opening…', detail: message };
-    case 'preparing': return { light: 'pending', label: 'Setting up…', detail: message, setup: 'View progress' };
-    case 'downloading': return { light: 'pending', label: 'Downloading…', detail: message, setup: 'View progress' };
+    case 'preparing': return { light: 'pending', label: 'Preparing…', detail: message };
+    case 'downloading': return { light: 'pending', label: 'Downloading…', detail: message };
     case 'unsupported': return { light: 'unavailable', label: 'Not supported', detail: 'Use desktop Chrome on localhost or HTTPS.' };
     default: return { light: 'unavailable', label: 'Needs attention', detail: message, setup: 'Fix in Settings' };
   }
 }
 
-export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardChooser) {
+export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardChooser, actions?: SetupActions) {
   const cards = (Object.keys(corpora) as Corpus[]).map(corpus => {
     const card = requiredElement<HTMLElement>(`.corpus-card[data-corpus="${corpus}"]`);
     const label = requiredElement<HTMLElement>(`#${corpus}-dashboard-status`);
     const detail = requiredElement<HTMLElement>(`#${corpus}-dashboard-detail`);
-    const setup = requiredElement<HTMLAnchorElement>(`#${corpus}-dashboard-setup`);
+    const setup = requiredElement<HTMLButtonElement>(`#${corpus}-dashboard-setup`);
     const use = requiredElement<HTMLButtonElement>(`#${corpus}-dashboard-use`);
     const selectedBadge = requiredElement<HTMLElement>(`#${corpus}-dashboard-selected`);
     const defaultDetail = detail.textContent;
     setup.onclick = event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      chooser.openSetup(corpus);
+      if (!actions || states.get(corpus).phase === 'error') { chooser.openSetup(corpus); return; }
+      chooser.choose(corpus);
+      if (corpus === 'nfcorpus') void actions.prepare();
+      else void actions.download();
     };
     use.onclick = () => {
       chooser.choose(corpus);
@@ -69,7 +73,8 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
       label.textContent = status.label;
       detail.textContent = status.detail ?? defaultDetail;
       setup.hidden = !status.setup;
-      setup.textContent = status.setup ? `${status.setup} →` : '';
+      setup.disabled = states.busy;
+      setup.textContent = status.setup ?? '';
       use.setAttribute('aria-pressed', String(isSelected));
       selectedBadge.hidden = !isSelected;
     }

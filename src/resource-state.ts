@@ -1,4 +1,4 @@
-import type { Corpus } from './types.ts';
+import type { Corpus, ModelStatus } from './types.ts';
 
 export type ResourceName = 'nfcorpus' | 'msmarco' | 'model';
 export type ResourcePhase =
@@ -8,6 +8,8 @@ export type ResourcePhase =
 export interface ResourceState {
   phase: ResourcePhase;
   message: string;
+  model?: ModelStatus;
+  progress?: number;
 }
 
 export class ResourceStates {
@@ -22,8 +24,8 @@ export class ResourceStates {
 
   get(name: ResourceName): ResourceState { return this.values[name]; }
 
-  set(name: ResourceName, phase: ResourcePhase, message: string) {
-    this.values[name] = { phase, message };
+  set(name: ResourceName, phase: ResourcePhase, message: string, model?: ModelStatus, progress?: number) {
+    this.values[name] = { phase, message, model, progress };
     this.notify();
   }
 

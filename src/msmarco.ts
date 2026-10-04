@@ -8,7 +8,7 @@ import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
 
 type MarcoRow = { id: string | number | bigint; contents: string; score: number };
-type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'>;
+type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'> & Partial<Pick<LLMController, 'isCurrentSearch'>>;
 type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 
 export function normalizeMSMarcoResults<T extends { id: string | number | bigint; contents?: string | null }>(rows: T[]): EvidenceDocument[] {
@@ -19,8 +19,9 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
   }));
 }
 
-export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History) {
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#marco-status');
+  const announcement = requiredElement<HTMLElement>('#marco-announcement');
   const searchStatus = requiredElement<HTMLElement>('#marco-search-status');
   const answerPanel = requiredElement<HTMLElement>('#marco-answer-panel');
   const output = requiredElement<HTMLOListElement>('#marco-results');
@@ -43,10 +44,17 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   let checkingPromise: Promise<void> | undefined;
   const unblockWaiters = new Set<() => void>();
   let downloadController: AbortController | undefined;
+  let announcedPhase: ResourcePhase | undefined;
   const supported = Boolean(window.isSecureContext && navigator.storage?.getDirectory);
-  function report(phase: ResourcePhase, message: string) {
+  function report(phase: ResourcePhase, message: string, percent?: number) {
     status.textContent = message;
-    onState?.(phase, message);
+    if (phase !== announcedPhase) {
+      announcedPhase = phase;
+      announcement.textContent = phase === 'downloading' ? 'Downloading MS MARCO index…' : message;
+    }
+    status.closest?.('.setup-card')?.setAttribute('data-phase', phase);
+    if (percent === undefined) onState?.(phase, message);
+    else onState?.(phase, message, percent);
   }
   function updateButtons() {
     setup.hidden = !!prebuilt || checkingSaved || !supported;
@@ -104,7 +112,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     report('ready', `Ready to search ${prebuilt.count.toLocaleString()} passages.`);
   }
   cancelDownload.onclick = () => downloadController?.abort();
-  fetchButton.onclick = () => {
+  function download() {
     if (busy || blocked) return;
     if (!confirm('Download 3.35 GB into this browser’s storage? This replaces any saved MS MARCO index. Close other search tabs first.')) return;
     return action(async () => {
@@ -131,11 +139,11 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             if (now - lastUpdate < 200 && received !== total) return;
             lastUpdate = now;
             progress.value = received / total * 100;
-            report('downloading', `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`);
+            report('downloading', `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`, progress.value);
           },
         });
         cancelDownload.disabled = true;
-        report('opening', 'Opening saved index…');
+        report('opening', 'Opening index…');
         await connectPrebuilt(true);
       } catch (error) {
         if (errorName(error) === 'AbortError') {
@@ -150,11 +158,12 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         downloadController = undefined;
       }
     }, false);
-  };
+  }
+  fetchButton.onclick = () => download();
   async function openSaved() {
     if (openingQueued || busy || !supported) return;
     openingQueued = true;
-    report('opening', 'Opening saved index…');
+    report('opening', 'Opening index…');
     updateButtons();
     try {
       const open = async () => {
@@ -174,12 +183,13 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   reopenButton.onclick = () => openSaved();
   requiredElement<HTMLFormElement>('#marco-form').onsubmit = event => {
     event.preventDefault();
+    if (!prebuilt || busy || blocked || openingQueued) return;
     const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
     if (!query) return;
     requiredElement<HTMLElement>('#marco-results-area').hidden = false;
     answerPanel.hidden = false;
     searchStatus.hidden = false;
-    llm?.beginRetrieval('msmarco');
+    const searchToken = llm?.beginRetrieval('msmarco');
     const activePrebuilt = prebuilt;
     if (!activePrebuilt) {
       report('missing', 'Download or open the index to search.');
@@ -195,6 +205,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       let rows;
       try { rows = rowsAs<MarcoRow>(await stmt.query(query)); }
       finally { await stmt.close(); }
+      if (llm?.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       for (const row of rows) {
         const item = document.createElement('li');
         item.id = `marco-result-${encodeURIComponent(String(row.id))}`;
@@ -211,6 +222,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         : `No results for “${query}”. Try different search words.`;
       return rows;
     }, true, true).then(rows => {
+      if (llm?.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       const documents = rows ? normalizeMSMarcoResults(rows) : [];
       const entry = rows && history?.record({
         corpus: 'msmarco',
@@ -221,12 +233,14 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         llm?.generate({
           corpus: 'msmarco',
           question: query,
+          searchToken,
           documents,
           citationTargets: new Map(rows.map(row => [
             `MARCO-${String(row.id)}`,
             `#marco-result-${encodeURIComponent(String(row.id))}`,
           ])),
           evidenceLabel: 'passages',
+          onStopped: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited, 'stopped') : undefined,
           onComplete: entry ? (answer, cited) => history?.attachAnswer(entry.id, answer, cited) : undefined,
         });
       } else if (rows) {
@@ -265,6 +279,9 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     try { await checkingPromise; } finally { checkingPromise = undefined; }
   }
   return {
+    download,
+    openSaved,
+    cancelDownload() { downloadController?.abort(); },
     checkSaved,
     async reopenSaved() {
       if (!supported) return;

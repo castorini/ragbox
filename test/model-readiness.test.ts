@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { requireCompleteModelCache, REQUIRED_MODEL_FILES } from '../src/model-readiness.ts';
+import { inspectModelCache, requireCompleteModelCache, REQUIRED_MODEL_FILES } from '../src/model-readiness.ts';
 import { MODEL_ID, MODEL_REMOTE_PATH_TEMPLATE, MODEL_REVISION } from '../src/model-cache.ts';
 import { AutoTokenizer, env } from '@huggingface/transformers';
 function storage(files: string[], revision = MODEL_REVISION) {
@@ -17,6 +17,47 @@ it('rejects a metadata-only cache and missing weight shards', async () => {
 });
 it('does not mistake another model revision for a complete cache', async () => {
   await expect(requireCompleteModelCache(storage(REQUIRED_MODEL_FILES, 'main'))).rejects.toThrow('incomplete');
+});
+
+function responseStorage(responses: Map<string, Response>) {
+  const prefix = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}/`;
+  return { keys: async () => ['model'], open: async () => ({
+    keys: async () => [...responses.keys()].map(file => ({ url: prefix + file })),
+    match: async (request: string | { url: string }) => responses.get((typeof request === 'string' ? request : request.url).slice(prefix.length))?.clone(),
+  }) } as unknown as CacheStorage;
+}
+
+it('distinguishes missing, incomplete, and inaccessible model caches', async () => {
+  await expect(inspectModelCache(responseStorage(new Map()))).resolves.toMatchObject({ availability: 'missing' });
+  await expect(inspectModelCache(storage(['config.json']))).resolves.toMatchObject({ availability: 'incomplete' });
+  await expect(inspectModelCache(undefined)).resolves.toMatchObject({ availability: 'unknown' });
+  const inaccessible = { keys: async () => { throw new Error('Cache blocked'); } } as unknown as CacheStorage;
+  await expect(inspectModelCache(inaccessible)).rejects.toThrow('Cache blocked');
+});
+
+it.each([
+  ['config.json', new Response('{invalid', { headers: { 'content-type': 'application/json' } })],
+  ['tokenizer_config.json', new Response('null', { headers: { 'content-type': 'application/json' } })],
+  ['onnx/model_q4f16.onnx', new Response('<html>page</html>', { headers: { 'content-type': 'text/html' } })],
+])('classifies invalid cached data as corruption: %s', async (file, response) => {
+  const cache = responseStorage(new Map([[file, response]]));
+  await expect(inspectModelCache(cache)).resolves.toMatchObject({ availability: 'corrupt' });
+  await expect(requireCompleteModelCache(cache)).rejects.toMatchObject({ reason: 'corrupt' });
+});
+
+it('accepts unknown-size files and validates metadata without consuming weight bodies', async () => {
+  const readWeights = vi.fn(() => { throw new Error('Weight body read'); });
+  const prefix = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}/`;
+  const cache = { keys: async () => ['model'], open: async () => ({
+    keys: async () => REQUIRED_MODEL_FILES.map(file => ({ url: prefix + file })),
+    match: async (request: string | { url: string }) => {
+      const url = typeof request === 'string' ? request : request.url;
+      return { headers: new Headers(), json: url.endsWith('.json') ? async () => ({}) : readWeights,
+        text: readWeights, arrayBuffer: readWeights };
+    },
+  }) } as unknown as CacheStorage;
+  await expect(inspectModelCache(cache)).resolves.toEqual({ availability: 'installed', missing: [] });
+  expect(readWeights).not.toHaveBeenCalled();
 });
 
 it('loads a real tokenizer from a pinned cache without main-revision entries or network access', async () => {

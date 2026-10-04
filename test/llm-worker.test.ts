@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WorkerRequest } from '../src/types.ts';
-import { MODEL_REMOTE_PATH_TEMPLATE } from '../src/model-cache.ts';
+import type { ModelProgress, WorkerRequest } from '../src/types.ts';
+import { MODEL_ID, MODEL_REVISION, MODEL_REMOTE_PATH_TEMPLATE } from '../src/model-cache.ts';
+import { ModelCacheError, REQUIRED_MODEL_FILES } from '../src/model-readiness.ts';
 
-type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string };
+type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string; loadId?: number; progress?: ModelProgress };
 type StreamerOptions = { callback_function: (text: string) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
 type MockStreamer = { options: StreamerOptions };
 type MockCriterion = { interrupt: ReturnType<typeof vi.fn> };
@@ -12,11 +13,15 @@ const mocks = vi.hoisted(() => ({
   env: {} as MockEnv,
   pipeline: vi.fn(),
   requireCache: vi.fn(),
+  inspectCache: vi.fn(),
   streamers: [] as MockStreamer[],
   criteria: [] as MockCriterion[],
 }));
 
-vi.mock('../src/model-readiness.ts', () => ({ requireCompleteModelCache: mocks.requireCache }));
+vi.mock('../src/model-readiness.ts', async importOriginal => ({
+  ...await importOriginal<typeof import('../src/model-readiness.ts')>(),
+  requireCompleteModelCache: mocks.requireCache, inspectModelCache: mocks.inspectCache,
+}));
 
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
@@ -86,6 +91,7 @@ beforeEach(() => {
   mocks.pipeline.mockReset();
   mocks.env.fetch = vi.fn(async () => new Response(null));
   mocks.requireCache.mockReset().mockResolvedValue(undefined);
+  mocks.inspectCache.mockReset().mockResolvedValue({ availability: 'installed', missing: [] });
   mocks.streamers.length = 0;
   mocks.criteria.length = 0;
 });
@@ -324,4 +330,101 @@ it('rejects an incomplete cache before starting model initialization and allows 
   expect(mocks.pipeline).not.toHaveBeenCalled();
   harness.send({ type: 'load' });
   await vi.waitFor(() => expect(harness.messages.some(m => m.type === 'ready')).toBe(true));
+});
+
+it('counts transferred bytes once per file, ignores cache callbacks, and separates initialization', async () => {
+  mocks.env.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const size = String(input).endsWith('tokenizer_config.json') ? 7 : 5;
+    return new Response(new Uint8Array(size));
+  });
+  mocks.inspectCache.mockResolvedValue({ availability: 'incomplete', missing: ['config.json', 'tokenizer_config.json'] });
+  const harness = await createHarness();
+  mocks.pipeline.mockImplementation(async (_task, _model, options) => {
+    // These library callbacks also describe cache reads, and must not count as transfers.
+    options.progress_callback({ status: 'progress', file: 'onnx/model_q4f16.onnx', loaded: 900_000_000 });
+    const prefix = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}/`;
+    for (const file of ['config.json', 'config.json', 'tokenizer_config.json']) {
+      await (await mocks.env.fetch(prefix + file)).arrayBuffer();
+      options.progress_callback({ status: 'done', file });
+    }
+    return harness.generator;
+  });
+  harness.send({ type: 'load', loadId: 42 });
+  await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
+  const progress = harness.messages.filter(message => message.type === 'progress');
+  expect(progress.at(-1)).toMatchObject({ loadId: 42, progress: { stage: 'initializing', downloadedBytes: 12 } });
+  expect(Math.max(...progress.map(message => message.progress!.downloadedBytes!))).toBe(12);
+  expect(harness.messages.find(message => message.type === 'ready')).toMatchObject({ loadId: 42 });
+});
+
+it('reports zero downloaded bytes when every file comes from cache', async () => {
+  const network = mocks.env.fetch;
+  const harness = await createHarness();
+  mocks.pipeline.mockImplementation(async (_task, _model, options) => {
+    for (const file of REQUIRED_MODEL_FILES) {
+      options.progress_callback({ status: 'progress', file, loaded: 100_000 });
+      options.progress_callback({ status: 'done', file });
+    }
+    return harness.generator;
+  });
+  harness.send({ type: 'load', cachedOnly: true, loadId: 7 });
+  await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
+  expect(network).not.toHaveBeenCalled();
+  expect(harness.messages.filter(message => message.type === 'progress').every(message =>
+    message.loadId === 7 && message.progress?.downloadedBytes === 0 && message.progress.stage === 'initializing',
+  )).toBe(true);
+});
+
+it.each(['missing', 'incomplete', 'corrupt'] as const)('reports structured cached-load failure: %s', async reason => {
+  mocks.requireCache.mockRejectedValue(new ModelCacheError('Cache unavailable', reason));
+  const harness = await createHarness();
+  harness.send({ type: 'load', cachedOnly: true, loadId: 8 });
+  await vi.waitFor(() => expect(harness.messages).toContainEqual(expect.objectContaining({
+    type: 'cache-unavailable', loadId: 8, reason,
+  })));
+  expect(mocks.pipeline).not.toHaveBeenCalled();
+});
+
+it.each([
+  [new Error('GPU initialization failed'), 'initialization'],
+  [new DOMException('Storage full', 'QuotaExceededError'), 'storage'],
+])('classifies initialization failures without implying corruption', async (error, reason) => {
+  const harness = await createHarness();
+  mocks.pipeline.mockRejectedValue(error);
+  harness.send({ type: 'load', loadId: 9 });
+  await vi.waitFor(() => expect(harness.messages).toContainEqual(expect.objectContaining({
+    type: 'error', operation: 'load', loadId: 9, reason,
+  })));
+});
+
+it('classifies required-file HTTP errors as network failures even with an empty body', async () => {
+  mocks.env.fetch = vi.fn(async () => new Response(null, { status: 503 }));
+  const harness = await createHarness();
+  mocks.pipeline.mockImplementation(async () => {
+    await mocks.env.fetch(`https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}/config.json`);
+    throw new Error('Could not fetch config');
+  });
+  harness.send({ type: 'load', loadId: 10 });
+  await vi.waitFor(() => expect(harness.messages).toContainEqual(expect.objectContaining({
+    type: 'error', operation: 'load', loadId: 10, reason: 'network',
+  })));
+});
+
+it('cleans invalid JSON selectively and keeps valid metadata and weights on explicit download', async () => {
+  const prefix = `https://huggingface.co/${MODEL_ID}/resolve/${MODEL_REVISION}/`;
+  const responses = new Map([
+    [prefix + 'config.json', new Response('{invalid', { headers: { 'content-type': 'application/json' } })],
+    [prefix + 'tokenizer.json', new Response('{}', { headers: { 'content-type': 'application/json' } })],
+    [prefix + 'onnx/model_q4f16.onnx', new Response('valid weights')],
+  ]);
+  const cache = {
+    keys: async () => [...responses.keys()].map(url => ({ url })),
+    match: async (request: { url: string }) => responses.get(request.url)?.clone(),
+    delete: vi.fn(),
+  };
+  vi.stubGlobal('caches', { keys: async () => ['model'], open: async () => cache });
+  const harness = await createHarness();
+  harness.send({ type: 'load', loadId: 11 });
+  await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
+  expect(cache.delete).toHaveBeenCalledExactlyOnceWith({ url: prefix + 'config.json' });
 });

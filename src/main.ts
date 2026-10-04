@@ -6,7 +6,7 @@ import { setupNFCorpus } from './nfcorpus.ts';
 import { setupMSMarco } from './msmarco.ts';
 import { setupLLM } from './llm-controller.ts';
 import { errorMessage, requiredElement } from './boundaries.ts';
-import type { RunTask } from './types.ts';
+import type { Corpus, RunTask } from './types.ts';
 import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
@@ -22,12 +22,21 @@ let db: duckdb.AsyncDuckDB | undefined;
 let busy = false;
 let marco: ReturnType<typeof setupMSMarco> | undefined;
 let nfcorpus: ReturnType<typeof setupNFCorpus> | undefined;
+let activeCorpus: Corpus = 'nfcorpus';
 const chooser = setupCollectionChooser(value => {
+  if (value !== activeCorpus) llm.invalidateSearch();
+  activeCorpus = value;
   dashboard.render();
   if (value === 'msmarco') void marco?.reopenSaved();
-}, () => llm.cancel(true));
-setupSearchGuidance(states);
-const dashboard = setupCorpusDashboard(states, chooser);
+}, () => llm.resetAnswers());
+const setupActions = {
+  prepare: () => nfcorpus?.prepare(),
+  download: () => marco?.download(),
+  openSaved: () => marco?.openSaved(),
+  cancelDownload: () => marco?.cancelDownload(),
+};
+setupSearchGuidance(states, setupActions);
+const dashboard = setupCorpusDashboard(states, chooser, setupActions);
 
 const run: RunTask = async (action, searchCorpus) => {
   if (busy) return;
@@ -48,7 +57,7 @@ const run: RunTask = async (action, searchCorpus) => {
   }
 };
 
-const llm = setupLLM((phase, message) => states.set('model', phase, message), loads);
+const llm = setupLLM((phase, message, model) => states.set('model', phase, message, model), loads);
 const capability = llm.initializeCapability();
 let conn: duckdb.AsyncDuckDBConnection | undefined;
 const storage = setupStorageDashboard(states, async () => {
@@ -68,7 +77,8 @@ const storage = setupStorageDashboard(states, async () => {
     await db?.terminate();
     db = undefined;
   });
-});
+}, () => { void llm.refreshCache(); });
+llm.setOnLoadSettled(() => { void storage.refresh(); });
 
 async function main() {
   if (!window.isSecureContext || !navigator.storage?.getDirectory) {
@@ -92,13 +102,13 @@ async function main() {
   nfcorpus = setupNFCorpus(db, conn, run, llm,
     (phase, message) => states.set('nfcorpus', phase, message), loads, history);
   marco = setupMSMarco(run, llm,
-    (phase, message) => states.set('msmarco', phase, message), loads, history);
+    (phase, message, progress) => states.set('msmarco', phase, message, undefined, progress), loads, history);
   status.textContent = 'Ready.';
   await loads.run(() => nfcorpus!.reopenSaved());
   await marco.checkSaved();
   if (chooser.selected() === 'msmarco') void marco.reopenSaved();
-  if ((await capability).supported) {
-    void loads.run(() => llm.loadAndWait(true)).catch(console.error);
+  if ((await capability).supported && llm.model.cache === 'installed') {
+    void llm.loadAndWait(true).catch(console.error);
   }
 }
 main().catch(async error => {

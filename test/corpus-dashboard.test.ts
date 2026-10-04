@@ -11,7 +11,7 @@ interface DashboardElement {
   setAttribute(name: string, value: string): void;
 }
 
-function harness() {
+function harness(actions?: Parameters<typeof setupCorpusDashboard>[2]) {
   const elements = new Map<string, DashboardElement>();
   const get = (selector: string) => {
     if (!elements.has(selector)) elements.set(selector, {
@@ -30,7 +30,7 @@ function harness() {
     openSetup: vi.fn(),
   };
   const states = new ResourceStates();
-  const dashboard = setupCorpusDashboard(states, chooser);
+  const dashboard = setupCorpusDashboard(states, chooser, actions);
   return { get, chooser, states, dashboard, card: (corpus: Corpus) => get(`.corpus-card[data-corpus="${corpus}"]`) };
 }
 
@@ -40,7 +40,7 @@ it('maps each resource phase to a green, red, or pending light', () => {
   expect(cardStatus('nfcorpus', 'ready', '').light).toBe('available');
   expect(cardStatus('msmarco', 'saved', '').light).toBe('available');
   expect(cardStatus('msmarco', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not downloaded' });
-  expect(cardStatus('nfcorpus', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not set up' });
+  expect(cardStatus('nfcorpus', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not prepared' });
   expect(cardStatus('msmarco', 'downloading', 'Downloading index: 1.00 / 3.35 GB'))
     .toMatchObject({ light: 'pending', detail: 'Downloading index: 1.00 / 3.35 GB' });
   expect(cardStatus('nfcorpus', 'error', 'Boom')).toMatchObject({ light: 'unavailable', setup: 'Fix in Settings' });
@@ -61,7 +61,7 @@ it('guides missing collections to their Settings section and selects a collectio
   expect(ui.card('msmarco').attributes['data-status']).toBe('unavailable');
   expect(ui.get('#msmarco-dashboard-status').textContent).toBe('Not downloaded');
   expect(ui.get('#msmarco-dashboard-setup').hidden).toBe(false);
-  expect(ui.get('#msmarco-dashboard-setup').textContent).toBe('Download in Settings (3.35 GB) →');
+  expect(ui.get('#msmarco-dashboard-setup').textContent).toBe('Download MS MARCO index (3.35 GB)');
   const preventDefault = vi.fn();
   ui.get('#msmarco-dashboard-setup').onclick?.({ preventDefault });
   expect(preventDefault).toHaveBeenCalled();
@@ -83,7 +83,20 @@ it('shows live progress while downloading and restores the default description a
   ui.states.set('msmarco', 'downloading', 'Downloading index: 1.00 / 3.35 GB (30%)');
   expect(ui.card('msmarco').attributes['data-status']).toBe('pending');
   expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Downloading index: 1.00 / 3.35 GB (30%)');
-  expect(ui.get('#msmarco-dashboard-setup').textContent).toBe('View progress →');
+  expect(ui.get('#msmarco-dashboard-setup').hidden).toBe(true);
   ui.states.set('msmarco', 'ready', 'Ready');
   expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Default detail');
+});
+
+it('prepares and downloads directly from Search through shared actions', () => {
+  const actions = { prepare: vi.fn(), download: vi.fn(), openSaved: vi.fn(), cancelDownload: vi.fn() };
+  const ui = harness(actions);
+  ui.states.set('nfcorpus', 'missing', 'Not prepared');
+  ui.states.set('msmarco', 'missing', 'Not downloaded');
+  ui.get('#nfcorpus-dashboard-setup').onclick?.({ preventDefault() {} });
+  ui.get('#msmarco-dashboard-setup').onclick?.({ preventDefault() {} });
+  expect(actions.prepare).toHaveBeenCalledOnce();
+  expect(actions.download).toHaveBeenCalledOnce();
+  expect(ui.chooser.choose.mock.calls).toEqual([['nfcorpus'], ['msmarco']]);
+  expect(ui.chooser.openSetup).not.toHaveBeenCalled();
 });

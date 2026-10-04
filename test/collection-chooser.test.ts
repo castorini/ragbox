@@ -2,8 +2,12 @@ import { it, expect, vi, afterEach } from 'vitest';
 import { setupCollectionChooser } from '../src/collection-chooser.ts';
 
 type FakeElement = {
+  tagName?: string;
+  open?: boolean;
+  parentElement?: FakeElement;
   hidden: boolean;
   value: string;
+  href?: string;
   textContent: string;
   onclick?: (event: { preventDefault(): void }) => void;
   onchange?: () => void;
@@ -62,6 +66,7 @@ it('opens NFCorpus search directly and keeps each query and result panel when sw
   expect(ui.get('#msmarco-collection').hidden).toBe(false);
   expect(ui.get('#fts-query').value).toBe('nutrition');
   expect(ui.get('#marco-query').focus).toHaveBeenCalled();
+  expect(ui.get('.skip-link').href).toBe('#marco-query');
 });
 
 it('opens direct Setup links and supports in-page navigation and Back/Forward', () => {
@@ -74,7 +79,7 @@ it('opens direct Setup links and supports in-page navigation and Back/Forward', 
   expect(ui.href).toBe('https://example.com/ragbox/');
   expect(ui.get('#search-view').hidden).toBe(false);
   ui.click('#fts-setup-link');
-  expect(ui.href).toBe('https://example.com/ragbox/?view=setup');
+  expect(ui.href).toBe('https://example.com/ragbox/?view=setup#setup-nfcorpus');
   expect(ui.get('#setup-view').hidden).toBe(false);
 
   ui.setHref('https://example.com/ragbox/#fts-result-1');
@@ -143,4 +148,27 @@ it('returns to the starting search page from the logo, clearing results and stop
     expect(ui.get(`#${prefix}-query`).value).toBe('');
   }
   expect(ui.get('#fts-query').focus).toHaveBeenCalled();
+});
+
+it('opens the enclosing management section before focusing a model-files deep link', () => {
+  const ui = harness('https://example.com/ragbox/?view=setup#model-storage');
+  const management = ui.get('#model-management');
+  management.tagName = 'DETAILS';
+  management.open = false;
+  ui.get('#model-storage').parentElement = management;
+  ui.get('#model-storage').scrollIntoView.mockImplementation(() => expect(management.open).toBe(true));
+  ui.get('#model-cache-delete').focus.mockImplementation(() => expect(management.open).toBe(true));
+  setupCollectionChooser();
+  expect(management.open).toBe(true);
+  expect(ui.get('#model-cache-delete').focus).toHaveBeenCalled();
+  expect(ui.get('#model-storage').scrollIntoView).toHaveBeenCalled();
+});
+
+it('opens and focuses collection management on a direct link', () => {
+  const ui = harness('https://example.com/ragbox/?view=setup#collection-management');
+  ui.get('#collection-management').tagName = 'DETAILS';
+  ui.get('#collection-management').open = false;
+  setupCollectionChooser();
+  expect(ui.get('#collection-management').open).toBe(true);
+  expect(ui.get('#collection-management').focus).toHaveBeenCalled();
 });
