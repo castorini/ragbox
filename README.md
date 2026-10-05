@@ -1,249 +1,98 @@
-# DuckDB-Wasm OPFS Lab
+# RAGbox
 
-A small browser-based lab demonstrating persistent SQL databases and NFCorpus full-text search with DuckDB-Wasm and the Origin Private File System (OPFS). Build an FTS index over 3,633 documents, search with BM25, query saved tables after a page reload, and export data for use with native DuckDB.
-
-Based on DuckDB’s article [Persistent Databases in the Browser with DuckDB-Wasm and OPFS](https://duckdb.org/2026/09/18/opfs-wasm) (September 18, 2026). This repository adapts the article’s examples into an interactive page and adds a separate local-query experiment.
+A document chatbot that runs locally in your browser. DuckDB-Wasm retrieves the top ten BM25 matches from NFCorpus or MS MARCO, and an optional MiniCPM model writes a streamed answer with citations. Follow-up questions search fresh evidence. No inference server, API key, or document upload is used.
 
 ## Getting started
 
-Prerequisites:
-
-- Node.js 22 (22.12+) or Node.js 24+, and npm.
-- A modern browser with OPFS support. The walkthrough has been exercised in Chrome.
-- Internet access to load the DuckDB worker and WebAssembly files from the CDN, and to import the remote orders dataset.
-
-From the repository directory, run:
+Requirements: Node.js 22.12+ or 24+, npm, and a modern browser with OPFS support. Local inference also requires WebGPU with `shader-f16`; desktop Chrome on a supported GPU is the tested target. Internet access is needed to load DuckDB runtime/extension assets and to download collections or model files.
 
 ```sh
 npm ci
-npm run dev
-```
-
-Open **http://127.0.0.1:5173/**. Native DuckDB is optional and is needed only to inspect exports outside the browser.
-
-The development server serves the application; SQL queries execute inside the browser in a Web Worker. Database files are stored in the browser’s OPFS, not in the repository directory. Use the same address each time: `localhost:5173` and `127.0.0.1:5173` have separate browser storage, so an index downloaded on one address is unavailable on the other.
-
-## Experiments
-
-### 1. Persist transactions across reloads
-
-On each page load, the application opens `opfs://analytics.duckdb`, creates the `transactions` table if necessary, inserts one sample purchase, and runs `CHECKPOINT`. The page displays the stored transactions.
-
-Click **Reload page**. The previous rows should remain, with one additional row. To test an explicit shutdown, click **Checkpoint & close**, then reload to reopen the database.
-
-Each sample purchase intentionally uses `id = 1`, matching the article. The table has no primary-key constraint, so duplicate IDs are allowed.
-
-### 2. Import orders and cache monthly totals
-
-Click **Load orders & cache monthly totals**. This button:
-
-1. Runs the article’s `CREATE TABLE IF NOT EXISTS orders AS SELECT ...` statement against a remote Parquet dataset.
-2. Checkpoints the database.
-3. Aggregates orders by month and priority.
-4. Writes the totals to `opfs://cache/monthly_totals.parquet` and reads back the first ten results.
-
-The aggregation is recomputed and the Parquet cache is rewritten on every click.
-
-**Observed difference from the article:** in the tested Chrome setup with DuckDB-Wasm 1.32.0, rerunning the import statement after a reload produced remote requests even when `SHOW TABLES` confirmed that `orders` already existed. The internal cause has not been established. `IF NOT EXISTS` should therefore not be treated as a guarantee of zero network access in this example.
-
-### 3. Query the saved table without importing again
-
-After importing orders, reload the page and wait for **Ready**. Open the browser’s Network panel, filter by `orders.parquet`, and click **Query saved orders (local only)**.
-
-Monthly totals should appear without new requests matching that filter. This button queries `orders` directly; it does not submit the remote import statement or read the exported Parquet cache.
-
-This demonstrates reuse of persisted data. It does not demonstrate fully offline startup: the application still loads DuckDB’s worker and WebAssembly files from a CDN.
-
-### 4. Export the database
-
-Click **Download analytics.duckdb**. The application checkpoints the database and downloads its main file through the browser’s OPFS API.
-
-The export includes both database tables, `transactions` and `orders` (if imported). The separate Parquet cache is not included.
-
-With native DuckDB installed, open the downloaded file:
-
-```sh
-duckdb /path/to/analytics.duckdb
-```
-
-Then inspect its contents:
-
-```sql
-SHOW TABLES;
-SELECT count(*) AS transaction_count FROM transactions;
-SELECT count(*) AS order_count FROM orders;
-```
-
-### 5. Export a table as Parquet
-
-Click **Download transactions.parquet** to export the transaction table with Zstandard compression. Native DuckDB can query the downloaded file directly:
-
-```sql
-SELECT *
-FROM read_parquet('/path/to/transactions.parquet')
-ORDER BY ts
-LIMIT 5;
-```
-
-Both downloads are snapshots. Later browser changes do not update previously downloaded files. Reloading between exports also adds another transaction, so exports made at different times may have different row counts.
-
-## Storage and implementation notes
-
-- **Origin-specific storage:** use the same browser profile and exact URL when testing persistence. Changing the scheme, host, or port selects a different storage origin.
-- **One tab at a time:** OPFS file handles are exclusive; close other instances of the lab before opening the same database.
-- **Checkpoints:** the application explicitly checkpoints after database writes and before database export or clean shutdown. It does not rely on an asynchronous page-unload handler.
-- **Automatic file handling:** `opfs: { fileHandling: 'auto' }` manages the OPFS Parquet paths used in SQL.
-- **Version pin:** DuckDB-Wasm is pinned to `1.32.0`, a version tested by the article. The article reports an OPFS path regression in `1.33.1-dev57.0`.
-- **Storage lifetime:** browser storage can be cleared or evicted. Export data that needs an independent copy.
-- **Display formatting:** some SQL values are converted to strings for readable JSON output; this does not change their stored column types.
-
-## Project structure
-
-```text
-index.html        Page layout and experiment buttons
-src/main.ts       DuckDB initialization and app startup
-src/nfcorpus.ts   NFCorpus import, FTS indexing, and search interface
-src/msmarco.ts    Saved MS MARCO index and search interface
-src/llm-worker.ts Local answer generation in a Web Worker
-src/types.ts      Shared evidence and worker message types
-src/style.css     Page styling
-scripts/prepare-nfcorpus.ts Dataset validation and preparation
-package.json      Dependencies and development commands
-package-lock.json Locked dependency versions
-```
-
-Start with `main()` in `src/main.ts` to follow initialization, then read the collection modules for search behavior.
-
-## Build and validation
-
-```sh
-npm test
-npm run typecheck
-npm run build
-```
-
-The test suite covers retrieval/RAG integration. The build runs strict TypeScript checks before generating `dist/`. Persistence, WebGPU inference, answer quality, and exports still require the browser experiments above. `node_modules/` and `dist/` are excluded from Git, and browser OPFS data is not part of the repository.
-
-## Choosing a search collection
-
-Both collections share one Search workspace. Use the **Document collection** dropdown or a collection card to switch. **Prepare NFCorpus**, **Download MS MARCO index (3.35 GB)**, and **Open downloaded collection** run directly on Search using the same actions and progress as Settings. You can edit the query during preparation; submission becomes available when the selected index is searchable. Preparation keeps the query and does not submit it automatically.
-
-Switching preserves each collection’s query, results, and partial answer for the current page session, while stopping any waiting or active answer. Navigating to Settings or History keeps the current search. Clicking the RAGbox logo clears both searches and invalidates unfinished retrieval and answer requests.
-
-## NFCorpus full-text search in the browser
-
-The NFCorpus section demonstrates the [DuckDB FTS extension](https://duckdb.org/docs/current/core_extensions/full_text_search) on 3,633 documents. Import, index construction, and BM25 search execute in DuckDB-Wasm; there is no search backend.
-
-Prepare the dataset from an existing BEIR NFCorpus `corpus.jsonl`:
-
-```sh
 npm run prepare:nfcorpus -- /path/to/nfcorpus/corpus.jsonl
 npm run dev
 ```
 
-The preparation script validates document IDs and copies title/text fields to `public/data/nfcorpus.jsonl`. It does not build a search index. Generated dataset files are excluded from Git; each checkout needs this preparation step. The source dataset is described in the [QuackIR NFCorpus guide](https://github.com/castorini/quackir/blob/main/docs/experiments-nfcorpus.md).
+Open **http://127.0.0.1:5173/**. The preparation script validates BEIR NFCorpus IDs and copies title/text fields into `public/data/nfcorpus.jsonl`; it does not build an index. Generated datasets are excluded from Git. The published demo includes this dataset through its Pages workflow. See the [NFCorpus guide](https://github.com/castorini/quackir/blob/main/docs/experiments-nfcorpus.md) for the source dataset.
 
-1. Open the lab and wait for Ready.
-2. Click **Prepare NFCorpus** on Search or **Set up collection** in Settings. The application installs/loads `fts`, imports the local JSONL file if the table is missing, indexes combined title and text using the extension defaults, and checkpoints.
-3. Search for `breast cancer`. Results show document IDs, titles, BM25 scores, excerpts, and expandable full text. Higher scores appear first, with document ID breaking ties.
-4. Try a different query or an unlikely term to exercise the no-match case.
-5. Reload and search again without rebuilding. The table and index are stored in the existing OPFS database; the FTS extension is loaded again for the new session.
+Use the same exact address and browser profile on return visits. `localhost:5173` and `127.0.0.1:5173` have separate storage. Keep one RAGbox tab open per origin because DuckDB OPFS handles are exclusive.
 
-The module is in `src/nfcorpus.ts`. Query text is passed as a bound parameter. Displayed document content uses text nodes. The index button explicitly rebuilds an existing index; it does not replace an existing corpus table. Older saved NFCorpus tables with only `id` and `contents` remain searchable: results use the document ID as their heading and the combined contents as their text. FTS indexes do not automatically track table edits.
+## Chatting with documents
 
-### Core FTS operations
+Choose a **Document collection** and prepare or open its index. Ask a question in the bottom composer; **Enter** sends, **Shift+Enter** adds a newline, and messages are limited to 500 characters. The draft remains editable during processing. **Stop** retains partial text and valid citation links.
 
-After importing documents into `nfcorpus`, with `contents` formed by concatenating title and text, the browser executes:
+Each reply has expandable **Sources** containing the retrieved document snapshot, BM25 scores, resolved search query, and full text. Clicking a citation opens its sources and focuses the cited document. Links are created only for IDs in the current fitted evidence. Unknown IDs remain plain text. Output is rendered as text, not model-supplied HTML.
 
-```sql
-INSTALL fts;
-LOAD fts;
-PRAGMA create_fts_index('nfcorpus', 'id', 'contents', overwrite = 1);
+**New chat** and the RAGbox logo start an empty chat in the selected collection. Switching collections stops current work and restores the selected collection's chat. **Settings** and **History** preserve ongoing work. History searches conversation titles, questions, answers, and source titles; **Continue chat** selects the saved chat's collection.
+
+The first message searches directly. Later messages are rewritten by the local model into a standalone query before searching. A rewrite failure shows **Retry** rather than guessing. Generation retries reuse the turn's question, captured history, and retrieved sources; failed rewrite or retrieval stages run again. Retry updates the latest turn without duplicating it.
+
+Without a ready model, messages perform literal **keyword search**. Sources remain usable, and the UI explains that contextual follow-ups require the model. Loading the model finishes only the latest unanswered active turn, resolving and searching again when conversational context is needed. Downloads always require an explicit action.
+
+Scrolling follows new text while you are near the bottom. Scrolling back preserves your position, and streaming never changes keyboard focus.
+
+## Collections
+
+**NFCorpus** contains 3,633 nutrition and medical articles. Click **Prepare NFCorpus** in Chat or **Set up collection** in Settings to import the JSONL data, load `fts`, build a BM25 index over title and text, and checkpoint the database. Saved indexes reopen at startup. Older tables containing only `id` and `contents` remain searchable.
+
+**MS MARCO** uses a prebuilt index of about 3.35 GB. Click **Download MS MARCO index (3.35 GB)** and confirm. Progress shows downloaded bytes followed by index opening. A downloaded index opens when that collection is selected; **Open downloaded collection** is available for recovery. Downloads can be cancelled but do not resume across reloads. Cancelling a replacement preserves the older saved index.
+
+Both collections return up to ten matches, ordered by descending BM25 score and document ID to break ties. Queries use bound parameters. Retrieval runs in DuckDB-Wasm on the device. FTS indexes do not automatically track subsequent table edits. Empty retrieval produces an insufficient-evidence reply without invoking answer generation.
+
+The index files live in the browser's Origin Private File System, not the Downloads folder. Native index construction and earlier scaling measurements are documented in [the experiment notes](docs/experiments.md). The original persistence experiments were based on [DuckDB's OPFS article](https://duckdb.org/2026/09/18/opfs-wasm).
+
+## Local model and context
+
+Click **Download model (~1.84 GB)** in Chat or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). A Web Worker uses Transformers.js, WebGPU, `q4f16` weights, and the model's direct-answer template with thinking disabled. The pinned model revision is shared by loading and tokenizer discovery.
+
+Follow-up rewriting uses deterministic decoding with a 128-token output limit. Answers retain the 512-token output limit. Both operations receive up to three recent turns; user questions and completed assistant replies are limited to 750 tokens by dropping the oldest exchanges. Instructions, the current message, history, and fitted documents share the 3,500-token answer input budget. A notice appears when earlier context is omitted; the saved transcript remains complete.
+
+Previous answers help resolve references but are not factual evidence. Answer instructions require citations from the current fitted documents and preserve uncertainty. These constraints do not guarantee model accuracy: inspect cited sources, especially for research questions. The browser quality checks and remaining model limitations are described in [chat validation](docs/chat-validation.md).
+
+Cached model files load automatically on supported devices using `local_files_only`; missing files never trigger an automatic download. Recovery offers **Download model**, **Download missing files**, or **Retry loading** according to the failure. Explicit repair can remove invalid cached configuration entries while retaining valid weights. **Cancel download** and **Cancel loading** also invalidate queued initialization. Completed cached files remain available; unfinished files may download again.
+
+Transfer shows cumulative downloaded bytes with an indeterminate bar because individual file progress does not provide a reliable whole-model denominator. GPU initialization follows transfer. Model files may be evicted by the browser. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
+
+## Saved conversations and storage
+
+Conversations use a versioned, asynchronous IndexedDB repository. Submitted turns, retrieval snapshots, settled answers, and citation metadata are saved. Streaming text is checkpointed at most once per second. Writes are serialized so a slow earlier save cannot overwrite a later answer. The newest 50 nonempty conversations are retained, titled from their first question.
+
+Existing localStorage search history imports as individual one-turn conversations with deterministic IDs. Timestamps, sources, answers, and stopped status are preserved. The import marker commits with the imported conversations to prevent duplicates; original legacy data is retained until **Clear history**.
+
+Reload restores the selected collection and its chat. Interrupted turns become **Stopped** and require explicit Retry; inference never restarts from a saved transcript automatically. If storage fails, the current chat stays usable in memory and an unsaved notice appears. Browser storage can be cleared or evicted, so saved chats are not an independent backup.
+
+**Clear history** requires confirmation, stops active work, clears conversations and legacy search history, and opens an empty chat. Index or model deletion keeps conversations and source snapshots readable. New retrieval requires a prepared collection.
+
+Settings groups index and model management separately. **Advanced file management** exposes file listings, refresh actions, and MS MARCO replacement. Deep links to Settings sections remain supported. **Delete index data**, **Delete model**, and **Delete indexes and model** close the appropriate runtimes, delete only RAGbox-owned files, and reload after confirmation. Deletion is disabled during active resource work. **Reload to recover** appears if shutdown or deletion fails.
+
+## Implementation
+
+```text
+src/main.ts                  Startup, collection adapters, and resource gates
+src/collection-retrieval.ts  DOM-independent normalized BM25 retrieval
+src/nfcorpus.ts               NFCorpus preparation and Settings adapter
+src/msmarco.ts                Saved MS MARCO index lifecycle and Settings adapter
+src/model-service.ts          DOM-independent model lifecycle and cancellable operations
+src/llm-controller.ts         Existing model controls and safe answer rendering
+src/llm-worker.ts             Query resolution, context fitting, and streamed inference
+src/rag.ts                    Prompts, token budgets, and citation filtering
+src/conversations.ts          Observable store and versioned IndexedDB repository
+src/chat-controller.ts        Stage orchestration, cancellation, and retries
+src/chat-view.ts               Transcript, composer, sources, and searchable history
+src/types.ts                  Shared conversation, retrieval, and worker contracts
 ```
 
-`create_fts_index` is the key setup step: it indexes `contents`, associates entries with document `id`, and creates the retrieval macro used by the search query:
+Runtime workers, connections, and abort controllers are kept outside persisted conversation state. One chat turn runs across the app; conversation, turn, and attempt IDs associate retrieval and worker requests. Late responses are ignored after Stop, collection changes, New chat, or opening another conversation. Initialization retains the shared coordinator, and database operations retain the existing gate.
 
-```sql
-SELECT id, title, text,
-       fts_main_nfcorpus.match_bm25(id, ?) AS score
-FROM nfcorpus
-WHERE score IS NOT NULL
-ORDER BY score DESC, id
-LIMIT 10;
+## Validation and deployment
+
+```sh
+npm test
+npm run typecheck
+npm run build -- --base=/ragbox/
 ```
 
-The application binds the user's search text to `?` through a prepared statement. A `NULL` score indicates no match; matching documents are ranked by descending BM25 score.
+Tests cover retrieval, context fitting, worker lifecycle, orchestration, migration, serialized saves, retention, and recovery. A supported-browser smoke test with the real cached model is also required; mocks cannot establish answer quality. See [chat validation](docs/chat-validation.md) for the review sequence and browser checks.
 
-### Verified browser behavior
+The workflow in `.github/workflows/pages.yml` builds and deploys on pushes to `main` or manual runs. Set GitHub Pages **Source** to **GitHub Actions**. The workflow downloads BEIR NFCorpus and includes the prepared data in `dist/`; Vite's deployment base comes from Pages metadata. Workers, datasets, navigation, and Settings links support deployment under `/ragbox/`.
 
-In the Chrome walkthrough, all 3,633 documents were indexed successfully. Searching for `breast cancer` returned ten results, led by `MED-14` (3.5702) and `MED-3551` (3.5589), matching the first two results from the native DuckDB SQL check. The browser reported DuckDB engine version `v1.4.3`; this is distinct from the JavaScript package version. Displayed query timings include rendering and are not standalone search benchmarks. Index reuse after reload remains a separate verification step in the walkthrough.
-
-Internet access is still needed for DuckDB runtime/extension downloads. A successful native SQL check or Vite build does not verify that the browser can download and load its matching Wasm extension. Extension errors appear in the FTS status message. Retrieval evaluation against NFCorpus relevance judgments is outside this demo.
-
-## Local model answers (browser RAG)
-
-The page can generate a cited answer locally from either corpus's BM25 results. This is an optional second stage: DuckDB still performs retrieval, and each corpus keeps its own answer panel beside the original ranked result list.
-
-Click **Download model (~1.84 GB)** on Search or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). The model runs in a Web Worker through [Transformers.js](https://huggingface.co/docs/transformers.js) with WebGPU and `q4f16` weights. It requires a desktop browser whose WebGPU adapter exposes `shader-f16`; Chrome with a supported GPU is the tested target. Model files are cached for later visits, subject to browser eviction and storage quotas. Downloads always require an explicit action.
-
-Search shows the model’s current stage separately from collection readiness. Cached files load automatically on supported devices. Retrieved documents appear immediately; an answer waits if the model is checking or loading, then generates once ready without repeating retrieval or adding a History entry. A newer search, collection switch, home reset, or **Stop** invalidates the waiting answer. Missing files and loading failures leave the results visible with a recovery action.
-
-The shared model receives the highest-ranked evidence that fits the fixed prompt budget. Factual claims should cite IDs such as `[MED-14]` or `[MARCO-123]`; links are enabled only for evidence included in the fitted context. **Stop**, **Copy**, and **Retry answer** sit beside the answer. Stop retains generated text and valid citation links and ignores late output. Copy includes citation markers and reports success or failure. Retry generates from the same query and evidence and updates the same History entry. Nonempty stopped answers are saved with a **Stopped** label; stopping before any text leaves only the existing search and results in History. Older saved answers without a status remain compatible.
-
-Model transfer shows cumulative **Downloaded …** bytes with an indeterminate bar, excluding reads from cache. File sizes reported by the library do not form a reliable whole-model denominator. **Initializing model…** follows transfer. **Cancel download** or **Cancel loading** also works for queued initialization: it invalidates that attempt, terminates an active loading worker, and refreshes installed-file status. Completed cached files remain available; unfinished files may download again on retry. There is no byte-range resume.
-
-Recovery depends on the failure: **Download model** for no files, **Download missing files** for an incomplete install, **Retry loading** for initialization failures, and **Retry answer** for generation failures. Retrying initialization creates a fresh worker and uses cached files. Invalid cached JSON or HTML stored as model data can trigger repair guidance; an explicit download selectively removes those invalid entries, keeping valid weights. Generic GPU and generation failures do not imply corrupted files. Retrieved text is treated as quoted evidence, and rendering uses text nodes. If WebGPU is unavailable, document search remains usable.
-
-The model runs entirely on the device. No API key, inference server, or document upload is used. **Delete index data** keeps the model cache; **Delete indexes and model** also removes the installed model after confirmation. The model and its base model are Apache-2.0 licensed; review the model card before redistributing weights.
-
-## Publish on GitHub Pages
-
-The workflow in `.github/workflows/pages.yml` builds and deploys the demo on pushes to `main`, or when triggered manually from Actions.
-
-1. In the repository's **Settings → Pages → Build and deployment**, set **Source** to **GitHub Actions**.
-2. Commit and push the workflow to `main`.
-3. Open **Actions → Deploy demo to GitHub Pages** and wait for the build and deployment to succeed. The deployment provides the public site URL.
-
-The workflow downloads the BEIR NFCorpus archive, runs the preparation script, and includes the generated dataset in the published `dist/` artifact. The dataset does not need to be committed. Vite's base path is set from GitHub Pages metadata so scripts and dataset requests resolve under the repository URL.
-
-Each visitor builds their own FTS index in their browser. Storage on the published origin is separate from localhost, so the first visit requires clicking **Prepare NFCorpus**. The workflow depends on availability of the dataset download; the browser also requires the DuckDB runtime and extension CDNs.
-
-## Settings and storage
-
-**Settings** groups the page into **Indexes** and **Model**, with storage usage and deletion controls inside each section. Each collection shows its purpose, status, and one next action. **Search this collection** returns to Search with that collection selected, keeping existing queries and results. A saved MS MARCO collection shows **Downloaded → Opens when selected**; replacing its download is available under **Indexes → Advanced file management**. Opening failures offer a retry without starting another download.
-
-**Model** explains the optional local model and shows its current runtime status. The model name and installed-file status appear in that section's **Advanced file management**. Both sections show saved-file sizes before expanding file details; index totals include only known ragbox-owned files and refresh after setup or downloads. Unknown model sizes are excluded from the known total and displayed as **At least …**.
-
-Each section's **Advanced file management** contains its file table and refresh control. The index section also contains the replacement download. The combined **Start over** action appears at the end of Settings, below both resource sections. Settings deep links expand enclosing sections before scrolling and focusing their target; older storage-management links open index file management. Model-files repair links focus the guidance section rather than a delete button. The refresh icons have tooltips, accessible labels, and 44 × 44 px targets. **Refresh index files** and **Refresh model files** refresh only their respective listings. Files outside ragbox’s known database and Parquet paths are listed without deletion controls.
-
-Model management lists MiniCPM5-2B weights and configuration files from the separate browser cache, including partial downloads. Installed-file status is distinct from runtime readiness. Sizes come from cached response headers; files without a size header are marked unknown. **Delete model** stops the worker, removes its files across cache versions, and reloads the page after confirmation. Collection files, shared caches, and other models are kept. Use **Download model** to install it again. Deletion is disabled while loading, downloading, searching, or generating answers.
-
-Click a file's **Delete** button or **Delete index data** and confirm to close the databases before removing files. Deleting `analytics.duckdb` also removes its WAL/helper files and all tables and FTS indexes in that database. Index deletion removes both collection databases, including the saved MS MARCO index, and the demo's Parquet cache and export. These actions are disabled during startup, loading, downloading, search, and answer generation. Close other tabs running ragbox before deleting.
-
-The page reloads after deletion. Prepare NFCorpus again or download MS MARCO again to replace deleted indexes. The model cache, downloaded files outside browser storage, repository data, and unrelated origin files are kept. If closing or deleting index or model files fails, the dashboard reports the error and reveals **Reload to recover** at the end of Settings. This action stays hidden during normal use. Localhost and the hosted site have separate storage, so reset each separately if needed.
-
-For a fresh start, **Delete indexes and model** under **Start over** at the end of Settings removes both collection data and the installed MiniCPM5-2B model cache after confirmation, then reloads the page. Prepare collections and download the model again to use them. Search history, unrelated origin files, and other models are kept. This option requires both browser file storage and cache access and is disabled during active work.
-
-## MS MARCO search
-
-### Using the saved index
-
-1. Open the app in a supported desktop browser, such as Chrome.
-2. Click **Download MS MARCO index (3.35 GB)** on Search or **Download · 3.35 GB** in Settings and confirm. Progress shows known total bytes and percentage, followed by **Opening index…**. Keep the tab open while downloading.
-3. Enter a query and click **Search** to see up to ten matching passages. If the shared local model is loaded, a cited answer appears above them using `[MARCO-…]` citations.
-4. After reloading or returning later, selecting MS MARCO opens its saved index automatically. In Settings, use **Search this collection**. **Open downloaded collection** remains available on Search while a collection is saved but not open. No second download is needed while the saved file remains in browser storage.
-
-The index is stored in the browser’s Origin Private File System (OPFS), not the Downloads folder. Localhost and the public site have separate storage. Clearing browser storage removes the saved index. Downloads can be cancelled but cannot resume across reloads. Cancelling replacement preserves an older saved index. Allow sufficient free disk space; replacing an index can temporarily require additional space.
-
-No Hugging Face account or local `collection.tsv` is needed. Internet access is required to download the index and load DuckDB runtime and extension assets. Search itself executes on the visitor’s computer. Full-corpus queries can take several seconds, depending on the device and query.
-
-
-The MS MARCO section uses the prebuilt index only. Local TSV import, browser index building, source selection, and benchmark controls have been removed from the UI. NFCorpus, the local model, and OPFS experiments remain available.
-
-For native index construction and previous scaling measurements, see [the experiment notes](docs/experiments.md).
-
-### Automatic loading on return visits
-
-At startup, a saved NFCorpus index opens automatically; a saved MS MARCO index opens when selected. A complete cached answer model also initializes automatically on supported WebGPU devices. Model loading and tokenizer discovery use the same pinned revision. Automatic loading uses `local_files_only`, so missing files never trigger a remote model download. Search remains available while the model loads, and a waiting answer continues automatically when ready. Runtime assets may still require internet access.
-
-First-time collection preparation and large downloads remain explicit actions. Reopen/load controls remain available for recovery. Browser storage is specific to the site and browser profile; clearing it requires downloading or preparing the data again.
+Each visitor prepares their own browser index and explicitly downloads the optional model. Published-site storage is separate from localhost. `node_modules/`, `dist/`, datasets, and browser data are not committed to this repository.

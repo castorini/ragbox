@@ -6,6 +6,37 @@ export interface EvidenceDocument {
   text: string;
 }
 
+export interface SearchResult extends EvidenceDocument { score: number }
+export interface RetrievalResult { documents: SearchResult[]; elapsedMs: number }
+export interface ChatOperation { conversationId: string; turnId: string; attemptId: string }
+export interface ChatMessage { role: 'user' | 'assistant'; content: string }
+export type TurnPhase = 'resolving' | 'retrieving' | 'waiting' | 'generating' | 'complete' | 'stopped' | 'error' | 'blocked';
+export type TurnStage = 'resolve' | 'retrieve' | 'generate';
+export interface ChatTurn {
+  id: string;
+  question: string;
+  searchQuery?: string;
+  results: SearchResult[];
+  answer: string;
+  includedIds: string[];
+  citedIds: string[];
+  phase: TurnPhase;
+  stage: TurnStage;
+  message: string;
+  keywordOnly?: boolean;
+  contextLimited?: boolean;
+  elapsedMs?: number;
+  history: ChatMessage[];
+}
+export interface Conversation {
+  id: string;
+  corpus: Corpus;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  turns: ChatTurn[];
+}
+
 export interface ModelProgress {
   status?: string;
   progress?: number;
@@ -27,7 +58,8 @@ export interface ModelStatus {
 
 export type WorkerRequest =
   | { type: 'load'; cachedOnly?: boolean; loadId?: number }
-  | { type: 'generate'; requestId: string; corpus: Corpus; question: string; documents: EvidenceDocument[] }
+  | { type: 'generate'; requestId: string; corpus: Corpus; question: string; documents: EvidenceDocument[]; history?: ChatMessage[]; searchQuery?: string; operation?: ChatOperation }
+  | { type: 'resolve-query'; requestId: string; question: string; history: ChatMessage[]; operation?: ChatOperation }
   | { type: 'cancel'; requestId: string };
 
 export type WorkerResponse =
@@ -35,10 +67,11 @@ export type WorkerResponse =
   | { type: 'cache-status'; loadId: number; availability: ModelCacheAvailability }
   | { type: 'progress'; progress: ModelProgress; loadId?: number }
   | { type: 'ready'; model: string; revision: string; loadId?: number }
-  | { type: 'context'; requestId: string; documentIds: string[] }
+  | { type: 'context'; requestId: string; documentIds: string[]; contextLimited?: boolean }
+  | { type: 'resolved-query'; requestId: string; query: string; contextLimited: boolean }
   | { type: 'answer-delta'; requestId: string; text: string }
   | { type: 'complete'; requestId: string; answer: string; documentIds: string[] }
   | { type: 'cancelled'; requestId: string }
-  | { type: 'error'; operation: 'load' | 'generate'; requestId?: string; loadId?: number; reason?: ModelFailureReason; message: string };
+  | { type: 'error'; operation: 'load' | 'generate' | 'resolve-query'; requestId?: string; loadId?: number; reason?: ModelFailureReason; message: string };
 
 export type RunTask = <T>(task: () => Promise<T>, searchCorpus?: Corpus) => Promise<T | undefined>;

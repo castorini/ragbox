@@ -6,6 +6,7 @@ import type { EvidenceDocument, RunTask } from './types.ts';
 import type { ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
+import { MSMARCO_SEARCH_SQL, queryBM25, retrieveMSMarco } from './collection-retrieval.ts';
 
 type MarcoRow = { id: string | number | bigint; contents: string; score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'> & Partial<Pick<LLMController, 'isCurrentSearch'>>;
@@ -22,13 +23,13 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
 export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number, savedAvailable?: boolean) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#marco-status');
   const announcement = requiredElement<HTMLElement>('#marco-announcement');
-  const searchStatus = requiredElement<HTMLElement>('#marco-search-status');
-  const answerPanel = requiredElement<HTMLElement>('#marco-answer-panel');
-  const output = requiredElement<HTMLOListElement>('#marco-results');
+  const searchStatus = document.querySelector<HTMLElement>('#marco-search-status');
+  const answerPanel = document.querySelector<HTMLElement>('#marco-answer-panel');
+  const output = document.querySelector<HTMLOListElement>('#marco-results');
   const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
   const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
   const replaceButton = requiredElement<HTMLButtonElement>('#marco-replace');
-  const searchButton = requiredElement<HTMLButtonElement>('#marco-search');
+  const searchButton = document.querySelector<HTMLButtonElement>('#marco-search');
   const progress = requiredElement<HTMLProgressElement>('#marco-progress');
   const cancelDownload = requiredElement<HTMLButtonElement>('#marco-cancel-download');
   const setup = requiredElement<HTMLElement>('#marco-setup');
@@ -65,7 +66,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     replaceButton.disabled = !supported || checkingSaved || busy || blocked || openingQueued;
     fetchButton.disabled = !supported || busy || blocked || openingQueued;
     reopenButton.disabled = !supported || busy || blocked || openingQueued;
-    searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
+    if (searchButton) searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
   }
   async function action<T>(task: () => Promise<T>, lockDatabase = true, searching = false): Promise<T | undefined> {
     if (busy || blocked || !supported) return;
@@ -86,8 +87,8 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
                 ? 'No saved index. Download the index first.'
                 : `Unable to complete the request: ${errorMessage(error)}`);
           } else {
-            searchStatus.hidden = false;
-            searchStatus.textContent = `Search failed: ${errorMessage(error)}`;
+            if (searchStatus) searchStatus.hidden = false;
+            if (searchStatus) searchStatus.textContent = `Search failed: ${errorMessage(error)}`;
           }
           console.error(error);
           throw error;
@@ -120,7 +121,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     if (!confirm('Download 3.35 GB into this browser’s storage? This replaces any saved MS MARCO index. Close other search tabs first.')) return;
     return action(async () => {
       await closePrebuilt();
-      output.replaceChildren();
+      output?.replaceChildren();
       const root = await navigator.storage.getDirectory();
       const estimate = await navigator.storage.estimate();
       if (estimate.quota != null && estimate.usage != null && estimate.quota - estimate.usage < downloadBytes) {
@@ -176,7 +177,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
         while (blocked) await new Promise<void>(resolve => unblockWaiters.add(resolve));
         return action(async () => {
           await closePrebuilt();
-          output.replaceChildren();
+          output?.replaceChildren();
           await connectPrebuilt();
         });
       };
@@ -187,7 +188,9 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     }
   }
   reopenButton.onclick = () => openSaved();
-  requiredElement<HTMLFormElement>('#marco-form').onsubmit = event => {
+  const form = document.querySelector<HTMLFormElement>('#marco-form');
+  if (form) form.onsubmit = event => {
+    if (!output || !answerPanel || !searchStatus) return;
     event.preventDefault();
     if (!prebuilt || busy || blocked || openingQueued) return;
     const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
@@ -203,14 +206,9 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       return;
     }
     return action(async () => {
-      output.replaceChildren();
+      output?.replaceChildren();
       searchStatus.textContent = 'Searching…';
-      const stmt = await activePrebuilt.conn.prepare(`SELECT id, contents,
-        fts_main_msmarco.match_bm25(id, ?) AS score FROM msmarco
-        WHERE score IS NOT NULL ORDER BY score DESC, id LIMIT 10`);
-      let rows;
-      try { rows = rowsAs<MarcoRow>(await stmt.query(query)); }
-      finally { await stmt.close(); }
+      const rows = await queryBM25<MarcoRow>(activePrebuilt.conn, MSMARCO_SEARCH_SQL, query);
       if (llm?.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       for (const row of rows) {
         const item = document.createElement('li');
@@ -286,6 +284,13 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   }
   return {
     download,
+    async retrieve(query: string) {
+      if (!prebuilt || busy || blocked || openingQueued) throw new Error('MS MARCO is not ready to search.');
+      const index = prebuilt;
+      const result = await action(() => retrieveMSMarco(index.conn, query), true, true);
+      if (!result) throw new Error('MS MARCO search failed. Retry the question.');
+      return result;
+    },
     openSaved,
     cancelDownload() { downloadController?.abort(); },
     checkSaved,
@@ -305,7 +310,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     },
     async close() {
       await closePrebuilt();
-      output.replaceChildren();
+      output?.replaceChildren();
       report('saved', 'Saved index available.');
       updateButtons();
     },

@@ -9,9 +9,12 @@ import type { TextGenerationPipeline } from '@huggingface/transformers';
 import {
   CHAT_TEMPLATE_OPTIONS,
   buildMessages,
+  buildQueryMessages,
+  fitHistory,
   fitDocumentsToTokenBudget,
   streamedAnswer,
   stripThinking,
+  validateResolvedQuery,
 } from './rag.ts';
 import { errorMessage } from './errors.ts';
 import type { ModelFailureReason, ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
@@ -184,7 +187,7 @@ function generatedText(output: unknown, streamed: string): string {
   return typeof generated === 'string' ? generated : streamed;
 }
 
-async function generate({ requestId, question, documents }: Extract<WorkerRequest, { type: 'generate' }>) {
+async function generate({ requestId, question, documents, history = [], searchQuery = question }: Extract<WorkerRequest, { type: 'generate' }>) {
   if (cancelledRequestIds.delete(requestId)) {
     report({ type: 'cancelled', requestId });
     return;
@@ -195,11 +198,14 @@ async function generate({ requestId, question, documents }: Extract<WorkerReques
 
   try {
     const model = await loadModel();
+    const context = await fitHistory(history, countTokens);
     const fitted = await fitDocumentsToTokenBudget(
       question,
       documents,
       countTokens,
       MAX_INPUT_TOKENS,
+      context.history,
+      searchQuery,
     );
     if (state.cancelled) {
       report({ type: 'cancelled', requestId });
@@ -210,8 +216,9 @@ async function generate({ requestId, question, documents }: Extract<WorkerReques
     report({ type: 'context',
       requestId,
       documentIds: fitted.map(document => document.id),
+      contextLimited: context.limited,
     });
-    const messages = buildMessages(question, fitted);
+    const messages = buildMessages(question, fitted, context.history, searchQuery);
     let streamed = '';
     let visibleLength = 0;
     const streamer = new TextStreamer(model.tokenizer, {
@@ -261,6 +268,31 @@ async function generate({ requestId, question, documents }: Extract<WorkerReques
   }
 }
 
+async function resolveQuery({ requestId, question, history }: Extract<WorkerRequest, { type: 'resolve-query' }>) {
+  if (cancelledRequestIds.delete(requestId)) { report({ type: 'cancelled', requestId }); return; }
+  const stoppingCriteria = new InterruptableStoppingCriteria();
+  const state = { requestId, stoppingCriteria, cancelled: false };
+  activeGeneration = state;
+  try {
+    const model = await loadModel();
+    const context = await fitHistory(history, countTokens);
+    if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+    const output = await model(buildQueryMessages(question, context.history), {
+      max_new_tokens: 128, do_sample: false, stopping_criteria: [stoppingCriteria],
+      tokenizer_encode_kwargs: CHAT_TEMPLATE_OPTIONS,
+    });
+    if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+    const query = validateResolvedQuery(generatedText(output, ''));
+    report({ type: 'resolved-query', requestId, query, contextLimited: context.limited });
+  } catch (error) {
+    report(state.cancelled ? { type: 'cancelled', requestId }
+      : { type: 'error', operation: 'resolve-query', requestId, reason: 'generation', message: errorMessage(error) });
+  } finally {
+    cancelledRequestIds.delete(requestId);
+    if (activeGeneration === state) activeGeneration = undefined;
+  }
+}
+
 workerScope.onmessage = (event: MessageEvent<WorkerRequest>) => {
   const message = event.data;
   if (message.type === 'load') {
@@ -275,13 +307,13 @@ workerScope.onmessage = (event: MessageEvent<WorkerRequest>) => {
     }
     return;
   }
-  if (message.type === 'generate') {
+  if (message.type === 'generate' || message.type === 'resolve-query') {
     if (activeGeneration) {
       activeGeneration.cancelled = true;
       activeGeneration.stoppingCriteria.interrupt();
     }
     generationQueue = generationQueue
       .catch(() => {})
-      .then(() => generate(message));
+      .then(() => message.type === 'generate' ? generate(message) : resolveQuery(message));
   }
 };

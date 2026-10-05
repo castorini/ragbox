@@ -6,29 +6,29 @@ import { setupNFCorpus } from './nfcorpus.ts';
 import { setupMSMarco } from './msmarco.ts';
 import { setupLLM } from './llm-controller.ts';
 import { errorMessage, requiredElement } from './boundaries.ts';
-import type { Corpus, RunTask } from './types.ts';
+import type { RunTask } from './types.ts';
 import { ResourceStates } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
 import { setupCorpusDashboard } from './corpus-dashboard.ts';
 import { setupSettingsView } from './settings-view.ts';
-import { SearchHistory, setupHistoryView } from './history.ts';
-import { setupExampleQueries } from './example-queries.ts';
+import { ConversationStore } from './conversations.ts';
+import { ChatController } from './chat-controller.ts';
+import { setupChatView, setupConversationHistory } from './chat-view.ts';
 import { setupTour, tourSeen } from './tour.ts';
 
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
 const loads = new LoadCoordinator();
-const history = new SearchHistory();
-setupHistoryView(history);
-setupExampleQueries();
+const conversations = new ConversationStore();
+const conversationsReady = conversations.initialize();
 const tour = setupTour({ modelPhase: () => states.get('model').phase });
 requiredElement<HTMLButtonElement>('#tour-start').onclick = () => tour.start();
 // First visit: walk through the search page once the layout has settled.
 if (!tourSeen()) {
   setTimeout(() => {
     const onSearch = !requiredElement<HTMLElement>('#search-view').hidden;
-    const hasResults = document.querySelector('.collection-panel:not([hidden]) .results-area:not([hidden])');
+    const hasResults = conversations.current().turns.length > 0;
     if (onSearch && !hasResults) tour.start();
   }, 700);
 }
@@ -36,13 +36,11 @@ let db: duckdb.AsyncDuckDB | undefined;
 let busy = false;
 let marco: ReturnType<typeof setupMSMarco> | undefined;
 let nfcorpus: ReturnType<typeof setupNFCorpus> | undefined;
-let activeCorpus: Corpus = 'nfcorpus';
 const chooser = setupCollectionChooser(value => {
-  if (value !== activeCorpus) llm.invalidateSearch();
-  activeCorpus = value;
+  chat.select(value);
   dashboard.render();
   if (value === 'msmarco') void marco?.reopenSaved();
-}, () => llm.resetAnswers());
+}, () => chat.newChat(), true);
 const setupActions = {
   prepare: () => nfcorpus?.prepare(),
   download: () => marco?.download(),
@@ -73,6 +71,22 @@ const run: RunTask = async (action, searchCorpus) => {
 };
 
 const llm = setupLLM((phase, message, model) => states.set('model', phase, message, model), loads);
+const chat = new ChatController(conversations, llm, {
+  ready: corpus => states.get(corpus).phase === 'ready',
+  busy: () => states.busy,
+  retrieve: async (corpus, query) => {
+    const collection = corpus === 'nfcorpus' ? nfcorpus : marco;
+    if (!collection) throw new Error('The collection is still opening.');
+    return collection.retrieve(query);
+  },
+});
+setupChatView(chat, states);
+setupConversationHistory(chat, conversation => {
+  chat.open(conversation.id);
+  chooser.search(conversation.corpus);
+});
+void conversationsReady.then(() => chooser.choose(conversations.selected));
+window.addEventListener('pagehide', () => { void conversations.flush(); });
 const capability = llm.initializeCapability();
 let conn: duckdb.AsyncDuckDBConnection | undefined;
 const storage = setupStorageDashboard(states, async () => {
@@ -81,6 +95,8 @@ const storage = setupStorageDashboard(states, async () => {
   marco?.setBlocked(true);
   nfcorpus?.setBlocked(true);
   requiredElement<HTMLButtonElement>('#llm-load').disabled = true;
+  chat.dispose();
+  await conversations.flush();
   llm.dispose();
   await loads.run(async () => {
     await marco?.close();
@@ -115,9 +131,9 @@ async function main() {
   await openLocalDatabase(db, await navigator.storage.getDirectory());
   conn = await db.connect();
   nfcorpus = setupNFCorpus(db, conn, run, llm,
-    (phase, message) => states.set('nfcorpus', phase, message), loads, history);
+    (phase, message) => states.set('nfcorpus', phase, message), loads);
   marco = setupMSMarco(run, llm,
-    (phase, message, progress, savedAvailable) => states.set('msmarco', phase, message, undefined, progress, savedAvailable), loads, history);
+    (phase, message, progress, savedAvailable) => states.set('msmarco', phase, message, undefined, progress, savedAvailable), loads);
   status.textContent = 'Ready.';
   await loads.run(() => nfcorpus!.reopenSaved());
   await marco.checkSaved();

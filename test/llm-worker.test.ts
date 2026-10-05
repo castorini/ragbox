@@ -3,7 +3,7 @@ import type { ModelProgress, WorkerRequest } from '../src/types.ts';
 import { MODEL_ID, MODEL_REVISION, MODEL_REMOTE_PATH_TEMPLATE } from '../src/model-cache.ts';
 import { ModelCacheError, REQUIRED_MODEL_FILES } from '../src/model-readiness.ts';
 
-type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string; loadId?: number; progress?: ModelProgress };
+type MockMessage = { type: string; query?: string; contextLimited?: boolean; requestId?: string; documentIds?: string[]; text?: string; answer?: string; loadId?: number; progress?: ModelProgress };
 type StreamerOptions = { callback_function: (text: string) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
 type MockStreamer = { options: StreamerOptions };
 type MockCriterion = { interrupt: ReturnType<typeof vi.fn> };
@@ -57,8 +57,8 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
     apply_chat_template: vi.fn((_messages: unknown) => 'formatted prompt'),
     encode: vi.fn((_prompt: string) => [1, 2, 3]),
   };
-  const generator = Object.assign(vi.fn(async (messages: Array<{ role: string; content: string }>, options: { streamer: MockStreamer }) => {
-    for (const chunk of chunks) options.streamer.options.callback_function(chunk);
+  const generator = Object.assign(vi.fn(async (messages: Array<{ role: string; content: string }>, options: { streamer?: MockStreamer }) => {
+    if (options.streamer) for (const chunk of chunks) options.streamer.options.callback_function(chunk);
     return [{ generated_text: [...messages, { role: 'assistant', content: final ?? chunks.join('') }] }];
   }), { tokenizer, dispose: vi.fn(async () => []) });
   mocks.pipeline.mockImplementation(async () => {
@@ -77,10 +77,10 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
   });
   const terminal = async (requestId = 'request-1') => {
     await vi.waitFor(() => expect(messages.some(message =>
-      message.requestId === requestId && ['complete', 'error', 'cancelled'].includes(message.type),
+      message.requestId === requestId && ['complete', 'resolved-query', 'error', 'cancelled'].includes(message.type),
     )).toBe(true));
     return messages.find(message =>
-      message.requestId === requestId && ['complete', 'error', 'cancelled'].includes(message.type),
+      message.requestId === requestId && ['complete', 'resolved-query', 'error', 'cancelled'].includes(message.type),
     );
   };
   return { generator, messages, send, generate, terminal };
@@ -155,6 +155,7 @@ describe('LLM worker generation', () => {
     expect(harness.messages[contextIndex]).toEqual({
       type: 'context',
       requestId: 'request-1',
+      contextLimited: false,
       documentIds: ['MARCO-1'],
     });
     expect(contextIndex).toBeGreaterThanOrEqual(0);
@@ -211,7 +212,7 @@ describe('LLM worker generation', () => {
     const finish = deferred();
     harness.generator.mockImplementation(async (messages, options) => {
       await finish.promise;
-      options.streamer.options.callback_function('Late answer');
+      options.streamer!.options.callback_function('Late answer');
       return [{ generated_text: [...messages, { role: 'assistant', content: 'Late answer' }] }];
     });
     harness.generate();
@@ -427,4 +428,28 @@ it('cleans invalid JSON selectively and keeps valid metadata and weights on expl
   harness.send({ type: 'load', loadId: 11 });
   await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
   expect(cache.delete).toHaveBeenCalledExactlyOnceWith({ url: prefix + 'config.json' });
+});
+
+
+describe('worker query resolution', () => {
+  it('rewrites a follow-up with deterministic decoding and the recent conversation', async () => {
+    const harness = await createHarness({ final: 'coffee blood pressure' });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure', contextLimited: false });
+    expect(harness.generator.mock.calls[0][0].at(-1)!.content).toContain('coffee');
+    expect(harness.generator.mock.calls[0][0].at(-1)!.content).toContain('What about it?');
+    expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 128, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: false } });
+  });
+  it('reports invalid rewriting output as a retryable resolution failure', async () => {
+    const harness = await createHarness({ final: 'First line\nSecond line' });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', requestId: 'resolve-1' });
+  });
+  it('cancels a queued rewrite before invoking the model', async () => {
+    const harness = await createHarness();
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'cancel', requestId: 'resolve-1' });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'cancelled' });
+    expect(harness.generator).not.toHaveBeenCalled();
+  });
 });

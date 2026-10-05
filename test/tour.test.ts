@@ -32,8 +32,8 @@ it('explains the optional model step according to what this browser can do', () 
   expect(model.body('idle')).toMatch(/1\.84 GB.*skip it/i);
   expect(model.body('ready')).toMatch(/already installed/);
   expect(model.body('unsupported')).toMatch(/can’t run the answer model/);
-  expect(TOUR_STEPS.map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Come back to past searches', 'Details live in Settings', 'Ask a question']);
-  expect(TOUR_STEPS[2].body('idle')).toMatch(/question.*collection.*results.*cited answer/);
+  expect(TOUR_STEPS.map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Continue a saved chat', 'Details live in Settings', 'Ask a question']);
+  expect(TOUR_STEPS[2].body('idle')).toMatch(/conversations.*sources/);
   expect(TOUR_STEPS[3].body('idle')).toMatch(/index.*answer model/);
 });
 

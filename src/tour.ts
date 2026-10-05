@@ -43,8 +43,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     target: () => document.querySelector<HTMLElement>('#nav-history'),
-    title: 'Come back to past searches',
-    body: () => 'History keeps every search you run: the question, the collection you searched, its results, and the cited answer if there was one. It stays in this browser, and you can search it when the list gets long.',
+    title: 'Continue a saved chat',
+    body: () => 'History saves your conversations and their sources in this browser. Use Continue chat to reopen one and ask another question. Search the list when it gets long.',
     hint: 'Find it in the sidebar.',
     placement: 'right',
   },
@@ -56,9 +56,9 @@ export const TOUR_STEPS: TourStep[] = [
     placement: 'right',
   },
   {
-    target: () => document.querySelector<HTMLElement>('.collection-panel:not([hidden]) .search-row'),
+    target: () => document.querySelector<HTMLElement>('.chat-input-row') ?? document.querySelector<HTMLElement>('.collection-panel:not([hidden]) .search-row'),
     title: 'Ask a question',
-    body: () => 'Type a question and press Enter. Matching documents appear below, with a cited answer on top if the model is installed. Not sure what to ask? Click the search bar for examples.',
+    body: () => 'Type a question and press Enter. Then ask follow-up questions in the same chat. Open Sources beneath a reply to check its evidence. Shift+Enter adds a new line.',
   },
 ];
 
@@ -184,7 +184,7 @@ export function setupTour({ modelPhase, onClose }: { modelPhase: () => ResourceP
     hint.textContent = step.hint ?? '';
     hint.hidden = !step.hint;
     card.querySelector<HTMLButtonElement>('.tour-back')!.hidden = index === 0;
-    next.textContent = index === TOUR_STEPS.length - 1 ? 'Start searching' : 'Next';
+    next.textContent = index === TOUR_STEPS.length - 1 ? 'Start chatting' : 'Next';
     next.focus({ preventScroll: true });
   }
 
@@ -282,7 +282,7 @@ export function setupTour({ modelPhase, onClose }: { modelPhase: () => ResourceP
   }
 
   function finish(focusSearch = true) {
-    const input = doc.querySelector<HTMLInputElement>('.collection-panel:not([hidden]) input[type=search]');
+    const input = doc.querySelector<HTMLElement>('#chat-query') ?? doc.querySelector<HTMLInputElement>('.collection-panel:not([hidden]) input[type=search]');
     close();
     if (focusSearch) input?.focus();
   }

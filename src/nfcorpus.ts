@@ -5,32 +5,26 @@ import type { EvidenceDocument, RunTask } from './types.ts';
 import type { ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
+import { NFCORPUS_SEARCH_SQL, nfcorpusSearchSQL, queryBM25, retrieveNFCorpus } from './collection-retrieval.ts';
 
 type SearchRow = EvidenceDocument & { score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'> & Partial<Pick<LLMController, 'isCurrentSearch'>>;
 type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 
 // FTS executes through the same DuckDB-Wasm worker and persistent OPFS database.
-export const SEARCH_SQL = `
-  SELECT id, title, text,
-         fts_main_nfcorpus.match_bm25(id, ?) AS score
-  FROM nfcorpus
-  WHERE score IS NOT NULL
-  ORDER BY score DESC, id
-  LIMIT 10
-`;
+export const SEARCH_SQL = NFCORPUS_SEARCH_SQL;
 export const INDEX_SQL = `PRAGMA create_fts_index(
   'nfcorpus', 'id', 'contents', overwrite = 1
 )`;
 
 export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History) {
   const status = requiredElement<HTMLElement>('#fts-status');
-  const searchStatus = requiredElement<HTMLElement>('#fts-search-status');
-  const answerPanel = requiredElement<HTMLElement>('#fts-answer-panel');
-  const results = requiredElement<HTMLOListElement>('#fts-results');
+  const searchStatus = document.querySelector<HTMLElement>('#fts-search-status');
+  const answerPanel = document.querySelector<HTMLElement>('#fts-answer-panel');
+  const results = document.querySelector<HTMLOListElement>('#fts-results');
   const setup = requiredElement<HTMLElement>('#fts-setup');
   const indexButton = requiredElement<HTMLButtonElement>('#fts-index');
-  const searchButton = requiredElement<HTMLButtonElement>('#fts-search');
+  const searchButton = document.querySelector<HTMLButtonElement>('#fts-search');
   let ready = false;
   let blocked = false;
   let searchSQL = SEARCH_SQL;
@@ -46,20 +40,9 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     setup.hidden = ready;
     indexButton.hidden = ready;
     indexButton.disabled = blocked || queued || checking;
-    searchButton.disabled = blocked || !ready;
+    if (searchButton) searchButton.disabled = blocked || !ready;
   }
-  async function readSchema() {
-    const columns = new Set(rowsAs<{ column_name: string }>(await conn.query(`SELECT column_name FROM information_schema.columns
-      WHERE table_catalog = current_database() AND table_schema = 'main'
-        AND table_name = 'nfcorpus'`)).map(row => row.column_name));
-    if (!columns.has('id') || !columns.has('contents')) {
-      throw new Error('The saved NFCorpus table is incompatible: document IDs and contents are required.');
-    }
-    // Older saved collections contain only IDs and combined document contents.
-    const title = columns.has('title') ? 'title' : "'Document ' || CAST(id AS VARCHAR) AS title";
-    const text = columns.has('text') ? 'text' : 'contents AS text';
-    searchSQL = SEARCH_SQL.replace('SELECT id, title, text,', `SELECT id, ${title}, ${text},`);
-  }
+  async function readSchema() { searchSQL = await nfcorpusSearchSQL(conn); }
   async function loadExtension() {
     if (loaded) return;
     report('preparing', 'Preparing index…');
@@ -75,7 +58,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
 
   async function action<T>(task: () => Promise<T>, searching = false): Promise<T | undefined> {
     return run(async () => {
-      results.replaceChildren();
+      results?.replaceChildren();
       try { return await task(); }
       catch (error) {
         ready = false;
@@ -135,7 +118,9 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   }
   indexButton.onclick = () => prepare();
 
-  requiredElement<HTMLFormElement>('#fts-form').onsubmit = event => {
+  const form = document.querySelector<HTMLFormElement>('#fts-form');
+  if (form) form.onsubmit = event => {
+    if (!results || !answerPanel || !searchStatus) return;
     event.preventDefault();
     if (!ready || blocked || queued || checking) return;
     const query = requiredElement<HTMLInputElement>('#fts-query').value.trim();
@@ -157,10 +142,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       await readSchema();
       searchStatus.textContent = 'Searching saved NFCorpus documents…';
       const start = performance.now();
-      const statement = await conn.prepare(searchSQL);
-      let rows;
-      try { rows = rowsAs<SearchRow>(await statement.query(query)); }
-      finally { await statement.close(); }
+      const rows = await queryBM25<SearchRow>(conn, searchSQL, query);
       if (llm.isCurrentSearch && !llm.isCurrentSearch(searchToken)) return;
       for (const row of rows) {
         const item = document.createElement('li');
@@ -223,6 +205,12 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   onState?.('checking', 'Checking saved index…');
   return {
     prepare,
+    async retrieve(query: string) {
+      if (!ready || blocked || queued || checking) throw new Error('NFCorpus is not ready to search.');
+      const result = await action(() => retrieveNFCorpus(conn, query), true);
+      if (!result) throw new Error('NFCorpus search could not run.');
+      return result;
+    },
     setBlocked(value: boolean) { blocked = value; updateControls(); },
     async reopenSaved() {
       checking = true;
