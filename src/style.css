@@ -275,7 +275,11 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .storage-usage{font-size:13px;font-weight:600;color:var(--accent)}
 #setup-view .storage-overview-row p{font-size:12px;line-height:1.5;margin:4px 0 0}
 .storage-overview-row>button{flex:none}
-.storage-reset-all{border-top:1px solid var(--line)}
+.storage-reset-all{border-top:1px solid var(--line);margin-top:20px;padding:20px 0 0}
+#setup-view .storage-reset-all h2{font-size:15px;font-weight:650;margin:0}
+#setup-view .storage-reset-all p{color:var(--muted)}
+#setup-view .storage-reset-all button.danger{color:#913e33;border-color:#d7bdb5}
+#setup-view .storage-reset-all button.danger:hover:not(:disabled){background:#fff0ec}
 #setup-view .storage-management{margin-top:6px;border-top:1px solid var(--line);padding-top:4px}
 #setup-view .storage-management .storage-actions{gap:8px;margin-top:12px}
 #setup-view #model-installed-status{font-size:12px;margin:8px 0}
