@@ -280,6 +280,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #setup-view .storage-reset-all p{color:var(--muted)}
 #setup-view .storage-reset-all button.danger{color:#913e33;border-color:#d7bdb5}
 #setup-view .storage-reset-all button.danger:hover:not(:disabled){background:#fff0ec}
+#storage-recovery{margin-top:16px}
 #setup-view .storage-management{margin-top:6px;border-top:1px solid var(--line);padding-top:4px}
 #setup-view .storage-management .storage-actions{gap:8px;margin-top:12px}
 #setup-view #model-installed-status{font-size:12px;margin:8px 0}

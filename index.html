@@ -104,7 +104,6 @@
         <div class="storage-header"><h3>Saved files</h3><div class="storage-header-tools"><span id="storage-summary"></span><button id="storage-refresh" class="refresh-icon-button" type="button" aria-label="Refresh index files" title="Refresh index files"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 7v5h-5"/><path d="M20 12a8 8 0 1 0-2.3 5.7"/></svg></button></div></div>
         <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Action</th></tr></thead><tbody id="storage-files"></tbody></table></div>
         <div class="storage-actions"><button id="marco-replace" type="button" hidden disabled>Replace downloaded collection · 3.35 GB</button></div>
-        <div class="storage-actions"><button id="storage-reload" type="button">Reload page</button></div>
       </details>
     </section>
     <section id="model" tabindex="-1" class="setup-card" aria-labelledby="llm-heading">
@@ -128,6 +127,7 @@
       </div></details>
     </section>
     <section class="storage-overview-row storage-reset-all" aria-labelledby="settings-reset-heading"><div><h2 id="settings-reset-heading">Start over</h2><p id="storage-delete-all-description">Remove index files and the answer model. Search history is kept.</p></div><button id="storage-reset-all" class="danger" type="button" aria-describedby="storage-delete-all-description" disabled>Delete indexes and model</button></section>
+    <div id="storage-recovery" class="storage-actions" hidden><button id="storage-reload" type="button">Reload to recover</button></div>
   </section>
 </main>
 

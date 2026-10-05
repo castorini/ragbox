@@ -109,6 +109,7 @@ it('uses summaries and file listings without redundant success messages', async 
   expect(ui.elements.get('#model-cache-summary').textContent).toBe('1 cached file · 1.0 KB');
   expect(ui.elements.get('#model-storage-usage').textContent).toBe('1.0 KB');
   expect(ui.elements.get('#model-cache-files').children).toHaveLength(1);
+  expect(ui.elements.get('#storage-recovery').hidden).toBe(true);
   for (const id of ['#storage-status', '#model-cache-status']) {
     expect(ui.elements.get(id).hidden).toBe(true);
     expect(ui.elements.get(id).textContent).toBe('');
@@ -237,11 +238,28 @@ it('closes databases before deleting a database and its WAL, then reloads', asyn
 it('reports a shutdown failure without deleting files and allows reloading to recover', async () => {
   const ui = harness(vi.fn(async () => { throw new Error('File locked'); }));
   await ready(ui);
+  expect(ui.elements.get('#storage-recovery').hidden).toBe(true);
   ui.elements.get('#storage-reset').onclick();
   await vi.waitFor(() => expect(ui.elements.get('#storage-status').textContent).toContain('File locked'));
   expect(ui.elements.get('#storage-status').hidden).toBe(false);
   expect(ui.root.removeEntry).not.toHaveBeenCalled();
   expect(ui.elements.get('#storage-reset').disabled).toBe(true);
+  expect(ui.elements.get('#storage-recovery').hidden).toBe(false);
+  expect(ui.elements.get('#storage-reload').disabled).toBe(false);
+  ui.elements.get('#storage-reload').onclick();
+  expect(ui.reload).toHaveBeenCalledOnce();
+});
+
+it('reveals reload recovery when model deletion cannot finish shutdown', async () => {
+  modelCache();
+  const ui = harness(vi.fn(async () => { throw new Error('Model shutdown failed'); }));
+  await ready(ui);
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-delete').disabled).toBe(false));
+  expect(ui.elements.get('#storage-recovery').hidden).toBe(true);
+  ui.elements.get('#model-cache-delete').onclick();
+  await vi.waitFor(() => expect(ui.elements.get('#model-cache-status').textContent).toContain('Model shutdown failed'));
+  expect(ui.root.removeEntry).not.toHaveBeenCalled();
+  expect(ui.elements.get('#storage-recovery').hidden).toBe(false);
   expect(ui.elements.get('#storage-reload').disabled).toBe(false);
   ui.elements.get('#storage-reload').onclick();
   expect(ui.reload).toHaveBeenCalledOnce();

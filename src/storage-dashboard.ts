@@ -41,7 +41,9 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   const summary = requiredElement<HTMLElement>('#storage-summary');
   const usage = requiredElement<HTMLElement>('#storage-usage');
   const refreshButton = requiredElement<HTMLButtonElement>('#storage-refresh');
+  const recovery = requiredElement<HTMLElement>('#storage-recovery');
   const reloadButton = requiredElement<HTMLButtonElement>('#storage-reload');
+  recovery.hidden = true;
   const resetButton = requiredElement<HTMLButtonElement>('#storage-reset');
   const resetAllButton = requiredElement<HTMLButtonElement>('#storage-reset-all');
   const modelRows = requiredElement<HTMLTableSectionElement>('#model-cache-files');
@@ -98,6 +100,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       window.location.reload();
     } catch (error) {
       showStatus(status, `Could not remove saved files: ${errorMessage(error)}. Close other ragbox tabs and reload to retry.`);
+      recovery.hidden = false;
     } finally {
       deleting = false;
       updateControls();
@@ -158,6 +161,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       window.location.reload();
     } catch (error) {
       showStatus(modelStatus, `Could not delete model data: ${errorMessage(error)}. Reload to retry.`);
+      recovery.hidden = false;
     } finally {
       deleting = false;
       updateControls();
