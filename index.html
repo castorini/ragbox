@@ -13,7 +13,7 @@
   <p id="status" role="status" hidden>Opening database…</p>
   <p id="model-announcement" class="sr-only" role="status"></p><p id="marco-announcement" class="sr-only" role="status"></p>
   <section id="search-view" aria-labelledby="search-heading">
-    <h1 id="search-heading" class="search-logo" tabindex="-1"><a id="home-link" class="home-link" href="?" title="Start a new search">RAGbox</a></h1>
+    <div class="search-brand"><h1 id="search-heading" class="search-logo" tabindex="-1"><a id="home-link" class="home-link" href="?" title="Start a new search">RAGbox</a></h1><p class="search-tagline">RAG in a browser</p></div>
     <section id="collections" class="collection" aria-label="Search collection">
 <div class="search-toolbar"><div class="search-collection-select"><label class="sr-only" for="collection-switch">Document collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="nfcorpus">NFCorpus</option><option value="msmarco">MS MARCO</option></select></div><div class="model-note" aria-label="Local answer model"><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel loading</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a></div></div>
       <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus search">
@@ -21,6 +21,7 @@
           <label class="sr-only" for="fts-query">Search title and document text</label>
           <div class="search-row"><input id="fts-query" type="search" placeholder="Search" required maxlength="500">
           <button id="fts-search" class="primary search-icon-button" type="submit" aria-label="Search NFCorpus" title="Search NFCorpus" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
+          <ul id="fts-examples" class="example-queries" role="listbox" aria-label="Example NFCorpus searches" hidden></ul>
         </form>
         <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus in this browser…</span> <a id="fts-setup-link" href="?view=setup#setup-nfcorpus">Settings</a><span class="inline-setup-actions"><button id="fts-prepare" type="button" hidden>Prepare NFCorpus</button></span></p>
         <p id="fts-search-status" role="status" hidden></p>
@@ -37,6 +38,7 @@
           <label class="sr-only" for="marco-query">Search passages</label>
           <div class="search-row"><input id="marco-query" type="search" placeholder="Search" required maxlength="500">
           <button id="marco-search" class="primary search-icon-button" type="submit" aria-label="Search MS MARCO" title="Search MS MARCO" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
+          <ul id="marco-examples" class="example-queries" role="listbox" aria-label="Example MS MARCO searches" hidden></ul>
         </form>
         <p id="marco-help" class="search-help" aria-live="off"><span id="marco-help-text">Checking for a saved MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup#setup-msmarco">Settings</a><span class="inline-setup-actions"><button id="marco-download" type="button" hidden>Download MS MARCO index (3.35 GB)</button><button id="marco-open" type="button" hidden>Open saved index</button><button id="marco-search-cancel" type="button" hidden>Cancel download</button><progress id="marco-search-progress" max="100" hidden aria-label="Index download progress"></progress></span></p>
         <p id="marco-search-status" role="status" hidden></p>
@@ -65,6 +67,7 @@
         <div class="corpus-actions"><button id="msmarco-dashboard-setup" class="corpus-action" type="button" hidden></button><span id="msmarco-dashboard-selected" class="corpus-selected" hidden>Selected</span></div>
       </li>
       </ul>
+      <button id="tour-start" class="tour-replay" type="button">New here? Take the tour</button>
     </section>
 
   </section>
@@ -72,6 +75,8 @@
   <section id="history-view" aria-labelledby="history-heading" hidden>
     <div class="setup-header"><div class="history-title"><h1 id="history-heading" tabindex="-1">History</h1><button id="history-clear" class="danger" type="button" hidden>Clear history</button></div><p>Past searches with their collection, results, and any cited answer. Stored only in this browser.</p></div>
     <p id="history-empty" class="results-empty">No search history yet. Your searches will appear here after you <a id="history-search-link" href="?">search a collection</a>.</p>
+    <div id="history-tools" class="history-tools" hidden><label class="sr-only" for="history-filter">Search history</label><input id="history-filter" type="search" placeholder="Search history" autocomplete="off" maxlength="200"><span id="history-count" class="history-count" role="status"></span></div>
+    <p id="history-no-match" class="results-empty" hidden></p>
     <ol id="history-list" class="history-list" aria-label="Search history"></ol>
   </section>
 

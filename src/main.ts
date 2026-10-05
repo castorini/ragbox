@@ -13,12 +13,25 @@ import { setupStorageDashboard } from './storage-dashboard.ts';
 import { setupCorpusDashboard } from './corpus-dashboard.ts';
 import { setupSettingsView } from './settings-view.ts';
 import { SearchHistory, setupHistoryView } from './history.ts';
+import { setupExampleQueries } from './example-queries.ts';
+import { setupTour, tourSeen } from './tour.ts';
 
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
 const loads = new LoadCoordinator();
 const history = new SearchHistory();
 setupHistoryView(history);
+setupExampleQueries();
+const tour = setupTour({ modelPhase: () => states.get('model').phase });
+requiredElement<HTMLButtonElement>('#tour-start').onclick = () => tour.start();
+// First visit: walk through the search page once the layout has settled.
+if (!tourSeen()) {
+  setTimeout(() => {
+    const onSearch = !requiredElement<HTMLElement>('#search-view').hidden;
+    const hasResults = document.querySelector('.collection-panel:not([hidden]) .results-area:not([hidden])');
+    if (onSearch && !hasResults) tour.start();
+  }, 700);
+}
 let db: duckdb.AsyncDuckDB | undefined;
 let busy = false;
 let marco: ReturnType<typeof setupMSMarco> | undefined;

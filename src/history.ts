@@ -167,16 +167,50 @@ function entryElement(doc: Document, entry: HistoryEntry) {
   return item;
 }
 
+// Every word of the filter must appear in the query, collection, answer, or a result title.
+export function matchesHistory(entry: HistoryEntry, filter: string) {
+  const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const text = [
+    entry.query, corpusNames[entry.corpus] ?? entry.corpus, entry.answer ?? '',
+    ...entry.results.map(result => result.title),
+  ].join(' ').toLowerCase();
+  return words.every(word => text.includes(word));
+}
+
 export function setupHistoryView(history: SearchHistory) {
   const list = requiredElement<HTMLOListElement>('#history-list');
   const empty = requiredElement<HTMLElement>('#history-empty');
   const clear = requiredElement<HTMLButtonElement>('#history-clear');
+  const tools = requiredElement<HTMLElement>('#history-tools');
+  const filter = requiredElement<HTMLInputElement>('#history-filter');
+  const count = requiredElement<HTMLElement>('#history-count');
+  const noMatch = requiredElement<HTMLElement>('#history-no-match');
+  let items: { entry: HistoryEntry; element: HTMLLIElement }[] = [];
+  // Hide non-matching entries in place so expanded entries stay open while typing.
+  function applyFilter() {
+    const value = filter.value.trim();
+    let shown = 0;
+    for (const { entry, element } of items) {
+      element.hidden = !matchesHistory(entry, value);
+      if (!element.hidden) shown++;
+    }
+    const total = items.length;
+    count.textContent = value ? `${shown} of ${total} ${total === 1 ? 'search' : 'searches'}` : `${total} ${total === 1 ? 'search' : 'searches'}`;
+    noMatch.hidden = !value || shown > 0 || total === 0;
+    noMatch.textContent = `No searches match “${value}”.`;
+  }
   function render() {
     const entries = history.entries();
     empty.hidden = entries.length > 0;
     clear.hidden = entries.length === 0;
-    list.replaceChildren(...entries.map(entry => entryElement(list.ownerDocument, entry)));
+    tools.hidden = entries.length === 0;
+    if (!entries.length) filter.value = '';
+    items = entries.map(entry => ({ entry, element: entryElement(list.ownerDocument, entry) }));
+    list.replaceChildren(...items.map(item => item.element));
+    applyFilter();
   }
+  filter.oninput = applyFilter;
   clear.onclick = () => {
     if (confirm('Clear all search history in this browser?')) history.clear();
   };
