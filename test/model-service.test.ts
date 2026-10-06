@@ -23,6 +23,16 @@ const operation = { conversationId: 'c1', turnId: 't1', attemptId: 'a1' };
 const options = { corpus: 'nfcorpus' as const, question: 'coffee', documents: [{ id: 'MED-1', title: 'Coffee', text: 'Evidence' }], citationTargets: new Map([['MED-1', '#source']]), operation };
 
 describe('headless model operations', () => {
+  it('clears rejected drafts on matching citation-reset events while ignoring stale resets', async () => {
+    const h = await harness(); const onAnswerReset = vi.fn();
+    const answer = h.model.generateAnswer({ ...options, onAnswerReset }, h.abort.signal);
+    const request = h.worker.messages.at(-1)!; if (request.type !== 'generate') throw new Error('Expected answer');
+    h.worker.emit({ type: 'answer-delta', requestId: request.requestId, text: 'Wrong [SOURCE-1].' });
+    h.worker.emit({ type: 'answer-reset', requestId: 'stale' }); expect(onAnswerReset).not.toHaveBeenCalled();
+    h.worker.emit({ type: 'answer-reset', requestId: request.requestId }); expect(onAnswerReset).toHaveBeenCalledOnce();
+    h.worker.emit({ type: 'complete', requestId: request.requestId, answer: 'Correct [MED-1].', documentIds: ['MED-1'] });
+    await expect(answer).resolves.toMatchObject({ answer: 'Correct [MED-1].' });
+  });
   it('resolves a query with operation identity, ignoring late output from the cancelled attempt', async () => {
     const h = await harness();
     const first = h.model.resolveQuery('What about it?', [], h.abort.signal, operation);

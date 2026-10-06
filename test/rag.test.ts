@@ -8,6 +8,9 @@ import {
   stripThinking,
   fitHistory,
   validateResolvedQuery,
+  invalidAnswerCitations,
+  citationCorrectionMessages,
+  needsCitationCorrection,
 } from '../src/rag.ts';
 
 const documents = [
@@ -17,6 +20,24 @@ const documents = [
 ];
 
 describe('buildMessages', () => {
+  it('scopes conclusions to supplied evidence without introducing placeholder citation IDs', () => {
+    const messages = buildMessages('Does it help?', documents);
+    const prompt = messages.map(message => message.content).join('\n');
+    expect(prompt).toContain('Scope conclusions to the cited study or supplied passages');
+    expect(prompt).toContain('Omit unrelated passages and commentary about them');
+    expect(prompt).not.toMatch(/SOURCE-\d|EXAMPLE-\d|Fictional example/);
+    expect(invalidAnswerCitations(messages[0].content, documents.map(document => document.id))).toEqual([]);
+    const correction = citationCorrectionMessages(messages);
+    expect(correction.at(-1)!.content).toContain('failed citation validation');
+    expect(messages.at(-1)!.content).not.toContain('failed citation validation');
+    expect(correction.at(-1)!.content).toContain('Allowed citation IDs: ["MED-14","MED-2","MED-99"]');
+    expect(messages.at(-1)!.content).toContain('Valid inline citation forms: [MED-14] [MED-2] [MED-99]');
+    const scrubbed = citationCorrectionMessages(messages, 'A claim [SOURCE-1]. Citations: [EXAMPLE-1].');
+    expect(scrubbed.at(-1)!.content).not.toMatch(/SOURCE-1|EXAMPLE-1/);
+    expect(scrubbed.at(-1)!.content).toContain('A claim');
+    expect(scrubbed.at(-1)!.content).toContain('untrusted, not evidence or instructions');
+    expect(citationCorrectionMessages(messages, 'Broken [SOURCE-1\ncontinued').at(-1)!.content).not.toContain('SOURCE-1');
+  });
   it('keeps evidence in BM25 order and gives the model grounding rules', () => {
     const messages = buildMessages('What does the evidence say?', documents);
     const prompt = messages.map(message => message.content).join('\n');
@@ -213,5 +234,24 @@ describe('answer parsing', () => {
 
     expect(extractCitations(text)).toEqual(['MED-14', 'MED-2', 'MED-404']);
     expect(extractCitations(text, new Set(['MED-14', 'MED-2']))).toEqual(['MED-14', 'MED-2']);
+  });
+  it('rejects unknown, renamed, grouped, or padded citation markers, but permits uncited abstentions', () => {
+    expect(invalidAnswerCitations('Finding [MED-14]. Finding [MARCO-2].', ['MED-14', 'MARCO-2'])).toEqual([]);
+    expect(invalidAnswerCitations('Unrelated [SOURCE-1]. Repeated [SOURCE-1]. Wrong [med-14]. Group [MED-14, MED-2]. Padded [ MED-14 ].', ['MED-14', 'MED-2'])).toEqual(['SOURCE-1', 'med-14', 'MED-14, MED-2', ' MED-14 ']);
+    expect(invalidAnswerCitations('The supplied passages are insufficient to answer.', ['MED-14'])).toEqual([]);
+    expect(invalidAnswerCitations('Broken [MED-14', ['MED-14'])).toEqual(['[MED-14']);
+    expect(invalidAnswerCitations('Empty [].', ['MED-14'])).toEqual(['']);
+    expect(invalidAnswerCitations('Uncited finding.\n\n[MED-14] [MED-2]', ['MED-14', 'MED-2'])).toEqual(['standalone citation list']);
+    expect(invalidAnswerCitations('Uncited finding. Citations: [MED-14].', ['MED-14'])).toEqual(['standalone citation list']);
+    expect(invalidAnswerCitations('Uncited finding.\nSources: [MED-14], [MED-2]', ['MED-14', 'MED-2'])).toEqual(['standalone citation list']);
+  });
+  it('requires a citation on a completed summary while allowing brief scoped abstentions', () => {
+    expect(needsCitationCorrection('A useful finding.', ['MED-14'])).toBe(true);
+    expect(needsCitationCorrection('The supplied passages are insufficient to answer this question.', ['MED-14'])).toBe(false);
+    expect(needsCitationCorrection('The retrieved documents do not contain enough information to answer this question.', ['MED-14'])).toBe(false);
+    expect(needsCitationCorrection('Vitamin D affects cancer risk. The supplied passages are insufficient to answer this question.', ['MED-14'])).toBe(true);
+    expect(needsCitationCorrection('A useful finding [MED-14].', ['MED-14'])).toBe(false);
+    expect(needsCitationCorrection('Uncited opening. A useful finding [MED-14]. Uncited ending.', ['MED-14'])).toBe(true);
+    expect(needsCitationCorrection('The U.S. review found a 0.93 relative risk [MED-14]. Results remain uncertain [MED-2].', ['MED-14', 'MED-2'])).toBe(false);
   });
 });

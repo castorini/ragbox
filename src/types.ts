@@ -73,6 +73,7 @@ export type WorkerResponse =
   | { type: 'context'; requestId: string; documentIds: string[]; contextLimited?: boolean }
   | { type: 'resolved-query'; requestId: string; query: string; contextLimited: boolean }
   | { type: 'answer-delta'; requestId: string; text: string }
+  | { type: 'answer-reset'; requestId: string }
   | { type: 'thinking-delta'; requestId: string; text: string }
   | { type: 'complete'; requestId: string; answer: string; thinking?: string; documentIds: string[] }
   | { type: 'cancelled'; requestId: string }

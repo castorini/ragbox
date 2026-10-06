@@ -115,6 +115,89 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
+  it('corrects invented final citation IDs once, buffering the repair and preserving the same request', async () => {
+    const harness = await createHarness();
+    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => JSON.stringify(messages));
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        options.streamer!.options.callback_function('Compare [SOURCE-1].</think>Wrong [SOURCE-1].');
+        return generatedOutput(messages, 'Compare [SOURCE-1].</think>Wrong [SOURCE-1].');
+      }
+      expect(messages).toContain('failed citation validation'); expect(messages).toContain('MED-14');
+      expect(messages).not.toContain('SOURCE-1');
+      expect(options).toMatchObject({ max_new_tokens: 512, do_sample: false, return_full_text: false, add_special_tokens: false });
+      expect(options.streamer).toBeUndefined();
+      expect(options.stopping_criteria![0]).toBe(harness.generator.mock.calls[0][1].stopping_criteria![0]);
+      expect(harness.messages).toContainEqual({ type: 'answer-reset', requestId: 'request-1' });
+      return generatedOutput(messages, 'Correct [MED-14].');
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Correct [MED-14].', thinking: 'Compare [SOURCE-1].', documentIds: ['MED-14'] });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+    expect(harness.messages.filter(message => message.type === 'complete')).toHaveLength(1);
+  });
+  it.each(['Still wrong [SOURCE-1].', '', 'Broken [MED-14', 'Uncited finding.\n\n[MED-14]', 'An uncited summary remains.'])('rejects an invalid citation correction without looping: %s', async final => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        options.streamer!.options.callback_function('</think>Wrong [SOURCE-1].');
+        return generatedOutput(messages, '</think>Wrong [SOURCE-1].');
+      }
+      return generatedOutput(messages, final);
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'error', message: expect.stringContaining('valid source citations') });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+    expect(harness.messages.some(message => message.type === 'complete')).toBe(false);
+    expect(harness.messages.filter(message => message.type === 'answer-delta').map(message => message.text).join('')).toBe('Wrong [SOURCE-1].');
+  });
+  it.each(['Finding.\n\n[MED-14]', 'Finding. Citations: [MED-14].', 'A useful finding without a citation.', 'Uncited opening. Finding [MED-14]. Uncited ending.'])('corrects an unattached or absent citation: %s', async draft => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        options.streamer!.options.callback_function(`</think>${draft}`);
+        return generatedOutput(messages, `</think>${draft}`);
+      }
+      return generatedOutput(messages, 'Finding [MED-14].');
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Finding [MED-14].' });
+    expect(harness.messages).toContainEqual({ type: 'answer-reset', requestId: 'request-1' });
+  });
+  it('fits the whole correction prompt including its closed thinking prefix within the input budget', async () => {
+    const harness = await createHarness();
+    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => JSON.stringify(messages));
+    harness.generator.tokenizer.encode.mockImplementation(prompt => prompt === '</think>' ? [1, 2, 3] : Array.from({ length: prompt.length }, () => 9));
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        options.streamer!.options.callback_function('</think>Wrong [SOURCE-1].');
+        return generatedOutput(messages, '</think>Wrong [SOURCE-1].');
+      }
+      expect(messages.length).toBeLessThanOrEqual(3500);
+      return generatedOutput(messages, 'Correct [MED-14].');
+    });
+    harness.generate({ documents: [{ ...documents[0], text: 'e'.repeat(5000) }] });
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Correct [MED-14].' });
+    expect(harness.messages.filter(message => message.type === 'context')).toHaveLength(2);
+  });
+  it('ignores a late correction after Stop and allows a subsequent request to finish', async () => {
+    const harness = await createHarness(); const release = deferred();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        options.streamer!.options.callback_function('</think>Wrong [SOURCE-1].');
+        return generatedOutput(messages, '</think>Wrong [SOURCE-1].');
+      }
+      await release.promise;
+      return generatedOutput(messages, 'Correct [MED-14].');
+    });
+    harness.generate(); await vi.waitFor(() => expect(harness.generator).toHaveBeenCalledTimes(2));
+    harness.send({ type: 'cancel', requestId: 'request-1' }); release.resolve();
+    expect(await harness.terminal()).toMatchObject({ type: 'cancelled' });
+    expect(harness.messages.some(message => message.type === 'complete')).toBe(false);
+    harness.generator.mockImplementation(async messages => generatedOutput(messages, '</think>Fresh [MED-14].'));
+    harness.generate({ requestId: 'request-2' });
+    expect(await harness.terminal('request-2')).toMatchObject({ type: 'complete', answer: 'Fresh [MED-14].' });
+  });
   it.each([
     ['low', 256], ['balanced', 1024], ['high', 2048], [undefined, 1024], ['invalid', 1024],
   ] as const)('enforces effort %s while preserving the separate final-answer allowance', async (effort, limit) => {
