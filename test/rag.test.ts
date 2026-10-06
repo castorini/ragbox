@@ -168,8 +168,8 @@ describe('fitDocumentsToTokenBudget', () => {
 });
 
 describe('answer parsing', () => {
-  it('uses MiniCPM direct-answer mode so reasoning cannot consume the output budget', () => {
-    expect(CHAT_TEMPLATE_OPTIONS).toEqual({ enable_thinking: false });
+  it('uses MiniCPM thinking mode while the worker separates reasoning from the answer', () => {
+    expect(CHAT_TEMPLATE_OPTIONS).toEqual({ enable_thinking: true });
   });
 
   it('streams direct answers immediately while filtering tagged reasoning', () => {

@@ -27,7 +27,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const workspace = requiredElement<HTMLElement>('#search-view');
   let conversationId = '';
   let exampleCorpus = '';
-  type Row = { root: HTMLElement; answer: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string };
+  type Row = { root: HTMLElement; answer: HTMLElement; thinking: HTMLDetailsElement; thinkingSummary: HTMLElement; thinkingText: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string };
   const rows = new Map<string, Row>();
   const element = <T extends keyof HTMLElementTagNameMap>(tag: T, className = '', text = '') => {
     const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
@@ -57,6 +57,10 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const root = element('article', 'chat-turn'); root.setAttribute('aria-label', 'Question and reply');
     const user = element('div', 'chat-user'); user.append(element('span', 'chat-speaker', 'You'), element('p', '', turn.question));
     const assistant = element('div', 'chat-assistant');
+    const thinking = element('details', 'chat-thinking');
+    const thinkingSummary = element('summary', '', 'Thinking…');
+    const thinkingText = element('p', 'chat-thinking-text');
+    thinking.append(thinkingSummary, thinkingText);
     const answer = element('p', 'llm-answer');
     const status = element('p', 'chat-turn-status'); status.setAttribute('role', 'status');
     const context = element('p', 'chat-context');
@@ -78,9 +82,9 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       if (target) { event.preventDefault(); sources.open = true; target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'nearest' }); }
     };
     const actions = element('div', 'chat-answer-actions'); actions.append(copy, retry, feedback);
-    assistant.append(element('span', 'chat-speaker', 'RAGbox'), answer, status, context, sources, actions);
+    assistant.append(element('span', 'chat-speaker', 'RAGbox'), thinking, answer, status, context, sources, actions);
     root.append(user, assistant); transcript.append(root);
-    return { root, answer, status, context, sources, copy, retry, feedback };
+    return { root, answer, thinking, thinkingSummary, thinkingText, status, context, sources, copy, retry, feedback };
   }
   function renderRow(conversation: Conversation, turn: ChatTurn, latest: boolean) {
     let row = rows.get(turn.id);
@@ -92,6 +96,9 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       row.answerKey = answerKey;
     }
     row.answer.hidden = !turn.answer;
+    row.thinking.hidden = !turn.thinking && turn.phase !== 'generating';
+    row.thinkingSummary.textContent = turn.phase === 'generating' && !turn.answer ? 'Thinking…' : turn.phase === 'stopped' ? 'Reasoning (stopped)' : 'Reasoning';
+    if (row.thinkingText.textContent !== (turn.thinking ?? '')) row.thinkingText.textContent = turn.thinking ?? '';
     row.status.textContent = turn.message; row.status.hidden = turn.phase === 'complete' && !turn.keywordOnly;
     row.root.dataset.phase = turn.phase;
     row.context.hidden = !turn.contextLimited;

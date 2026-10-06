@@ -40,6 +40,32 @@ describe('conversation persistence', () => {
     const restored = new ConversationStore(repository); await restored.initialize();
     expect(restored.selected).toBe('msmarco'); expect(restored.current().turns[0]).toMatchObject({ phase: 'stopped', answer: 'Partial', message: expect.stringContaining('page reload') });
   });
+  it('roundtrips folded reasoning separately from completed answers and citation metadata', async () => {
+    const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize();
+    const turn = store.append('coffee', [], false);
+    store.update(store.current().id, turn.id, { phase: 'complete', thinking: 'Comparison [MED-1] and unsupported [MED-404].', answer: 'Final finding [MED-2].', includedIds: ['MED-1', 'MED-2'], citedIds: ['MED-2'] });
+    await store.flush();
+    const restored = new ConversationStore(repository); await restored.initialize();
+    expect(restored.current().turns[0]).toMatchObject({ phase: 'complete', thinking: 'Comparison [MED-1] and unsupported [MED-404].', answer: 'Final finding [MED-2].', includedIds: ['MED-1', 'MED-2'], citedIds: ['MED-2'] });
+  });
+  it('restores a page interrupted during reasoning as stopped without treating reasoning as an answer', async () => {
+    const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize();
+    const turn = store.append('coffee', [], false);
+    store.update(store.current().id, turn.id, { phase: 'generating', thinking: 'Unfinished comparison [MED-1].', answer: '', includedIds: ['MED-1'], citedIds: [] });
+    await store.flush();
+    const restored = new ConversationStore(repository); await restored.initialize();
+    expect(restored.current().turns[0]).toMatchObject({ phase: 'stopped', thinking: 'Unfinished comparison [MED-1].', answer: '', citedIds: [], message: expect.stringContaining('page reload') });
+  });
+  it('loads older saved conversations without reasoning and normalizes invalid reasoning values', async () => {
+    const older = importLegacyHistory(JSON.stringify([legacy]))[0];
+    expect(older.turns[0].thinking).toBeUndefined();
+    const restored = new ConversationStore(memoryRepository([older])); await restored.initialize();
+    expect(restored.current().turns[0].thinking).toBe('');
+    const malformed = structuredClone(older);
+    malformed.turns[0].thinking = 42 as unknown as string;
+    const normalized = new ConversationStore(memoryRepository([malformed])); await normalized.initialize();
+    expect(normalized.current().turns[0].thinking).toBe('');
+  });
   it('serializes writes so a slow earlier snapshot cannot overwrite a completed answer', async () => {
     const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize();
     const first = deferred<void>(); const save = repository.save.bind(repository);

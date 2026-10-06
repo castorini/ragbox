@@ -2,6 +2,23 @@ import type { AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
 import type { RetrievalResult, SearchResult } from './types.ts';
 
 type Connection = Pick<AsyncDuckDBConnection, 'prepare' | 'query'>;
+
+// Older saved FTS macros stem query stopwords even though indexing drops them.
+// Use the saved analyzer before stemming so "of" cannot match a rare "ofs" stem.
+async function normalizeQuery(conn: Pick<Connection, 'prepare'>, ftsSchema: 'fts_main_nfcorpus' | 'fts_main_msmarco', query: string) {
+  // Normalize separately so the large retrieval macro receives a plain bound
+  // value, preserving its efficient plan instead of expanding a subquery.
+  const sql = `WITH query_tokens AS (
+    SELECT unnest(${ftsSchema}.tokenize(?)) AS token
+  )
+    SELECT coalesce(string_agg(token, ' '), '') AS query_text
+    FROM query_tokens
+    WHERE token IS NOT NULL AND token <> ''
+      AND token NOT IN (SELECT sw FROM ${ftsSchema}.stopwords)`;
+  const rows = await queryBM25<{ query_text: string }>(conn, sql, query);
+  return rows[0]?.query_text ?? '';
+}
+
 export const NFCORPUS_SEARCH_SQL = `
   SELECT id, title, text,
          fts_main_nfcorpus.match_bm25(id, ?) AS score
@@ -35,13 +52,17 @@ export async function nfcorpusSearchSQL(conn: Pick<Connection, 'query'>): Promis
 
 export async function retrieveNFCorpus(conn: Connection, query: string): Promise<RetrievalResult> {
   const start = performance.now();
+  const normalized = await normalizeQuery(conn, 'fts_main_nfcorpus', query);
+  if (!normalized) return { documents: [], elapsedMs: performance.now() - start };
   const sql = await nfcorpusSearchSQL(conn);
-  const rows = await queryBM25<SearchResult>(conn, sql, query);
+  const rows = await queryBM25<SearchResult>(conn, sql, normalized);
   return { documents: rows.map(row => ({ id: String(row.id), title: String(row.title), text: String(row.text), score: Number(row.score) })), elapsedMs: performance.now() - start };
 }
 
 export async function retrieveMSMarco(conn: Pick<Connection, 'prepare'>, query: string): Promise<RetrievalResult> {
   const start = performance.now();
-  const rows = await queryBM25<{ id: string | number | bigint; contents: string; score: number }>(conn, MSMARCO_SEARCH_SQL, query);
+  const normalized = await normalizeQuery(conn, 'fts_main_msmarco', query);
+  if (!normalized) return { documents: [], elapsedMs: performance.now() - start };
+  const rows = await queryBM25<{ id: string | number | bigint; contents: string; score: number }>(conn, MSMARCO_SEARCH_SQL, normalized);
   return { documents: rows.map(row => ({ id: `MARCO-${String(row.id)}`, title: `Passage ${String(row.id)}`, text: String(row.contents ?? ''), score: Number(row.score) })), elapsedMs: performance.now() - start };
 }

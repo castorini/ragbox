@@ -96,20 +96,25 @@ export class ChatController {
         this.update(attempt, { phase: 'complete', stage: 'generate', answer: INSUFFICIENT_EVIDENCE, message: 'No matching documents.', keywordOnly: false });
         return;
       }
-      this.update(attempt, { phase: 'generating', stage: 'generate', keywordOnly: false, answer: '', includedIds: [], citedIds: [], message: 'Writing a cited answer…' });
+      this.update(attempt, { phase: 'generating', stage: 'generate', keywordOnly: false, answer: '', thinking: '', includedIds: [], citedIds: [], message: 'Thinking…' });
       const answer = await this.model.generateAnswer({
         corpus: conversation.corpus, question: turn.question, searchQuery: query, documents: retrieved.results, history, operation,
         citationTargets: new Map(retrieved.results.map(document => [document.id, document.id])),
         onContext: (ids, limited) => this.update(attempt, { includedIds: ids, contextLimited: turn.contextLimited || limited }),
+        onThinkingDelta: text => {
+          if (!this.valid(attempt)) return;
+          const current = this.turn(attempt)!;
+          this.update(attempt, { thinking: (current.thinking ?? '') + text }, true);
+        },
         onDelta: text => {
           if (!this.valid(attempt)) return;
           const current = this.turn(attempt)!;
           const answer = current.answer + text;
-          this.update(attempt, { answer, citedIds: extractCitations(answer, current.includedIds) }, true);
+          this.update(attempt, { answer, message: 'Writing a cited answer…', citedIds: extractCitations(answer, current.includedIds) }, true);
         },
       }, attempt.abort.signal);
       if (!this.valid(attempt)) return;
-      this.update(attempt, { phase: 'complete', answer: answer.answer, includedIds: answer.documentIds,
+      this.update(attempt, { phase: 'complete', answer: answer.answer, thinking: answer.thinking ?? this.turn(attempt)?.thinking, includedIds: answer.documentIds,
         citedIds: extractCitations(answer.answer, answer.documentIds), message: 'Answer complete.' });
     } catch (error) {
       if (this.valid(attempt)) this.update(attempt, { phase: 'error', message: errorMessage(error) });

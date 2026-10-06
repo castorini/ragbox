@@ -8,6 +8,7 @@ export type CitationTargets = Map<string, string> | Record<string, string>;
 interface AnswerSession {
   options: GenerateOptions;
   text: string;
+  thinking?: string;
   targets: Map<string, string>;
   phase: 'waiting' | 'generating' | 'complete' | 'stopped' | 'error' | 'blocked';
   message: string;
@@ -37,6 +38,7 @@ export interface GenerateOptions {
   searchQuery?: string;
   operation?: ChatOperation;
   onDelta?: (text: string) => void;
+  onThinkingDelta?: (text: string) => void;
   onContext?: (ids: string[], limited: boolean) => void;
   onError?: (error: Error) => void;
   onStopped?: (answer: string, citedIds: string[]) => void;
@@ -134,7 +136,7 @@ export class ModelService {
     });
   }
 
-  generateAnswer(options: Omit<GenerateOptions, 'onComplete' | 'onStopped' | 'onCancelled' | 'onError'>, signal: AbortSignal): Promise<{ answer: string; documentIds: string[] }> {
+  generateAnswer(options: Omit<GenerateOptions, 'onComplete' | 'onStopped' | 'onCancelled' | 'onError'>, signal: AbortSignal): Promise<{ answer: string; thinking?: string; documentIds: string[] }> {
     if (!this.ready || signal.aborted) return Promise.reject(new DOMException('Cancelled', 'AbortError'));
     return new Promise((resolve, reject) => {
       const abort = () => { this.cancel(true); finish(reject, new DOMException('Cancelled', 'AbortError')); };
@@ -142,7 +144,10 @@ export class ModelService {
       signal.addEventListener('abort', abort, { once: true });
       try {
         this.generate({ ...options,
-          onComplete: answer => finish(resolve, { answer, documentIds: [...(this.sessions.get(options.corpus)?.targets.keys() ?? [])] }),
+          onComplete: answer => {
+            const session = this.sessions.get(options.corpus);
+            finish(resolve, { answer, ...(session?.thinking ? { thinking: session.thinking } : {}), documentIds: [...(session?.targets.keys() ?? [])] });
+          },
           onStopped: () => finish(reject, new DOMException('Cancelled', 'AbortError')),
           onCancelled: () => finish(reject, new DOMException('Cancelled', 'AbortError')),
           onError: error => finish(reject, error),
@@ -386,6 +391,7 @@ export class ModelService {
     session.phase = 'generating';
     session.message = 'Generating answer…';
     session.text = '';
+    session.thinking = '';
     session.targets = new Map();
     this.activeRequest = { id, corpus, answerText: '',
       citationTargets: citationTargetMap(citationTargets), includedTargets: new Map(), evidenceLabel, onComplete, session };
@@ -543,6 +549,9 @@ export class ModelService {
     if (message.type === 'context') {
       session.options.onContext?.(message.documentIds, message.contextLimited === true);
       this.renderSession(request.corpus, session.text, session.targets);
+    } else if (message.type === 'thinking-delta') {
+      session.thinking = (session.thinking ?? '') + message.text;
+      session.options.onThinkingDelta?.(message.text);
     } else if (message.type === 'answer-delta') {
       request.answerText += message.text;
       session.text = request.answerText;
@@ -555,6 +564,7 @@ export class ModelService {
         return;
       }
       session.text = request.answerText = message.answer;
+      session.thinking = message.thinking ?? session.thinking;
       this.renderSession(request.corpus, session.text, session.targets);
       session.phase = 'complete';
       session.message = `Answer generated using ${message.documentIds.length} ${message.documentIds.length === 1 ? request.evidenceLabel.replace(/s$/, '') : request.evidenceLabel}.`;

@@ -1,6 +1,7 @@
 import { inspectModelCache, requireCompleteModelCache, REQUIRED_MODEL_FILES } from './model-readiness.ts';
 import {
   InterruptableStoppingCriteria,
+  StoppingCriteria,
   TextStreamer,
   pipeline,
   env,
@@ -12,10 +13,10 @@ import {
   buildQueryMessages,
   fitHistory,
   fitDocumentsToTokenBudget,
-  streamedAnswer,
-  stripThinking,
   validateResolvedQuery,
 } from './rag.ts';
+import { parseGenerationOutput } from './generation-output.ts';
+import { GenerationTokenBudget } from './generation-budget.ts';
 import { errorMessage } from './errors.ts';
 import type { ModelFailureReason, ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
 import { modelCachePath, MODEL_ID, MODEL_REMOTE_PATH_TEMPLATE, MODEL_REVISION } from './model-cache.ts';
@@ -81,6 +82,31 @@ env.fetch = async (...args) => {
 };
 
 const MAX_INPUT_TOKENS = 3500;
+const MAX_THINKING_TOKENS = 1024;
+const MAX_ANSWER_TOKENS = 512;
+const MAX_QUERY_THINKING_TOKENS = 512;
+const MAX_QUERY_TOKENS = 128;
+
+class OutputBudgetCriteria extends StoppingCriteria {
+  constructor(private budget: GenerationTokenBudget) { super(); }
+  _call(inputIds: number[][]): boolean[] { return inputIds.map(() => this.budget.stopped); }
+}
+
+function outputBudget(model: TextGenerationPipeline, thinking: number, answer: number) {
+  return new GenerationTokenBudget(model.tokenizer.encode('</think>', { add_special_tokens: false }), thinking, answer,
+    ids => model.tokenizer.decode(ids, { skip_special_tokens: false }));
+}
+
+// If thinking exhausts its allowance, close that same assistant prefix and
+// continue with a separately bounded final answer. Nothing is promoted from
+// reasoning into answer text, and the original evidence and instructions stay
+// attached to the continuation. String input avoids reopening a thinking block.
+function finalAnswerPrefix(model: TextGenerationPipeline, messages: ReturnType<typeof buildMessages>, thinking: string) {
+  const prompt = model.tokenizer.apply_chat_template(messages, {
+    tokenize: false, add_generation_prompt: true, ...CHAT_TEMPLATE_OPTIONS,
+  });
+  return `${prompt}${thinking}\n</think>\n\n`;
+}
 
 let generator: TextGenerationPipeline | undefined;
 let loading: Promise<TextGenerationPipeline> | undefined;
@@ -219,44 +245,76 @@ async function generate({ requestId, question, documents, history = [], searchQu
       contextLimited: context.limited,
     });
     const messages = buildMessages(question, fitted, context.history, searchQuery);
+    const budget = outputBudget(model, MAX_THINKING_TOKENS, MAX_ANSWER_TOKENS);
     let streamed = '';
     let visibleLength = 0;
+    let thinkingLength = 0;
+    const publish = (parsed: ReturnType<typeof parseGenerationOutput>) => {
+      if (state.cancelled) return;
+      const thinking = parsed.thinking.trimStart();
+      if (thinking.length > thinkingLength) {
+        report({ type: 'thinking-delta', requestId, text: thinking.slice(thinkingLength) });
+        thinkingLength = thinking.length;
+      }
+      const visible = parsed.answer.trimStart();
+      if (visible.length > visibleLength) {
+        report({ type: 'answer-delta', requestId, text: visible.slice(visibleLength) });
+        visibleLength = visible.length;
+      }
+    };
     const streamer = new TextStreamer(model.tokenizer, {
       skip_prompt: true,
       // MiniCPM's <think> tags are ordinary added tokens, so this preserves
       // reasoning boundaries while omitting EOS/chat control tokens.
       skip_special_tokens: true,
+      token_callback_function: tokens => { budget.add(tokens); },
       callback_function(text) {
         if (state.cancelled) return;
         streamed += text;
-        const visible = streamedAnswer(streamed);
-        if (visible.length > visibleLength) {
-          report({ type: 'answer-delta', requestId, text: visible.slice(visibleLength) });
-          visibleLength = visible.length;
-        }
+        publish(parseGenerationOutput(streamed));
       },
     });
 
+    const sampling = { do_sample: true, temperature: 1.0, top_p: 0.95, top_k: 0, repetition_penalty: 1.0 };
     const output = await model(messages, {
-      max_new_tokens: 512,
-      do_sample: true,
-      temperature: 1.0,
-      top_p: 0.95,
-      top_k: 0,
-      repetition_penalty: 1.0,
+      max_new_tokens: MAX_THINKING_TOKENS + MAX_ANSWER_TOKENS,
+      ...sampling,
       streamer,
-      stopping_criteria: [stoppingCriteria],
+      stopping_criteria: [stoppingCriteria, new OutputBudgetCriteria(budget)],
       tokenizer_encode_kwargs: CHAT_TEMPLATE_OPTIONS,
     });
     if (state.cancelled) {
       report({ type: 'cancelled', requestId });
       return;
     }
-    const answer = stripThinking(generatedText(output, streamed));
+    let parsed = parseGenerationOutput(generatedText(output, streamed));
+    if (budget.exhaustedThinking && !parsed.answer.trim()) {
+      const thinking = parsed.thinking;
+      publish(parsed);
+      let finalStream = '';
+      const finalStreamer = new TextStreamer(model.tokenizer, {
+        skip_prompt: true, skip_special_tokens: true,
+        callback_function: text => {
+          if (state.cancelled) return;
+          finalStream += text;
+          const final = parseGenerationOutput(finalStream, false);
+          publish({ ...final, thinking: thinking + final.thinking });
+        },
+      });
+      const finalOutput = await model(finalAnswerPrefix(model, messages, thinking), {
+        max_new_tokens: MAX_ANSWER_TOKENS, ...sampling, streamer: finalStreamer,
+        stopping_criteria: [stoppingCriteria], return_full_text: false, add_special_tokens: false,
+      });
+      if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+      const final = parseGenerationOutput(generatedText(finalOutput, finalStream), false);
+      parsed = { ...final, thinking: thinking + final.thinking };
+    }
+    const answer = parsed.answer.trim();
     if (!answer.trim()) throw new Error('The model stopped before producing an answer. Retry answer.');
     report({ type: 'complete',
       requestId,
       answer,
+      thinking: parsed.thinking.trim(),
       documentIds: fitted.map(document => document.id),
     });
   } catch (error) {
@@ -277,12 +335,30 @@ async function resolveQuery({ requestId, question, history }: Extract<WorkerRequ
     const model = await loadModel();
     const context = await fitHistory(history, countTokens);
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    const output = await model(buildQueryMessages(question, context.history), {
-      max_new_tokens: 128, do_sample: false, stopping_criteria: [stoppingCriteria],
+    const budget = outputBudget(model, MAX_QUERY_THINKING_TOKENS, MAX_QUERY_TOKENS);
+    let streamed = '';
+    const streamer = new TextStreamer(model.tokenizer, {
+      skip_prompt: true, skip_special_tokens: true,
+      token_callback_function: tokens => { budget.add(tokens); },
+      callback_function: text => { streamed += text; },
+    });
+    const messages = buildQueryMessages(question, context.history);
+    const output = await model(messages, {
+      max_new_tokens: MAX_QUERY_THINKING_TOKENS + MAX_QUERY_TOKENS, do_sample: false,
+      streamer, stopping_criteria: [stoppingCriteria, new OutputBudgetCriteria(budget)],
       tokenizer_encode_kwargs: CHAT_TEMPLATE_OPTIONS,
     });
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    const query = validateResolvedQuery(generatedText(output, ''));
+    let parsed = parseGenerationOutput(generatedText(output, streamed));
+    if (budget.exhaustedThinking && !parsed.answer.trim()) {
+      const finalOutput = await model(finalAnswerPrefix(model, messages, parsed.thinking), {
+        max_new_tokens: MAX_QUERY_TOKENS, do_sample: false, stopping_criteria: [stoppingCriteria],
+        return_full_text: false, add_special_tokens: false,
+      });
+      if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+      parsed = parseGenerationOutput(generatedText(finalOutput, ''), false);
+    }
+    const query = validateResolvedQuery(parsed.answer);
     report({ type: 'resolved-query', requestId, query, contextLimited: context.limited });
   } catch (error) {
     report(state.cancelled ? { type: 'cancelled', requestId }

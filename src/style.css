@@ -354,6 +354,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-user p{margin:6px 0 0;white-space:pre-wrap}
 .chat-speaker{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
 .chat-assistant{padding:20px 0 0}
+.chat-thinking{margin:10px 0;border:1px solid var(--line);border-radius:10px;padding:10px 14px;color:var(--muted);font-size:13px}
+.chat-thinking summary{font-weight:600}
+.chat-thinking-text{white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow-y:auto;line-height:1.6;margin:12px 0 0}
 .chat-assistant .llm-answer{margin:10px 0;line-height:1.75;white-space:pre-wrap}
 .chat-turn-status,.chat-context,.chat-source-query{font-size:12px;color:var(--muted);margin:8px 0}
 .chat-context{border-left:2px solid #bfcdb9;padding-left:10px}

@@ -18,6 +18,7 @@ export interface ChatTurn {
   searchQuery?: string;
   results: SearchResult[];
   answer: string;
+  thinking?: string;
   includedIds: string[];
   citedIds: string[];
   phase: TurnPhase;
@@ -70,7 +71,8 @@ export type WorkerResponse =
   | { type: 'context'; requestId: string; documentIds: string[]; contextLimited?: boolean }
   | { type: 'resolved-query'; requestId: string; query: string; contextLimited: boolean }
   | { type: 'answer-delta'; requestId: string; text: string }
-  | { type: 'complete'; requestId: string; answer: string; documentIds: string[] }
+  | { type: 'thinking-delta'; requestId: string; text: string }
+  | { type: 'complete'; requestId: string; answer: string; thinking?: string; documentIds: string[] }
   | { type: 'cancelled'; requestId: string }
   | { type: 'error'; operation: 'load' | 'generate' | 'resolve-query'; requestId?: string; loadId?: number; reason?: ModelFailureReason; message: string };
 

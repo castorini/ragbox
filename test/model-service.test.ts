@@ -65,6 +65,38 @@ describe('headless model operations', () => {
     expect(onDelta).toHaveBeenCalledExactlyOnceWith('Finding'); expect(onContext).toHaveBeenCalledExactlyOnceWith(['MED-1'], true);
     await expect(answer).resolves.toMatchObject({ documentIds: ['MED-1'] });
   });
+  it('keeps reasoning separate from streamed answers and returns final reasoning from the worker', async () => {
+    const h = await harness(); const onDelta = vi.fn(); const onThinkingDelta = vi.fn();
+    const answer = h.model.generateAnswer({ ...options, onDelta, onThinkingDelta }, h.abort.signal);
+    const request = h.worker.messages.at(-1)!; if (request.type !== 'generate') throw new Error('Expected answer');
+    h.worker.emit({ type: 'thinking-delta', requestId: 'old', text: 'Stale reasoning' });
+    h.worker.emit({ type: 'thinking-delta', requestId: request.requestId, text: 'Compare evidence [MED-1].' });
+    expect(onThinkingDelta).toHaveBeenCalledExactlyOnceWith('Compare evidence [MED-1].');
+    expect(onDelta).not.toHaveBeenCalled();
+    h.worker.emit({ type: 'answer-delta', requestId: request.requestId, text: 'Supported finding [MED-1].' });
+    h.worker.emit({ type: 'complete', requestId: request.requestId, answer: 'Supported finding [MED-1].', thinking: 'Compare evidence [MED-1]. Final reasoning.', documentIds: ['MED-1'] });
+    await expect(answer).resolves.toEqual({ answer: 'Supported finding [MED-1].', thinking: 'Compare evidence [MED-1]. Final reasoning.', documentIds: ['MED-1'] });
+    expect(onDelta).toHaveBeenCalledExactlyOnceWith('Supported finding [MED-1].');
+  });
+  it('ignores cancelled reasoning events while a new request streams its own reasoning', async () => {
+    const h = await harness(); const oldThinking = vi.fn(); const oldAnswer = vi.fn();
+    const first = h.model.generateAnswer({ ...options, onThinkingDelta: oldThinking, onDelta: oldAnswer }, h.abort.signal);
+    const old = h.worker.messages.at(-1)!; if (old.type !== 'generate') throw new Error('Expected answer');
+    h.worker.emit({ type: 'thinking-delta', requestId: old.requestId, text: 'Interrupted reasoning [MED-1].' });
+    const rejected = expect(first).rejects.toMatchObject({ name: 'AbortError' }); h.abort.abort(); await rejected;
+    const currentThinking = vi.fn(); const currentAnswer = vi.fn();
+    const next = h.model.generateAnswer({ ...options, operation: { ...operation, attemptId: 'a2' }, onThinkingDelta: currentThinking, onDelta: currentAnswer }, new AbortController().signal);
+    const current = h.worker.messages.at(-1)!; if (current.type !== 'generate') throw new Error('Expected answer');
+    h.worker.emit({ type: 'thinking-delta', requestId: old.requestId, text: 'Late reasoning' });
+    h.worker.emit({ type: 'answer-delta', requestId: old.requestId, text: 'Late answer' });
+    h.worker.emit({ type: 'complete', requestId: old.requestId, answer: 'Late answer', thinking: 'Late reasoning', documentIds: [] });
+    expect(oldThinking).toHaveBeenCalledExactlyOnceWith('Interrupted reasoning [MED-1].');
+    expect(oldAnswer).not.toHaveBeenCalled(); expect(currentThinking).not.toHaveBeenCalled(); expect(currentAnswer).not.toHaveBeenCalled();
+    h.worker.emit({ type: 'thinking-delta', requestId: current.requestId, text: 'Fresh reasoning' });
+    h.worker.emit({ type: 'complete', requestId: current.requestId, answer: 'Fresh answer [MED-1].', documentIds: ['MED-1'] });
+    await expect(next).resolves.toEqual({ answer: 'Fresh answer [MED-1].', thinking: 'Fresh reasoning', documentIds: ['MED-1'] });
+    expect(currentThinking).toHaveBeenCalledExactlyOnceWith('Fresh reasoning');
+  });
   it('settles a query on worker failure and exposes recovery', async () => {
     const h = await harness(); const query = h.model.resolveQuery('it?', [], h.abort.signal);
     const rejected = expect(query).rejects.toThrow('GPU stopped');

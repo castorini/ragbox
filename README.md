@@ -18,7 +18,9 @@ Use the same exact address and browser profile on return visits. `localhost:5173
 
 ## Chatting with documents
 
-Choose a **Document collection** and prepare or open its index. Ask a question in the bottom composer; **Enter** sends, **Shift+Enter** adds a newline, and messages are limited to 500 characters. The draft remains editable during processing. **Stop** retains partial text and valid citation links.
+Choose a **Document collection** and prepare or open its index. Ask a question in the bottom composer; **Enter** sends, **Shift+Enter** adds a newline, and messages are limited to 500 characters. The draft remains editable during processing. **Stop** retains partial answer text, reasoning, and valid citation links.
+
+The model's reasoning appears in a **Thinking** section that stays folded by default. Expand it to inspect progress; the final answer appears separately when reasoning ends. Citations, **Copy**, and context for later questions use only the final answer. Reasoning is retained with the saved reply, but its citation-like text does not become source links or factual support.
 
 Each reply has expandable **Sources** containing the retrieved document snapshot, BM25 scores, resolved search query, and full text. Clicking a citation opens its sources and focuses the cited document. Links are created only for IDs in the current fitted evidence. Unknown IDs remain plain text. Output is rendered as text, not model-supplied HTML.
 
@@ -36,17 +38,19 @@ Scrolling follows new text while you are near the bottom. Scrolling back preserv
 
 **MS MARCO** uses a prebuilt index of about 3.35 GB. Click **Download MS MARCO index (3.35 GB)** and confirm. Progress shows downloaded bytes followed by index opening. A downloaded index opens when that collection is selected; **Open downloaded collection** is available for recovery. Downloads can be cancelled but do not resume across reloads. Cancelling a replacement preserves the older saved index.
 
-Both collections return up to ten matches, ordered by descending BM25 score and document ID to break ties. Queries use bound parameters. Retrieval runs in DuckDB-Wasm on the device. FTS indexes do not automatically track subsequent table edits. Empty retrieval produces an insufficient-evidence reply without invoking answer generation.
+Both collections return up to ten matches, ordered by descending BM25 score and document ID to break ties. Queries use bound parameters. Retrieval first tokenizes the query with the saved index's analyzer and removes that index's stopwords before stemming, then binds the normalized text to the BM25 statement. The original user message and resolved search query stay intact in the conversation and Sources. This normalization does not rebuild the index. Retrieval runs in DuckDB-Wasm on the device. FTS indexes do not automatically track subsequent table edits. Empty retrieval produces an insufficient-evidence reply without invoking answer generation.
 
 The index files live in the browser's Origin Private File System, not the Downloads folder. Native index construction and earlier scaling measurements are documented in [the experiment notes](docs/experiments.md). The original persistence experiments were based on [DuckDB's OPFS article](https://duckdb.org/2026/09/18/opfs-wasm).
 
 ## Local model and context
 
-Click **Download model (~1.84 GB)** in Chat or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). A Web Worker uses Transformers.js, WebGPU, `q4f16` weights, and the model's direct-answer template with thinking disabled. The pinned model revision is shared by loading and tokenizer discovery.
+Click **Download model (~1.84 GB)** in Chat or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). A Web Worker uses Transformers.js, WebGPU, `q4f16` weights, and the model's supported thinking template. The pinned model revision is shared by loading and tokenizer discovery. Stream parsing keeps reasoning separate from the final answer, including when the template prefills the opening thinking tag.
 
-Follow-up rewriting uses deterministic decoding with a 128-token output limit. Answers retain the 512-token output limit. Both operations receive up to three recent turns; user questions and completed assistant replies are limited to 750 tokens by dropping the oldest exchanges. Instructions, the current message, history, and fitted documents share the 3,500-token answer input budget. A notice appears when earlier context is omitted; the saved transcript remains complete.
+Follow-up rewriting uses deterministic decoding with up to 512 reasoning tokens followed by a 128-token query limit. Answer generation allows up to 1,024 reasoning tokens followed by the existing 512-token answer limit. The limits apply separately, so reasoning does not consume the final-output allowance. If the model reaches its reasoning limit, the worker closes the same assistant's reasoning prefix and requests a bounded final output. Empty answers or invalid final queries still expose **Retry**; reasoning is never presented as an answer or used as a guessed search query.
 
-Previous answers help resolve references but are not factual evidence. Answer instructions require citations from the current fitted documents and preserve uncertainty. These constraints do not guarantee model accuracy: inspect cited sources, especially for research questions. The browser quality checks and remaining model limitations are described in [chat validation](docs/chat-validation.md).
+Both operations receive up to three recent turns; user questions and completed final replies are limited to 750 tokens by dropping the oldest exchanges. Reasoning is excluded from that history. Instructions, the current message, history, and fitted documents share the 3,500-token initial answer input budget. A finalization request also includes the reasoning generated during that turn, so its input can exceed the initial budget. A notice appears when earlier conversation context is omitted; the saved transcript remains complete.
+
+Previous answers help resolve references but are not factual evidence. Answer instructions request one to three sentences, with one sentence sufficient when it answers the question; unrelated findings should not pad the reply. They require citations from the current fitted documents and explain partial support and uncertainty. Background claims must remain distinct from measured study results, and associations must remain distinct from causal effects. The insufficient-evidence reply is reserved for evidence that supports no relevant statement. These constraints do not guarantee model accuracy: inspect cited sources, especially for research questions. The browser quality checks and remaining model limitations are described in [chat validation](docs/chat-validation.md).
 
 Cached model files load automatically on supported devices using `local_files_only`; missing files never trigger an automatic download. Recovery offers **Download model**, **Download missing files**, or **Retry loading** according to the failure. Explicit repair can remove invalid cached configuration entries while retaining valid weights. **Cancel download** and **Cancel loading** also invalidate queued initialization. Completed cached files remain available; unfinished files may download again.
 
@@ -54,7 +58,7 @@ Transfer shows cumulative downloaded bytes with an indeterminate bar because ind
 
 ## Saved conversations and storage
 
-Conversations use a versioned, asynchronous IndexedDB repository. Submitted turns, retrieval snapshots, settled answers, and citation metadata are saved. Streaming text is checkpointed at most once per second. Writes are serialized so a slow earlier save cannot overwrite a later answer. The newest 50 nonempty conversations are retained, titled from their first question.
+Conversations use a versioned, asynchronous IndexedDB repository. Submitted turns, retrieval snapshots, settled answers, separate reasoning text, and citation metadata are saved. Streaming answer and reasoning text are checkpointed at most once per second. Writes are serialized so a slow earlier save cannot overwrite a later answer. The newest 50 nonempty conversations are retained, titled from their first question.
 
 Existing localStorage search history imports as individual one-turn conversations with deterministic IDs. Timestamps, sources, answers, and stopped status are preserved. The import marker commits with the imported conversations to prevent duplicates; original legacy data is retained until **Clear history**.
 
@@ -75,6 +79,8 @@ src/model-service.ts          DOM-independent model lifecycle and cancellable op
 src/llm-controller.ts         Existing model controls and safe answer rendering
 src/llm-worker.ts             Query resolution, context fitting, and streamed inference
 src/rag.ts                    Prompts, token budgets, and citation filtering
+src/generation-output.ts      Streaming reasoning/final-answer separation
+src/generation-budget.ts      Separate reasoning and final-output token limits
 src/conversations.ts          Observable store and versioned IndexedDB repository
 src/chat-controller.ts        Stage orchestration, cancellation, and retries
 src/chat-view.ts               Transcript, composer, sources, and searchable history
@@ -91,7 +97,7 @@ npm run typecheck
 npm run build -- --base=/ragbox/
 ```
 
-Tests cover retrieval, context fitting, worker lifecycle, orchestration, migration, serialized saves, retention, and recovery. A supported-browser smoke test with the real cached model is also required; mocks cannot establish answer quality. See [chat validation](docs/chat-validation.md) for the review sequence and browser checks.
+Tests cover retrieval, context fitting, reasoning and final-output separation, generation budgets, worker lifecycle, orchestration, migration, serialized saves, retention, and recovery. A supported-browser smoke test with the real cached model is also required; mocks cannot establish answer quality. See [chat validation](docs/chat-validation.md) for the review sequence and browser checks.
 
 The workflow in `.github/workflows/pages.yml` builds and deploys on pushes to `main` or manual runs. Set GitHub Pages **Source** to **GitHub Actions**. The workflow downloads BEIR NFCorpus and includes the prepared data in `dist/`; Vite's deployment base comes from Pages metadata. Workers, datasets, navigation, and Settings links support deployment under `/ragbox/`.
 

@@ -95,7 +95,7 @@ function restoreConversation(value: Conversation): Conversation | undefined {
   const phases = new Set(['complete', 'stopped', 'error', 'blocked']);
   const turns = value.turns.filter(turn => turn && typeof turn.id === 'string' && typeof turn.question === 'string' && validResults(turn.results)).map(turn => ({
     ...turn, history: Array.isArray(turn.history) ? turn.history.filter(message => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string') : [],
-    answer: typeof turn.answer === 'string' ? turn.answer : '', includedIds: Array.isArray(turn.includedIds) ? turn.includedIds : [], citedIds: Array.isArray(turn.citedIds) ? turn.citedIds : [],
+    answer: typeof turn.answer === 'string' ? turn.answer : '', thinking: typeof turn.thinking === 'string' ? turn.thinking : '', includedIds: Array.isArray(turn.includedIds) ? turn.includedIds : [], citedIds: Array.isArray(turn.citedIds) ? turn.citedIds : [],
     phase: phases.has(turn.phase) ? turn.phase : 'stopped' as const,
     message: phases.has(turn.phase) ? turn.message : 'Interrupted by a page reload. Retry to continue.',
   }));

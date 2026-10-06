@@ -97,6 +97,63 @@ describe('chat orchestration', () => {
     expect(h.latest()).toMatchObject({ phase: 'stopped', answer: 'Partial [MED-1]', citedIds: ['MED-1'] });
     await h.chat.retry(); expect(h.resources.retrieve).toHaveBeenCalledOnce(); expect(h.store.current().turns).toHaveLength(1); expect(h.latest().phase).toBe('complete');
   });
+  it('uses only the final answer for citations and subsequent conversation history', async () => {
+    const h = await harness();
+    h.resources.retrieve.mockResolvedValueOnce({ documents: [...documents, { ...documents[0], id: 'MED-2', text: 'Final evidence' }], elapsedMs: 1 });
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      options.onContext?.(['MED-1', 'MED-2'], false);
+      options.onThinkingDelta?.('Private comparison [MED-1] and unknown [MED-404].');
+      expect(h.latest().answer).toBe(''); expect(h.latest().citedIds).toEqual([]);
+      options.onDelta?.('Final finding [MED-2].');
+      return { answer: 'Final finding [MED-2].', thinking: 'Private comparison [MED-1] and unknown [MED-404].', documentIds: ['MED-1', 'MED-2'] };
+    });
+    await h.chat.send('coffee');
+    expect(h.latest()).toMatchObject({ phase: 'complete', answer: 'Final finding [MED-2].', thinking: 'Private comparison [MED-1] and unknown [MED-404].', citedIds: ['MED-2'] });
+    await h.chat.send('What about it?');
+    expect(h.model.resolveQuery).toHaveBeenCalledWith('What about it?', [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Final finding [MED-2].' }], expect.any(AbortSignal), operation);
+    expect(h.latest().history.some(message => message.content.includes('Private comparison'))).toBe(false);
+    expect(h.model.generateAnswer.mock.calls[1][0].history).toEqual(h.latest().history);
+  });
+  it('saves stopped reasoning with no answer and resets it on Retry without creating another turn', async () => {
+    const h = await harness(); const result = deferred<{ answer: string; thinking: string; documentIds: string[] }>();
+    let oldOptions!: Parameters<ModelService['generateAnswer']>[0];
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      oldOptions = options; options.onContext?.(['MED-1'], false); options.onThinkingDelta?.('Unfinished comparison [MED-1].');
+      return result.promise;
+    });
+    const sending = h.chat.send('coffee'); await vi.waitFor(() => expect(h.latest().thinking).toBe('Unfinished comparison [MED-1].'));
+    const id = h.latest().id; h.chat.stop();
+    oldOptions.onThinkingDelta?.(' Late reasoning'); oldOptions.onDelta?.('Late answer [MED-1].');
+    result.resolve({ answer: 'Late answer [MED-1].', thinking: 'Late reasoning', documentIds: ['MED-1'] }); await sending;
+    expect(h.latest()).toMatchObject({ id, phase: 'stopped', thinking: 'Unfinished comparison [MED-1].', answer: '', citedIds: [] });
+    await h.store.flush(); expect(h.repository.saved.get(h.store.current().id)!.turns[0]).toMatchObject({ thinking: 'Unfinished comparison [MED-1].', answer: '', phase: 'stopped' });
+    const retryResult = deferred<{ answer: string; thinking: string; documentIds: string[] }>();
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      expect(h.latest()).toMatchObject({ id, phase: 'generating', thinking: '', answer: '', citedIds: [] });
+      options.onContext?.(['MED-1'], false); options.onThinkingDelta?.('Fresh comparison');
+      return retryResult.promise;
+    });
+    const retrying = h.chat.retry(); await vi.waitFor(() => expect(h.latest().thinking).toBe('Fresh comparison'));
+    oldOptions.onThinkingDelta?.(' More stale reasoning'); expect(h.latest().thinking).toBe('Fresh comparison');
+    retryResult.resolve({ answer: 'Fresh finding [MED-1].', thinking: 'Fresh comparison', documentIds: ['MED-1'] }); await retrying;
+    expect(h.store.current().turns).toHaveLength(1); expect(h.resources.retrieve).toHaveBeenCalledOnce();
+    expect(h.latest()).toMatchObject({ id, phase: 'complete', thinking: 'Fresh comparison', answer: 'Fresh finding [MED-1].', citedIds: ['MED-1'] });
+  });
+  it('keeps abandoned reasoning attached to its old turn and ignores events after New chat', async () => {
+    const h = await harness(); const result = deferred<{ answer: string; thinking: string; documentIds: string[] }>();
+    let oldOptions!: Parameters<ModelService['generateAnswer']>[0];
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      oldOptions = options; options.onContext?.(['MED-1'], false); options.onThinkingDelta?.('Old comparison [MED-1].');
+      return result.promise;
+    });
+    const sending = h.chat.send('coffee'); await vi.waitFor(() => expect(h.latest().thinking).toBe('Old comparison [MED-1].'));
+    const oldConversation = h.store.current().id; h.chat.newChat(); await h.chat.send('New subject');
+    oldOptions.onThinkingDelta?.(' Late'); oldOptions.onDelta?.('Late answer [MED-1].');
+    result.resolve({ answer: 'Late answer [MED-1].', thinking: 'Old comparison Late', documentIds: ['MED-1'] }); await sending;
+    expect(h.store.get(oldConversation)!.turns[0]).toMatchObject({ phase: 'stopped', thinking: 'Old comparison [MED-1].', answer: '', citedIds: [] });
+    expect(h.latest()).toMatchObject({ phase: 'complete', question: 'New subject', thinking: '', answer: 'A finding [MED-1].' });
+    expect(h.store.current().turns).toHaveLength(1);
+  });
   it('restores separate chats per collection and does not resume saved unanswered turns automatically', async () => {
     const h = await harness(); await h.chat.send('coffee'); const nf = h.store.current().id;
     h.chat.select('msmarco'); await h.chat.send('thunder'); expect(h.resources.retrieve).toHaveBeenLastCalledWith('msmarco', 'thunder', operation);
