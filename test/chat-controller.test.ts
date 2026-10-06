@@ -31,6 +31,19 @@ async function harness() {
 }
 
 describe('chat orchestration', () => {
+  it('replaces a rejected citation draft within the same saved turn and preserves reasoning', async () => {
+    const h = await harness();
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      options.onContext?.(['MED-1'], false); options.onThinkingDelta?.('Compare the sources.');
+      options.onDelta?.('Wrong [SOURCE-1].'); options.onAnswerReset?.();
+      expect(h.latest()).toMatchObject({ answer: '', citedIds: [], thinking: 'Compare the sources.', message: 'Checking citations…' });
+      return { answer: 'Correct [MED-1].', documentIds: ['MED-1'] };
+    });
+    await h.chat.send('coffee'); await h.store.flush();
+    expect(h.store.current().turns).toHaveLength(1);
+    expect(h.latest()).toMatchObject({ phase: 'complete', answer: 'Correct [MED-1].', citedIds: ['MED-1'], thinking: 'Compare the sources.' });
+    expect(h.repository.saved.get(h.store.current().id)!.turns[0].answer).toBe('Correct [MED-1].');
+  });
   it('keeps submitted effort through retrieval and retry when the preference changes', async () => {
     const h = await harness(); h.store.setThinkingEffort('high');
     const retrieval = deferred<RetrievalResult>(); h.resources.retrieve.mockReturnValueOnce(retrieval.promise);

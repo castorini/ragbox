@@ -39,6 +39,7 @@ export interface GenerateOptions {
   thinkingEffort?: ThinkingEffort;
   operation?: ChatOperation;
   onDelta?: (text: string) => void;
+  onAnswerReset?: () => void;
   onThinkingDelta?: (text: string) => void;
   onContext?: (ids: string[], limited: boolean) => void;
   onError?: (error: Error) => void;
@@ -558,6 +559,11 @@ export class ModelService {
       session.text = request.answerText;
       session.options.onDelta?.(message.text);
       this.renderSession(request.corpus, session.text, session.targets);
+    } else if (message.type === 'answer-reset') {
+      session.text = request.answerText = '';
+      session.message = 'Checking citations…';
+      session.options.onAnswerReset?.();
+      this.renderSession(request.corpus, '', session.targets);
     } else if (message.type === 'complete') {
       if (!String(message.answer ?? '').trim()) {
         this.handleWorkerMessage({ type: 'error', operation: 'generate', requestId: request.id,

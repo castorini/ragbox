@@ -14,6 +14,8 @@ import {
   fitHistory,
   fitDocumentsToTokenBudget,
   validateResolvedQuery,
+  citationCorrectionMessages,
+  needsCitationCorrection,
 } from './rag.ts';
 import { parseGenerationOutput } from './generation-output.ts';
 import { GenerationTokenBudget } from './generation-budget.ts';
@@ -310,13 +312,34 @@ async function generate({ requestId, question, documents, history = [], searchQu
       const final = parseGenerationOutput(generatedText(finalOutput, finalStream), false);
       parsed = { ...final, thinking: thinking + final.thinking };
     }
-    const answer = parsed.answer.trim();
+    let answer = parsed.answer.trim();
     if (!answer.trim()) throw new Error('The model stopped before producing an answer. Retry answer.');
+    let answerDocuments = fitted;
+    if (needsCitationCorrection(answer, fitted.map(document => document.id))) {
+      // One correction only, under the same request and cancellation identity.
+      // Scrub draft citation markers and never stream an unchecked repair.
+      report({ type: 'answer-reset', requestId });
+      answerDocuments = await fitDocumentsToTokenBudget(question, fitted, async candidate =>
+        model.tokenizer.encode(finalAnswerPrefix(model, citationCorrectionMessages(candidate, answer), ''), { add_special_tokens: false }).length,
+      MAX_INPUT_TOKENS, context.history, searchQuery);
+      if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+      if (!answerDocuments.length) throw new Error('Citation correction could not fit the evidence. Retry answer.');
+      report({ type: 'context', requestId, documentIds: answerDocuments.map(document => document.id), contextLimited: context.limited });
+      const correction = await model(finalAnswerPrefix(model, citationCorrectionMessages(buildMessages(question, answerDocuments, context.history, searchQuery), answer), ''), {
+        max_new_tokens: MAX_ANSWER_TOKENS, do_sample: false, stopping_criteria: [stoppingCriteria],
+        return_full_text: false, add_special_tokens: false,
+      });
+      if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
+      answer = parseGenerationOutput(generatedText(correction, ''), false).answer.trim();
+      if (!answer || needsCitationCorrection(answer, answerDocuments.map(document => document.id))) {
+        throw new Error('The model could not produce an answer with valid source citations. Retry answer.');
+      }
+    }
     report({ type: 'complete',
       requestId,
       answer,
       thinking: parsed.thinking.trim(),
-      documentIds: fitted.map(document => document.id),
+      documentIds: answerDocuments.map(document => document.id),
     });
   } catch (error) {
     if (state.cancelled) report({ type: 'cancelled', requestId });

@@ -101,6 +101,7 @@ export class ChatController {
         corpus: conversation.corpus, question: turn.question, searchQuery: query, documents: retrieved.results, history, thinkingEffort: turn.thinkingEffort, operation,
         citationTargets: new Map(retrieved.results.map(document => [document.id, document.id])),
         onContext: (ids, limited) => this.update(attempt, { includedIds: ids, contextLimited: turn.contextLimited || limited }),
+        onAnswerReset: () => this.update(attempt, { answer: '', citedIds: [], message: 'Checking citations…' }),
         onThinkingDelta: text => {
           if (!this.valid(attempt)) return;
           const current = this.turn(attempt)!;
