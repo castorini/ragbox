@@ -115,6 +115,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
+  it.each([
+    ['low', 256], ['balanced', 1024], ['high', 2048], [undefined, 1024], ['invalid', 1024],
+  ] as const)('enforces effort %s while preserving the separate final-answer allowance', async (effort, limit) => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        expect(options).toMatchObject({ max_new_tokens: limit + 512 });
+        const tokens = options.streamer!.options.token_callback_function!;
+        const criterion = options.stopping_criteria!.at(-1)!;
+        tokens(new Array<bigint>(limit - 1).fill(9n)); expect(criterion._call([[99]])).toEqual([false]);
+        tokens([9n]); expect(criterion._call([[99]])).toEqual([true]);
+        options.streamer!.options.callback_function('Budgeted reasoning.');
+        return generatedOutput(messages, 'Budgeted reasoning.');
+      }
+      expect(options).toMatchObject({ max_new_tokens: 512 });
+      options.streamer!.options.callback_function('Final finding [MED-14].');
+      return generatedOutput(messages, 'Final finding [MED-14].');
+    });
+    harness.generate({ thinkingEffort: effort as Extract<WorkerRequest, { type: 'generate' }>['thinkingEffort'] });
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Final finding [MED-14].', thinking: 'Budgeted reasoning.' });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+  });
   it('uses thinking mode for budgeting and generation while streaming only final text as the answer', async () => {
     const harness = await createHarness({ chunks: ['Check evidence first.', '</think>A useful ', 'fact [MED-14].'] });
     const finish = deferred();

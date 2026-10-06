@@ -1,5 +1,5 @@
 import { errorMessage } from './errors.ts';
-import type { ChatMessage, ChatOperation, Corpus, EvidenceDocument, ModelCacheAvailability, ModelStatus, WorkerRequest, WorkerResponse } from './types.ts';
+import type { ChatMessage, ChatOperation, Corpus, EvidenceDocument, ModelCacheAvailability, ModelStatus, ThinkingEffort, WorkerRequest, WorkerResponse } from './types.ts';
 import { inspectModelCache } from './model-readiness.ts';
 import { formatBytes } from './format.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
@@ -36,6 +36,7 @@ export interface GenerateOptions {
   searchToken?: number;
   history?: ChatMessage[];
   searchQuery?: string;
+  thinkingEffort?: ThinkingEffort;
   operation?: ChatOperation;
   onDelta?: (text: string) => void;
   onThinkingDelta?: (text: string) => void;
@@ -400,7 +401,7 @@ export class ModelService {
     this.setFeedback(corpus, '');
     this.updateControls();
     this.ensureWorker().postMessage({ type: 'generate', requestId: id, corpus, question,
-      history: session.options.history, searchQuery: session.options.searchQuery, operation: session.options.operation,
+      history: session.options.history, searchQuery: session.options.searchQuery, thinkingEffort: session.options.thinkingEffort, operation: session.options.operation,
       documents: documents.map(document => ({ id: String(document.id), title: String(document.title ?? ''), text: String(document.text ?? '') })),
     } satisfies WorkerRequest);
     return true;

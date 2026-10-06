@@ -7,6 +7,25 @@ afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 const legacy = { id: 'h1', time: 1, corpus: 'nfcorpus', query: 'coffee', results: [{ id: 'MED-1', title: 'Sleep evidence', text: 'Text', score: 2 }], answer: 'Finding [MED-1].', citedIds: ['MED-1'], answerStatus: 'stopped' };
 
 describe('conversation persistence', () => {
+  it('saves the effort preference and captures it independently for each submitted turn', async () => {
+    const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize();
+    expect(store.thinkingEffort).toBe('balanced');
+    store.setThinkingEffort('high'); const first = store.append('q1', [], false);
+    store.setThinkingEffort('low'); store.append('q2', [], false); await store.flush();
+    const restored = new ConversationStore(repository); await restored.initialize();
+    expect(restored.thinkingEffort).toBe('low');
+    expect(restored.current().turns.map(turn => turn.thinkingEffort)).toEqual(['high', 'low']);
+    expect(first.thinkingEffort).toBe('high');
+    store.setThinkingEffort('invalid'); expect(store.thinkingEffort).toBe('balanced');
+  });
+  it('defaults older and malformed saved effort preferences and turns to Balanced', async () => {
+    const older = importLegacyHistory(JSON.stringify([legacy]))[0];
+    older.turns[0].thinkingEffort = 'unbounded' as never;
+    const repository = memoryRepository([older]);
+    vi.mocked(repository.load).mockResolvedValueOnce({ conversations: [older], imported: true, navigation: { selected: 'nfcorpus', active: {}, thinkingEffort: 'unbounded' as never } });
+    const restored = new ConversationStore(repository); await restored.initialize();
+    expect(restored.thinkingEffort).toBe('balanced'); expect(restored.current().turns[0].thinkingEffort).toBe('balanced');
+  });
   it('imports legacy searches with deterministic IDs, stopped answers, and document snapshots', () => {
     const imported = importLegacyHistory(JSON.stringify([legacy, { bad: true }]));
     expect(imported).toHaveLength(1); expect(imported[0]).toMatchObject({ id: 'legacy-h1', createdAt: 1, turns: [{ phase: 'stopped', includedIds: ['MED-1'], results: legacy.results }] });

@@ -1,4 +1,5 @@
 export type Corpus = 'nfcorpus' | 'msmarco';
+export type ThinkingEffort = 'low' | 'balanced' | 'high';
 
 export interface EvidenceDocument {
   id: string;
@@ -19,6 +20,7 @@ export interface ChatTurn {
   results: SearchResult[];
   answer: string;
   thinking?: string;
+  thinkingEffort?: ThinkingEffort;
   includedIds: string[];
   citedIds: string[];
   phase: TurnPhase;
@@ -59,7 +61,7 @@ export interface ModelStatus {
 
 export type WorkerRequest =
   | { type: 'load'; cachedOnly?: boolean; loadId?: number }
-  | { type: 'generate'; requestId: string; corpus: Corpus; question: string; documents: EvidenceDocument[]; history?: ChatMessage[]; searchQuery?: string; operation?: ChatOperation }
+  | { type: 'generate'; requestId: string; corpus: Corpus; question: string; documents: EvidenceDocument[]; history?: ChatMessage[]; searchQuery?: string; thinkingEffort?: ThinkingEffort; operation?: ChatOperation }
   | { type: 'resolve-query'; requestId: string; question: string; history: ChatMessage[]; operation?: ChatOperation }
   | { type: 'cancel'; requestId: string };
 

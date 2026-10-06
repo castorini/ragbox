@@ -17,6 +17,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const form = requiredElement<HTMLFormElement>('#chat-form');
   const query = requiredElement<HTMLTextAreaElement>('#chat-query');
   const send = requiredElement<HTMLButtonElement>('#chat-send');
+  const effort = requiredElement<HTMLSelectElement>('#chat-thinking-effort');
   const transcript = requiredElement<HTMLElement>('#chat-transcript');
   const title = requiredElement<HTMLElement>('#chat-title');
   const empty = requiredElement<HTMLElement>('#chat-empty');
@@ -45,9 +46,12 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   form.onsubmit = event => { event.preventDefault(); if (controller.running) controller.stop(); else submit(); };
   query.onkeydown = event => handleComposerKey(event, submit);
   query.oninput = () => { store.setDraft(query.value); resize(); renderControls(); };
+  effort.onchange = () => { store.setThinkingEffort(effort.value); };
   requiredElement<HTMLButtonElement>('#chat-new').onclick = () => { controller.newChat(); query.focus(); };
 
   function renderControls() {
+    effort.value = store.thinkingEffort;
+    effort.disabled = !store.initialized;
     send.textContent = controller.running ? 'Stop' : 'Send';
     send.setAttribute('aria-label', controller.running ? 'Stop current reply' : 'Send message');
     send.disabled = controller.running ? false : !controller.canSend() || !query.value.trim();

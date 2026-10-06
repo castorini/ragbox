@@ -379,6 +379,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-input-row textarea{flex:1;width:100%;min-width:0;min-height:44px;max-height:150px;border:0;resize:none;font:inherit;font-size:15px;line-height:24px;padding:10px 12px;background:transparent;outline:none;box-sizing:border-box}
 .chat-input-row button{min-width:72px;min-height:44px;flex-shrink:0}
 .chat-composer-hint{font-size:11px;color:var(--muted);margin:8px 12px 0}
+.chat-composer-options{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:8px 12px 0;font-size:12px}
+.chat-composer-options select{width:auto;min-height:32px;margin:0;padding:4px 8px;font:inherit}
+.chat-composer-options span{color:var(--muted);font-size:11px}
 #search-view #corpus-dashboard{margin:10px 0 36px;order:5}
 .conversation-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px;overflow-wrap:anywhere}
 .conversation-card h2{font-size:17px;margin:0 0 8px}

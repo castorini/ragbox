@@ -31,6 +31,26 @@ async function harness() {
 }
 
 describe('chat orchestration', () => {
+  it('keeps submitted effort through retrieval and retry when the preference changes', async () => {
+    const h = await harness(); h.store.setThinkingEffort('high');
+    const retrieval = deferred<RetrievalResult>(); h.resources.retrieve.mockReturnValueOnce(retrieval.promise);
+    h.model.generateAnswer.mockRejectedValueOnce(new Error('Generation failed'));
+    const sending = h.chat.send('coffee'); h.store.setThinkingEffort('low');
+    retrieval.resolve({ documents, elapsedMs: 1 }); await sending;
+    expect(h.latest().phase).toBe('error');
+    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('high');
+    await h.chat.retry();
+    expect(h.model.generateAnswer.mock.calls[1][0].thinkingEffort).toBe('high');
+    expect(h.store.current().turns).toHaveLength(1); expect(h.latest().phase).toBe('complete');
+    await h.chat.send('And blood pressure?');
+    expect(h.model.generateAnswer.mock.calls[2][0].thinkingEffort).toBe('low');
+  });
+  it('keeps captured effort when model recovery resumes a keyword-only turn', async () => {
+    const h = await harness(); h.model.setState('idle'); h.store.setThinkingEffort('low');
+    await h.chat.send('coffee'); h.store.setThinkingEffort('high'); h.model.setState('ready');
+    await vi.waitFor(() => expect(h.latest().phase).toBe('complete'));
+    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('low');
+  });
   it('retrieves the first question directly and resolves a follow-up with the completed conversation', async () => {
     const h = await harness();
     await h.chat.send('coffee');

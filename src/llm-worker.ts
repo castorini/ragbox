@@ -17,6 +17,7 @@ import {
 } from './rag.ts';
 import { parseGenerationOutput } from './generation-output.ts';
 import { GenerationTokenBudget } from './generation-budget.ts';
+import { thinkingTokenLimit } from './thinking-effort.ts';
 import { errorMessage } from './errors.ts';
 import type { ModelFailureReason, ModelProgress, WorkerRequest, WorkerResponse } from './types.ts';
 import { modelCachePath, MODEL_ID, MODEL_REMOTE_PATH_TEMPLATE, MODEL_REVISION } from './model-cache.ts';
@@ -82,7 +83,6 @@ env.fetch = async (...args) => {
 };
 
 const MAX_INPUT_TOKENS = 3500;
-const MAX_THINKING_TOKENS = 1024;
 const MAX_ANSWER_TOKENS = 512;
 const MAX_QUERY_THINKING_TOKENS = 512;
 const MAX_QUERY_TOKENS = 128;
@@ -213,7 +213,7 @@ function generatedText(output: unknown, streamed: string): string {
   return typeof generated === 'string' ? generated : streamed;
 }
 
-async function generate({ requestId, question, documents, history = [], searchQuery = question }: Extract<WorkerRequest, { type: 'generate' }>) {
+async function generate({ requestId, question, documents, history = [], searchQuery = question, thinkingEffort }: Extract<WorkerRequest, { type: 'generate' }>) {
   if (cancelledRequestIds.delete(requestId)) {
     report({ type: 'cancelled', requestId });
     return;
@@ -245,7 +245,8 @@ async function generate({ requestId, question, documents, history = [], searchQu
       contextLimited: context.limited,
     });
     const messages = buildMessages(question, fitted, context.history, searchQuery);
-    const budget = outputBudget(model, MAX_THINKING_TOKENS, MAX_ANSWER_TOKENS);
+    const thinkingLimit = thinkingTokenLimit(thinkingEffort);
+    const budget = outputBudget(model, thinkingLimit, MAX_ANSWER_TOKENS);
     let streamed = '';
     let visibleLength = 0;
     let thinkingLength = 0;
@@ -277,7 +278,7 @@ async function generate({ requestId, question, documents, history = [], searchQu
 
     const sampling = { do_sample: true, temperature: 1.0, top_p: 0.95, top_k: 0, repetition_penalty: 1.0 };
     const output = await model(messages, {
-      max_new_tokens: MAX_THINKING_TOKENS + MAX_ANSWER_TOKENS,
+      max_new_tokens: thinkingLimit + MAX_ANSWER_TOKENS,
       ...sampling,
       streamer,
       stopping_criteria: [stoppingCriteria, new OutputBudgetCriteria(budget)],

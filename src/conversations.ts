@@ -1,8 +1,9 @@
-import type { ChatTurn, Conversation, Corpus, SearchResult } from './types.ts';
+import type { ChatTurn, Conversation, Corpus, SearchResult, ThinkingEffort } from './types.ts';
+import { DEFAULT_THINKING_EFFORT, normalizeThinkingEffort } from './thinking-effort.ts';
 
 export const CONVERSATION_LIMIT = 50;
 const LEGACY_KEY = 'ragbox-search-history';
-export interface NavigationSnapshot { selected: Corpus; active: Partial<Record<Corpus, string>> }
+export interface NavigationSnapshot { selected: Corpus; active: Partial<Record<Corpus, string>>; thinkingEffort?: ThinkingEffort }
 export interface ConversationRepository {
   load(): Promise<{ conversations: Conversation[]; navigation?: NavigationSnapshot; imported: boolean }>;
   save(conversation: Conversation): Promise<void>;
@@ -95,7 +96,7 @@ function restoreConversation(value: Conversation): Conversation | undefined {
   const phases = new Set(['complete', 'stopped', 'error', 'blocked']);
   const turns = value.turns.filter(turn => turn && typeof turn.id === 'string' && typeof turn.question === 'string' && validResults(turn.results)).map(turn => ({
     ...turn, history: Array.isArray(turn.history) ? turn.history.filter(message => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string') : [],
-    answer: typeof turn.answer === 'string' ? turn.answer : '', thinking: typeof turn.thinking === 'string' ? turn.thinking : '', includedIds: Array.isArray(turn.includedIds) ? turn.includedIds : [], citedIds: Array.isArray(turn.citedIds) ? turn.citedIds : [],
+    answer: typeof turn.answer === 'string' ? turn.answer : '', thinking: typeof turn.thinking === 'string' ? turn.thinking : '', thinkingEffort: normalizeThinkingEffort(turn.thinkingEffort), includedIds: Array.isArray(turn.includedIds) ? turn.includedIds : [], citedIds: Array.isArray(turn.citedIds) ? turn.citedIds : [],
     phase: phases.has(turn.phase) ? turn.phase : 'stopped' as const,
     message: phases.has(turn.phase) ? turn.message : 'Interrupted by a page reload. Retry to continue.',
   }));
@@ -112,6 +113,8 @@ export class ConversationStore {
   private pending = new Map<string, Conversation>();
   private timestamp = 0;
   selected: Corpus = 'nfcorpus';
+  private effort: ThinkingEffort = DEFAULT_THINKING_EFFORT;
+  get thinkingEffort() { return this.effort; }
   initialized = false;
   unsaved = '';
   constructor(private repository: ConversationRepository = new IndexedDBConversations(), private legacy = storage()) {}
@@ -124,6 +127,7 @@ export class ConversationStore {
   async initialize() {
     try {
       const loaded = await this.repository.load();
+      this.effort = normalizeThinkingEffort(loaded.navigation?.thinkingEffort);
       let legacy: Conversation[] = [];
       let legacyReadable = true;
       if (!loaded.imported) {
@@ -159,10 +163,14 @@ export class ConversationStore {
   draft() { return this.drafts.get(this.current().id) ?? ''; }
   setDraft(value: string) { this.drafts.set(this.current().id, value); }
   private navigation() {
-    const snapshot: NavigationSnapshot = { selected: this.selected, active: { ...this.active } };
+    const snapshot: NavigationSnapshot = { selected: this.selected, active: { ...this.active }, thinkingEffort: this.effort };
     this.write(() => this.repository.navigate(snapshot));
   }
   select(corpus: Corpus) { this.selected = corpus; this.current(); this.navigation(); this.notify(); }
+  setThinkingEffort(value: unknown) {
+    this.effort = normalizeThinkingEffort(value);
+    this.navigation(); this.notify();
+  }
   open(conversationId: string) {
     const conversation = this.items.get(conversationId);
     if (!conversation) return;
@@ -181,7 +189,7 @@ export class ConversationStore {
   }
   append(question: string, history: ChatTurn['history'], contextLimited: boolean) {
     const conversation = this.current();
-    const turn: ChatTurn = { id: id('turn'), question, history, contextLimited, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
+    const turn: ChatTurn = { id: id('turn'), question, history, contextLimited, thinkingEffort: this.effort, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
     const updated = { ...conversation, title: conversation.turns.length ? conversation.title : question, updatedAt: this.now(), turns: [...conversation.turns, turn] };
     this.items.set(updated.id, updated); this.drafts.set(updated.id, ''); this.persist(updated); this.retain(); this.navigation(); this.notify();
     return turn;

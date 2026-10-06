@@ -17,7 +17,7 @@ npm run typecheck
 npm run build -- --base=/ragbox/
 ```
 
-The prompt, thinking-mode, and query-normalization update passes **285 tests in 25 files**, all four TypeScript projects, and the production build with the `/ragbox/` base. The original 180-test coverage is retained, with conversation, service, worker, context, reasoning-parser, generation-budget, and shared-retrieval checks added.
+The prompt, thinking-mode, query-normalization, and effort-control update passes **294 tests in 25 files**, all four TypeScript projects, and the production build with the `/ragbox/` base. The original 180-test coverage is retained, with conversation, service, worker, context, reasoning-parser, generation-budget, and shared-retrieval checks added.
 
 The new checks cover:
 
@@ -25,6 +25,7 @@ The new checks cover:
 - Stop during retrieval, resolution, generation, and model waiting; stale worker responses; worker failure; collection changes; New chat; recovery; retries using the same turn and generation snapshot.
 - Thinking-template output with a prefilled opening tag; case-insensitive and repeated thinking markers; partial marker suffixes at every streaming boundary; interrupted reasoning; monotonic reasoning and final-answer channels; separate token limits for reasoning, answers, and rewritten queries; bounded finalization when the reasoning cap is reached.
 - Stop during reasoning with an empty final answer; stale thinking events after cancellation and New chat; Retry clearing prior reasoning while retaining the same turn and source snapshot; reasoning excluded from final citations and follow-up history.
+- Low (256), Balanced (1,024), and High (2,048) reasoning-token caps with the same separate 512-token final allowance; malformed effort values defaulting to Balanced; saved preferences and per-turn effort; changes during retrieval and retries retaining the submitted choice; model recovery retaining the pending turn's effort. Query rewriting keeps its separate fixed budget.
 - Source snapshots and citation metadata surviving later questions and reload; distinct source anchors; unknown citation IDs remaining unlinked.
 - Deterministic legacy imports and their marker; blocked legacy storage; interrupted turns; separate saved reasoning and answer fields; interrupted reasoning restoring as Stopped; compatibility with older saves; serialized writes; one-second streaming checkpoints; storage failures; deterministic ordering and retention of 50 nonempty chats; clearing history.
 - Enter, Shift+Enter, and IME composition handling. Browser checks cover the actual focus and layout behavior.
@@ -32,6 +33,8 @@ The new checks cover:
 Mocked workers establish lifecycle behavior, not model answer quality. The BM25 unit checks cover both collection adapters; they are not a full MS MARCO benchmark.
 
 ## Thinking-mode browser smoke test
+
+On October 6, 2026, the thinking-effort control was checked in Chrome with the cached model under `/ragbox/`. High survived reload; changing the selector during a reply kept the reply running and the draft editable. At 390 × 844 the document width remained 390 and the composer bottom stayed at 844; the viewport override was reset. A Low-effort NFCorpus question about caffeine and blood pressure completed with 1,258 characters of folded reasoning and a separate cited final answer. Its MED-880 and MED-878 claims matched the saved studies, but it added an unnecessary sentence about intraocular pressure; effort controls do not eliminate the existing answer-quality limitations. A High-effort turn could be stopped after changing the preference, and Retry reused its single turn. The completed Low reply reopened from History with its reasoning still folded. Automated request and budget tests establish that in-flight turns and retries retain their captured cap; the browser observations are not a token-count or comparative-quality benchmark.
 
 Chrome was exercised on October 5, 2026 (America/Toronto), with the real cached MiniCPM5-2B model and a prepared NFCorpus index. This run checked the improved prompt and enabled thinking mode.
 

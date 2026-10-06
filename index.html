@@ -29,6 +29,7 @@
       <form id="chat-form" class="chat-composer">
         <label class="sr-only" for="chat-query">Message your document collection</label>
         <div class="chat-input-row"><textarea id="chat-query" rows="1" placeholder="Ask your documents…" required maxlength="500"></textarea><button id="chat-send" class="primary" type="submit" disabled>Send</button></div>
+        <div class="chat-composer-options"><label for="chat-thinking-effort">Thinking effort</label><select id="chat-thinking-effort" aria-describedby="chat-effort-help" disabled><option value="low">Low</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select><span id="chat-effort-help">Applies to the next message</span></div>
         <p class="chat-composer-hint">Enter to send · Shift+Enter for a new line · Up to 500 characters</p>
       </form>
     </section>
