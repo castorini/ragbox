@@ -9,6 +9,7 @@ const sectionActions: Record<string, string> = { '#model': '#llm-load' };
 export function setupCollectionChooser(
   onCollectionChange: (value: Corpus) => void = () => {},
   onHome: () => void = () => {},
+  chat = false,
 ) {
   const selector = requiredElement<HTMLSelectElement>('#collection-switch');
   const search = requiredElement<HTMLElement>('#search-view');
@@ -23,12 +24,13 @@ export function setupCollectionChooser(
     msmarco: requiredElement<HTMLElement>('#msmarco-collection'),
   };
   function selected(): Corpus { return selector.value === 'msmarco' ? 'msmarco' : 'nfcorpus'; }
+  function composer(value = selected()) { return chat ? '#chat-query' : value === 'nfcorpus' ? '#fts-query' : '#marco-query'; }
 
   function select(value: Corpus, notify = true) {
     selector.value = value;
     panels.nfcorpus.hidden = value !== 'nfcorpus';
     panels.msmarco.hidden = value !== 'msmarco';
-    if (currentView() === 'search') skipLink.href = value === 'nfcorpus' ? '#fts-query' : '#marco-query';
+    if (currentView() === 'search') skipLink.href = composer(value);
     if (notify) onCollectionChange(value);
   }
 
@@ -45,14 +47,14 @@ export function setupCollectionChooser(
       if (name === view) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     }
-    const label = view === 'setup' ? 'Settings' : view === 'history' ? 'History' : 'Search';
+    const label = view === 'setup' ? 'Settings' : view === 'history' ? 'History' : chat ? 'Chat' : 'Search';
     document.title = `${label} · ragbox`;
     const hash = new URL(window.location.href).hash;
     const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1))
       ? (hash === '#storage-management' ? '#collection-management' : hash) : undefined;
     const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'history'
       ? '#history-heading'
-      : (selected() === 'nfcorpus' ? '#fts-query' : '#marco-query');
+      : composer();
     skipLink.href = target;
     skipLink.textContent = `Skip to ${label.toLowerCase()}`;
     if (focus || sectionTarget) {
@@ -95,7 +97,7 @@ export function setupCollectionChooser(
 
   function goHome() {
     onHome();
-    for (const prefix of ['fts', 'marco']) {
+    if (!chat) for (const prefix of ['fts', 'marco']) {
       requiredElement<HTMLElement>(`#${prefix}-results-area`).hidden = true;
       requiredElement<HTMLElement>(`#${prefix}-results`).textContent = '';
       requiredElement<HTMLElement>(`#${prefix}-answer`).textContent = '';
@@ -132,7 +134,7 @@ export function setupCollectionChooser(
 
   selector.onchange = () => {
     select(selected());
-    if (!search.hidden) requiredElement<HTMLInputElement>(selected() === 'nfcorpus' ? '#fts-query' : '#marco-query').focus();
+    if (!search.hidden) requiredElement<HTMLElement>(composer()).focus();
   };
   window.addEventListener('popstate', () => showView(currentView()));
   select('nfcorpus', false);
@@ -141,7 +143,7 @@ export function setupCollectionChooser(
     selected,
     choose(value: Corpus) {
       select(value);
-      requiredElement<HTMLInputElement>(value === 'nfcorpus' ? '#fts-query' : '#marco-query').focus();
+      requiredElement<HTMLElement>(composer(value)).focus();
     },
     search(value: Corpus) {
       select(value);

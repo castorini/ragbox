@@ -1,11 +1,11 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Search · ragbox</title><link rel="stylesheet" href="/src/style.css"></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chat · ragbox</title><link rel="stylesheet" href="/src/style.css"></head>
 <body>
-<a class="skip-link" href="#search-heading">Skip to search</a>
+<a class="skip-link" href="#chat-query">Skip to chat</a>
 
 <nav class="side-rail" aria-label="Main navigation">
-<a id="nav-search" class="rail-link" href="?" title="Search" aria-label="Search"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><span>Search</span></a>
+<a id="nav-search" class="rail-link" href="?" title="Chat" aria-label="Chat"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M7 8h10M7 12h7"/></svg><span>Chat</span></a>
 <a id="nav-history" class="rail-link" href="?view=history" title="History" aria-label="History"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 7.5V12l3 2"/></svg><span>History</span></a>
 <a id="nav-setup" class="rail-link" href="?view=setup" title="Settings" aria-label="Settings"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>Settings</span></a>
 </nav>
@@ -13,43 +13,25 @@
   <p id="status" role="status" hidden>Opening database…</p>
   <p id="model-announcement" class="sr-only" role="status"></p><p id="marco-announcement" class="sr-only" role="status"></p>
   <section id="search-view" aria-labelledby="search-heading">
-    <div class="search-brand"><h1 id="search-heading" class="search-logo" tabindex="-1"><a id="home-link" class="home-link" href="?" title="Start a new search">RAGbox</a></h1><p class="search-tagline">RAG in a browser</p></div>
-    <section id="collections" class="collection" aria-label="Search collection">
+    <div class="search-brand"><h1 id="search-heading" class="search-logo" tabindex="-1"><a id="home-link" class="home-link" href="?" title="Start a new chat">RAGbox</a></h1><p class="search-tagline">RAG in a browser</p></div>
+    <section id="collections" class="collection" aria-label="Chat collection">
 <div class="search-toolbar"><div class="search-collection-select"><label class="sr-only" for="collection-switch">Document collection</label><select id="collection-switch" aria-controls="nfcorpus-collection msmarco-collection"><option value="nfcorpus">NFCorpus</option><option value="msmarco">MS MARCO</option></select></div><div class="model-note" aria-label="Local answer model"><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel loading</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a></div></div>
-      <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus search">
-        <form id="fts-form">
-          <label class="sr-only" for="fts-query">Search title and document text</label>
-          <div class="search-row"><input id="fts-query" type="search" placeholder="Search" required maxlength="500">
-          <button id="fts-search" class="primary search-icon-button" type="submit" aria-label="Search NFCorpus" title="Search NFCorpus" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
-          <ul id="fts-examples" class="example-queries" role="listbox" aria-label="Example NFCorpus searches" hidden></ul>
-        </form>
+      <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus readiness">
         <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus in this browser…</span> <a id="fts-setup-link" href="?view=setup#setup-nfcorpus">Settings</a><span class="inline-setup-actions"><button id="fts-prepare" type="button" hidden>Prepare NFCorpus</button></span></p>
-        <p id="fts-search-status" role="status" hidden></p>
-<div id="fts-results-area" class="results-area" tabindex="-1" hidden>
-<h2>Results</h2><p class="results-empty">Your results will appear here after you search this collection.</p>
-        <article id="fts-answer-panel" class="llm-answer-panel" aria-labelledby="fts-answer-heading" hidden>
-          <div class="answer-header"><h2 id="fts-answer-heading">Cited answer</h2><div class="answer-actions"><span id="fts-generating" class="answer-generating" aria-hidden="true" hidden><span class="answer-spinner"></span></span><span id="fts-answer-status" class="answer-status" role="status"></span><button id="fts-answer-stop" type="button" hidden>Stop</button><button id="fts-answer-copy" type="button" disabled>Copy</button><button id="fts-answer-retry" type="button" hidden>Retry answer</button><button id="fts-answer-load" type="button" hidden></button></div></div><p id="fts-answer" class="llm-answer" aria-live="off"></p><p id="fts-answer-feedback" class="action-feedback" role="status"></p>
-        </article>
-        <ol id="fts-results" aria-label="NFCorpus search results"></ol>
-</div>
       </div>
-      <div id="msmarco-collection" class="collection-panel" role="region" aria-label="MS MARCO search" hidden>
-        <form id="marco-form">
-          <label class="sr-only" for="marco-query">Search passages</label>
-          <div class="search-row"><input id="marco-query" type="search" placeholder="Search" required maxlength="500">
-          <button id="marco-search" class="primary search-icon-button" type="submit" aria-label="Search MS MARCO" title="Search MS MARCO" disabled><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></div>
-          <ul id="marco-examples" class="example-queries" role="listbox" aria-label="Example MS MARCO searches" hidden></ul>
-        </form>
+      <div id="msmarco-collection" class="collection-panel" role="region" aria-label="MS MARCO readiness" hidden>
         <p id="marco-help" class="search-help" aria-live="off"><span id="marco-help-text">Checking for a saved MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup#setup-msmarco">Settings</a><span class="inline-setup-actions"><button id="marco-download" type="button" hidden>Download MS MARCO index (3.35 GB)</button><button id="marco-open" type="button" hidden>Open saved index</button><button id="marco-search-cancel" type="button" hidden>Cancel download</button><progress id="marco-search-progress" max="100" hidden aria-label="Index download progress"></progress></span></p>
-        <p id="marco-search-status" role="status" hidden></p>
-<div id="marco-results-area" class="results-area" tabindex="-1" hidden>
-<h2>Results</h2><p class="results-empty">Your results will appear here after you search this collection.</p>
-        <article id="marco-answer-panel" class="llm-answer-panel" aria-labelledby="marco-answer-heading" hidden>
-          <div class="answer-header"><h2 id="marco-answer-heading">Cited answer</h2><div class="answer-actions"><span id="marco-generating" class="answer-generating" aria-hidden="true" hidden><span class="answer-spinner"></span></span><span id="marco-answer-status" class="answer-status" role="status"></span><button id="marco-answer-stop" type="button" hidden>Stop</button><button id="marco-answer-copy" type="button" disabled>Copy</button><button id="marco-answer-retry" type="button" hidden>Retry answer</button><button id="marco-answer-load" type="button" hidden></button></div></div><p id="marco-answer" class="llm-answer" aria-live="off"></p><p id="marco-answer-feedback" class="action-feedback" role="status"></p>
-        </article>
-        <ol id="marco-results" aria-label="MS MARCO search results"></ol>
-</div>
       </div>
+      <div class="chat-heading"><h2 id="chat-title">Ask your documents</h2><button id="chat-new" type="button">New chat</button></div>
+      <p id="chat-unsaved" class="chat-unsaved" role="status" hidden></p>
+      <div id="chat-empty" class="chat-empty"><p>Ask a question, then follow up. Answers cite documents from your selected collection.</p><div id="chat-examples" class="chat-examples" aria-label="Starter questions"></div></div>
+      <div id="chat-transcript" class="chat-transcript" role="log" aria-label="Conversation" aria-live="off"></div>
+      <form id="chat-form" class="chat-composer">
+        <label class="sr-only" for="chat-query">Message your document collection</label>
+        <div class="chat-input-row"><textarea id="chat-query" rows="1" placeholder="Ask your documents…" required maxlength="500"></textarea><button id="chat-send" class="primary" type="submit" disabled>Send</button></div>
+        <div class="chat-composer-options"><label for="chat-thinking-effort">Thinking effort</label><select id="chat-thinking-effort" aria-describedby="chat-effort-help" disabled><option value="low">Low</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select><span id="chat-effort-help">Applies to the next message</span></div>
+        <p class="chat-composer-hint">Enter to send · Shift+Enter for a new line · Up to 500 characters</p>
+      </form>
     </section>
     <section id="corpus-dashboard" class="corpus-dashboard" aria-labelledby="corpus-dashboard-heading">
       <h2 id="corpus-dashboard-heading">Collections in this browser</h2>
@@ -73,20 +55,20 @@
   </section>
 
   <section id="history-view" aria-labelledby="history-heading" hidden>
-    <div class="setup-header"><div class="history-title"><h1 id="history-heading" tabindex="-1">History</h1><button id="history-clear" class="danger" type="button" hidden>Clear history</button></div><p>Past searches with their collection, results, and any cited answer. Stored only in this browser.</p></div>
-    <p id="history-empty" class="results-empty">No search history yet. Your searches will appear here after you <a id="history-search-link" href="?">search a collection</a>.</p>
-    <div id="history-tools" class="history-tools" hidden><label class="sr-only" for="history-filter">Search history</label><input id="history-filter" type="search" placeholder="Search history" autocomplete="off" maxlength="200"><span id="history-count" class="history-count" role="status"></span></div>
+    <div class="setup-header"><div class="history-title"><h1 id="history-heading" tabindex="-1">History</h1><button id="history-clear" class="danger" type="button" hidden>Clear history</button></div><p>Saved conversations and their sources. Continue any chat, or start a new one. Stored only in this browser.</p></div>
+    <p id="history-empty" class="results-empty">No conversations yet. Your chats will appear here after you <a id="history-search-link" href="?">ask a question</a>.</p>
+    <div id="history-tools" class="history-tools" hidden><label class="sr-only" for="history-filter">Search conversations</label><input id="history-filter" type="search" placeholder="Search conversations" autocomplete="off" maxlength="200"><span id="history-count" class="history-count" role="status"></span></div>
     <p id="history-no-match" class="results-empty" hidden></p>
-    <ol id="history-list" class="history-list" aria-label="Search history"></ol>
+    <ol id="history-list" class="history-list" aria-label="Conversation history"></ol>
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>
-    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Manage search indexes and the answer model saved in this browser.</p></div><a id="setup-back" class="setup-back" href="?">← Back to search</a></div>
+    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Manage search indexes and the answer model saved in this browser.</p></div><a id="setup-back" class="setup-back" href="?">← Back to chat</a></div>
     <section class="setup-card settings-collections" aria-labelledby="settings-collections-heading">
       <h2 id="settings-collections-heading">Indexes</h2>
       <section id="setup-nfcorpus" tabindex="-1" class="settings-resource" aria-labelledby="fts-setup-heading">
         <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="fts-setup-heading">NFCorpus</h3><span id="fts-settings-state" class="settings-state" role="status">Checking…</span></div><p class="settings-description">Nutrition and medical research · 3,633 articles</p><p id="fts-status" class="settings-detail" role="status">Checking saved collection…</p></div>
-        <div class="settings-resource-actions"><div id="fts-setup"><button id="fts-index" class="primary" type="button" disabled>Set up collection</button></div><button id="fts-settings-search" type="button" hidden aria-label="Search NFCorpus">Search this collection</button></div>
+        <div class="settings-resource-actions"><div id="fts-setup"><button id="fts-index" class="primary" type="button" disabled>Set up collection</button></div><button id="fts-settings-search" type="button" hidden aria-label="Chat with NFCorpus">Chat with this collection</button></div>
       </section>
       <section id="setup-msmarco" tabindex="-1" class="settings-resource" aria-labelledby="marco-setup-heading">
         <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="marco-setup-heading">MS MARCO</h3><span id="marco-settings-state" class="settings-state">Checking…</span></div><p class="settings-description">General web passages · 8.8 million passages</p><p id="marco-status" class="settings-detail" aria-live="off">Checking saved collection…</p><progress id="marco-progress" max="100" value="0" hidden aria-label="Collection download progress"></progress></div>
@@ -94,7 +76,7 @@
           <button id="marco-fetch" class="primary" type="button" hidden disabled>Download · 3.35 GB</button>
           <button id="marco-reopen" class="primary" type="button" hidden disabled>Retry opening collection</button>
           <button id="marco-cancel-download" type="button" hidden disabled>Cancel download</button>
-        </div><button id="marco-settings-search" type="button" hidden aria-label="Search MS MARCO">Search this collection</button></div>
+        </div><button id="marco-settings-search" type="button" hidden aria-label="Chat with MS MARCO">Chat with this collection</button></div>
       </section>
       <div class="storage-overview">
         <div class="storage-overview-row"><div><h3>Indexes and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3><p id="storage-delete-description">Deleting removes both indexes and saved app files. The answer model is kept.</p></div><button id="storage-reset" class="danger" type="button" aria-describedby="storage-delete-description" disabled>Delete index data</button></div>
@@ -126,7 +108,7 @@
           <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
       </div></details>
     </section>
-    <section class="storage-overview-row storage-reset-all" aria-labelledby="settings-reset-heading"><div><h2 id="settings-reset-heading">Start over</h2><p id="storage-delete-all-description">Remove index files and the answer model. Search history is kept.</p></div><button id="storage-reset-all" class="danger" type="button" aria-describedby="storage-delete-all-description" disabled>Delete indexes and model</button></section>
+    <section class="storage-overview-row storage-reset-all" aria-labelledby="settings-reset-heading"><div><h2 id="settings-reset-heading">Start over</h2><p id="storage-delete-all-description">Remove index files and the answer model. Conversations are kept.</p></div><button id="storage-reset-all" class="danger" type="button" aria-describedby="storage-delete-all-description" disabled>Delete indexes and model</button></section>
     <div id="storage-recovery" class="storage-actions" hidden><button id="storage-reload" type="button">Reload to recover</button></div>
   </section>
 </main>

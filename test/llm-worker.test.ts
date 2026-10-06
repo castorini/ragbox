@@ -3,9 +3,13 @@ import type { ModelProgress, WorkerRequest } from '../src/types.ts';
 import { MODEL_ID, MODEL_REVISION, MODEL_REMOTE_PATH_TEMPLATE } from '../src/model-cache.ts';
 import { ModelCacheError, REQUIRED_MODEL_FILES } from '../src/model-readiness.ts';
 
-type MockMessage = { type: string; requestId?: string; documentIds?: string[]; text?: string; answer?: string; loadId?: number; progress?: ModelProgress };
-type StreamerOptions = { callback_function: (text: string) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
+type MockMessage = { type: string; query?: string; contextLimited?: boolean; requestId?: string; documentIds?: string[]; text?: string; answer?: string; thinking?: string; loadId?: number; progress?: ModelProgress };
+type StreamerOptions = { callback_function: (text: string) => void; token_callback_function?: (tokens: bigint[]) => void; skip_prompt?: boolean; skip_special_tokens?: boolean };
 type MockStreamer = { options: StreamerOptions };
+type MockGenerationOptions = { streamer?: MockStreamer; stopping_criteria?: Array<{ _call: (ids: number[][]) => boolean[] }> };
+type MockChat = Array<{ role: string; content: string }>;
+type MockGenerationInput = MockChat | string;
+type MockGenerationOutput = { generated_text: MockChat | string };
 type MockCriterion = { interrupt: ReturnType<typeof vi.fn> };
 type MockEnv = { allowRemoteModels: boolean; allowLocalModels: boolean; fetch: typeof fetch; remotePathTemplate: string };
 
@@ -26,6 +30,7 @@ vi.mock('../src/model-readiness.ts', async importOriginal => ({
 vi.mock('@huggingface/transformers', () => ({
   pipeline: mocks.pipeline,
   env: mocks.env,
+  StoppingCriteria: class { _call(inputIds: number[][]) { return inputIds.map(() => false); } },
   TextStreamer: class {
     options: StreamerOptions;
     constructor(_tokenizer: unknown, options: StreamerOptions) {
@@ -50,16 +55,27 @@ function deferred() {
   return { promise, resolve };
 }
 
-async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load }: {
+function generatedOutput(input: MockGenerationInput, text: string): MockGenerationOutput[] {
+  return [{ generated_text: typeof input === 'string' ? text : [...input, { role: 'assistant', content: text }] }];
+}
+
+function exhaustThinking(options: MockGenerationOptions, text: string, limit = 1024) {
+  options.streamer!.options.token_callback_function!(new Array<bigint>(limit).fill(9n));
+  expect(options.stopping_criteria!.at(-1)!._call([[99]])).toEqual([true]);
+  options.streamer!.options.callback_function(text);
+}
+
+async function createHarness({ chunks = ['</think>A useful fact [MED-14].'], final, load }: {
   chunks?: string[]; final?: string; load?: Promise<void>;
 } = {}) {
   const tokenizer = {
     apply_chat_template: vi.fn((_messages: unknown) => 'formatted prompt'),
     encode: vi.fn((_prompt: string) => [1, 2, 3]),
+    decode: vi.fn((ids: number[], _options?: { skip_special_tokens?: boolean }) => ids.map(id => ({ 1: '<', 2: '/think', 3: '>' }[id] ?? 'x')).join('')),
   };
-  const generator = Object.assign(vi.fn(async (messages: Array<{ role: string; content: string }>, options: { streamer: MockStreamer }) => {
-    for (const chunk of chunks) options.streamer.options.callback_function(chunk);
-    return [{ generated_text: [...messages, { role: 'assistant', content: final ?? chunks.join('') }] }];
+  const generator = Object.assign(vi.fn(async (messages: MockGenerationInput, options: MockGenerationOptions): Promise<MockGenerationOutput[]> => {
+    if (options.streamer) for (const chunk of chunks) options.streamer.options.callback_function(chunk);
+    return generatedOutput(messages, final ?? chunks.join(''));
   }), { tokenizer, dispose: vi.fn(async () => []) });
   mocks.pipeline.mockImplementation(async () => {
     if (load) await load;
@@ -77,10 +93,10 @@ async function createHarness({ chunks = ['A useful fact [MED-14].'], final, load
   });
   const terminal = async (requestId = 'request-1') => {
     await vi.waitFor(() => expect(messages.some(message =>
-      message.requestId === requestId && ['complete', 'error', 'cancelled'].includes(message.type),
+      message.requestId === requestId && ['complete', 'resolved-query', 'error', 'cancelled'].includes(message.type),
     )).toBe(true));
     return messages.find(message =>
-      message.requestId === requestId && ['complete', 'error', 'cancelled'].includes(message.type),
+      message.requestId === requestId && ['complete', 'resolved-query', 'error', 'cancelled'].includes(message.type),
     );
   };
   return { generator, messages, send, generate, terminal };
@@ -99,8 +115,30 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
-  it('uses the direct-answer template for both budgeting and generation, and streams immediately', async () => {
-    const harness = await createHarness({ chunks: ['A useful ', 'fact [MED-14].'] });
+  it.each([
+    ['low', 256], ['balanced', 1024], ['high', 2048], [undefined, 1024], ['invalid', 1024],
+  ] as const)('enforces effort %s while preserving the separate final-answer allowance', async (effort, limit) => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        expect(options).toMatchObject({ max_new_tokens: limit + 512 });
+        const tokens = options.streamer!.options.token_callback_function!;
+        const criterion = options.stopping_criteria!.at(-1)!;
+        tokens(new Array<bigint>(limit - 1).fill(9n)); expect(criterion._call([[99]])).toEqual([false]);
+        tokens([9n]); expect(criterion._call([[99]])).toEqual([true]);
+        options.streamer!.options.callback_function('Budgeted reasoning.');
+        return generatedOutput(messages, 'Budgeted reasoning.');
+      }
+      expect(options).toMatchObject({ max_new_tokens: 512 });
+      options.streamer!.options.callback_function('Final finding [MED-14].');
+      return generatedOutput(messages, 'Final finding [MED-14].');
+    });
+    harness.generate({ thinkingEffort: effort as Extract<WorkerRequest, { type: 'generate' }>['thinkingEffort'] });
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Final finding [MED-14].', thinking: 'Budgeted reasoning.' });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+  });
+  it('uses thinking mode for budgeting and generation while streaming only final text as the answer', async () => {
+    const harness = await createHarness({ chunks: ['Check evidence first.', '</think>A useful ', 'fact [MED-14].'] });
     const finish = deferred();
     const originalGenerate = harness.generator.getMockImplementation();
     harness.generator.mockImplementation(async (...args) => {
@@ -117,17 +155,19 @@ describe('LLM worker generation', () => {
       ]));
     expect(harness.messages.some(message => message.type === 'complete')).toBe(false);
     expect(harness.generator.tokenizer.apply_chat_template).toHaveBeenCalledWith(
-      expect.any(Array), expect.objectContaining({ enable_thinking: false, add_generation_prompt: true }),
+      expect.any(Array), expect.objectContaining({ enable_thinking: true, add_generation_prompt: true }),
     );
     expect(harness.generator).toHaveBeenCalledWith(
-      expect.any(Array), expect.objectContaining({ tokenizer_encode_kwargs: { enable_thinking: false } }),
+      expect.any(Array), expect.objectContaining({ max_new_tokens: 1536, tokenizer_encode_kwargs: { enable_thinking: true } }),
     );
     expect(mocks.streamers[0].options).toMatchObject({ skip_prompt: true, skip_special_tokens: true });
+    expect(harness.messages.filter(message => message.type === 'thinking-delta').map(message => message.text).join('')).toBe('Check evidence first.');
 
     finish.resolve();
     expect(await harness.terminal()).toMatchObject({
-      type: 'complete', answer: 'A useful fact [MED-14].', documentIds: ['MED-14'],
+      type: 'complete', answer: 'A useful fact [MED-14].', thinking: 'Check evidence first.', documentIds: ['MED-14'],
     });
+    expect(harness.generator).toHaveBeenCalledOnce();
   });
 
   it('reports fitted context IDs before the first answer delta and repeats them on completion', async () => {
@@ -136,7 +176,7 @@ describe('LLM worker generation', () => {
       { id: 'MARCO-2', title: 'Passage 2', text: 'Evidence that does not fit.' },
     ];
     const harness = await createHarness({
-      chunks: ['Supported answer [MARCO-1].'],
+      chunks: ['</think>Supported answer [MARCO-1].'],
     });
     harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => JSON.stringify(messages));
     harness.generator.tokenizer.encode.mockImplementation(prompt => (
@@ -155,6 +195,7 @@ describe('LLM worker generation', () => {
     expect(harness.messages[contextIndex]).toEqual({
       type: 'context',
       requestId: 'request-1',
+      contextLimited: false,
       documentIds: ['MARCO-1'],
     });
     expect(contextIndex).toBeGreaterThanOrEqual(0);
@@ -172,7 +213,119 @@ describe('LLM worker generation', () => {
       .toBe('A useful fact [MED-14].');
   });
 
-  it.each(['<think>unfinished private reasoning', '<think>private reasoning</think>\n\n', ''])
+  it('holds prefilled reasoning across a split closing tag and keeps reasoning citations out of the answer', async () => {
+    const harness = await createHarness({ chunks: ['Consider [MED-404].', '</thi', 'nk>', 'Finding [MED-14].'] });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ answer: 'Finding [MED-14].', thinking: 'Consider [MED-404].' });
+    expect(harness.messages.filter(message => message.type === 'answer-delta').map(message => message.text).join('')).toBe('Finding [MED-14].');
+    expect(harness.messages.filter(message => message.type === 'thinking-delta').map(message => message.text).join('')).toBe('Consider [MED-404].');
+  });
+
+  it('stops at the final-answer token cap even when reasoning finishes early', async () => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      const tokens = options.streamer!.options.token_callback_function!;
+      const cap = options.stopping_criteria!.at(-1)!;
+      tokens([9n, 1n, 2n]); expect(cap._call([[99]])).toEqual([false]);
+      tokens([3n]); tokens(new Array(511).fill(9n)); expect(cap._call([[99]])).toEqual([false]);
+      tokens([9n]); expect(cap._call([[99]])).toEqual([true]);
+      options.streamer!.options.callback_function('Reason.</think>Final [MED-14].');
+      return generatedOutput(messages, 'Reason.</think>Final [MED-14].');
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Final [MED-14].' });
+  });
+
+  it('finalizes exhausted reasoning with the same question and evidence without promoting reasoning into the answer', async () => {
+    const harness = await createHarness();
+    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => `${JSON.stringify(messages)}\n<assistant><think>`);
+    const thinking = 'Unfinished reasoning [MED-404].';
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        exhaustThinking(options, thinking);
+        expect(harness.messages.some(message => message.type === 'answer-delta')).toBe(false);
+        return generatedOutput(messages, thinking);
+      }
+      expect(messages).toContain('What is known?');
+      expect(messages).toContain('MED-14');
+      expect(messages).toContain('A useful fact.');
+      expect(messages).toContain('Previous assistant answers are conversation context, not evidence');
+      expect(messages.endsWith(`<assistant><think>${thinking}\n</think>\n\n`)).toBe(true);
+      expect(options).toMatchObject({ max_new_tokens: 512, return_full_text: false, add_special_tokens: false });
+      expect(options).not.toHaveProperty('tokenizer_encode_kwargs');
+      expect(options.stopping_criteria).toHaveLength(1);
+      expect(options.stopping_criteria![0]).toBe(harness.generator.mock.calls[0][1].stopping_criteria![0]);
+      options.streamer!.options.callback_function('Final finding [MED-14].');
+      return generatedOutput(messages, 'Final finding [MED-14].');
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', requestId: 'request-1', answer: 'Final finding [MED-14].', thinking, documentIds: ['MED-14'] });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+    expect(harness.messages.filter(message => message.type === 'thinking-delta').map(message => message.text).join('')).toBe(thinking);
+    expect(harness.messages.filter(message => message.type === 'answer-delta').map(message => message.text).join('')).toBe('Final finding [MED-14].');
+    expect(harness.messages.filter(message => message.type === 'complete')).toHaveLength(1);
+    expect(harness.messages.filter(message => message.type === 'context')).toHaveLength(1);
+    expect(mocks.streamers).toHaveLength(2);
+    expect(mocks.streamers[1].options).toMatchObject({ skip_prompt: true, skip_special_tokens: true });
+  });
+
+  it.each(['', '<think>Unfinished extra reasoning [MED-404].'])
+    ('exposes Retry when bounded finalization still has no answer: %j', async final => {
+      const harness = await createHarness();
+      harness.generator.mockImplementation(async (messages, options) => {
+        if (typeof messages !== 'string') {
+          exhaustThinking(options, 'Initial reasoning.');
+          return generatedOutput(messages, 'Initial reasoning.');
+        }
+        options.streamer!.options.callback_function(final);
+        return generatedOutput(messages, final);
+      });
+      harness.generate();
+      expect(await harness.terminal()).toMatchObject({ type: 'error', operation: 'generate', message: expect.stringContaining('Retry answer') });
+      expect(harness.generator).toHaveBeenCalledTimes(2);
+      expect(harness.messages.some(message => ['answer-delta', 'complete'].includes(message.type))).toBe(false);
+    });
+
+  it('cancels after the thinking cap before starting finalization', async () => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      exhaustThinking(options, 'Interrupted reasoning [MED-404].');
+      harness.send({ type: 'cancel', requestId: 'request-1' });
+      return generatedOutput(messages, 'Interrupted reasoning [MED-404].');
+    });
+    harness.generate();
+    expect(await harness.terminal()).toMatchObject({ type: 'cancelled', requestId: 'request-1' });
+    expect(harness.generator).toHaveBeenCalledOnce();
+    expect(harness.messages.filter(message => message.type === 'thinking-delta').map(message => message.text).join('')).toBe('Interrupted reasoning [MED-404].');
+    expect(harness.messages.some(message => ['answer-delta', 'complete'].includes(message.type))).toBe(false);
+    expect(mocks.criteria[0].interrupt).toHaveBeenCalledOnce();
+  });
+
+  it('keeps streamed final text separate and suppresses late output when finalization is cancelled', async () => {
+    const harness = await createHarness();
+    const finish = deferred();
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        exhaustThinking(options, 'Initial comparison [MED-404].');
+        return generatedOutput(messages, 'Initial comparison [MED-404].');
+      }
+      options.streamer!.options.callback_function('Partial final [MED-14].');
+      await finish.promise;
+      options.streamer!.options.callback_function('<think>Late reasoning</think>Late final.');
+      return generatedOutput(messages, 'Partial final [MED-14].<think>Late reasoning</think>Late final.');
+    });
+    harness.generate();
+    await vi.waitFor(() => expect(harness.generator).toHaveBeenCalledTimes(2));
+    harness.send({ type: 'cancel', requestId: 'request-1' });
+    finish.resolve();
+    expect(await harness.terminal()).toMatchObject({ type: 'cancelled', requestId: 'request-1' });
+    expect(harness.messages.filter(message => message.type === 'thinking-delta').map(message => message.text).join('')).toBe('Initial comparison [MED-404].');
+    expect(harness.messages.filter(message => message.type === 'answer-delta').map(message => message.text).join('')).toBe('Partial final [MED-14].');
+    expect(harness.messages.some(message => message.type === 'complete')).toBe(false);
+    expect(mocks.criteria[0].interrupt).toHaveBeenCalledOnce();
+  });
+
+  it.each(['unfinished prefilled reasoning', '<think>unfinished private reasoning', '<think>private reasoning</think>\n\n', ''])
     ('reports a request error when generation has no final answer: %j', async text => {
       const harness = await createHarness({ chunks: [text] });
       harness.generate();
@@ -211,8 +364,8 @@ describe('LLM worker generation', () => {
     const finish = deferred();
     harness.generator.mockImplementation(async (messages, options) => {
       await finish.promise;
-      options.streamer.options.callback_function('Late answer');
-      return [{ generated_text: [...messages, { role: 'assistant', content: 'Late answer' }] }];
+      options.streamer!.options.callback_function('Late answer');
+      return generatedOutput(messages, 'Late answer');
     });
     harness.generate();
     await vi.waitFor(() => expect(harness.generator).toHaveBeenCalled());
@@ -427,4 +580,78 @@ it('cleans invalid JSON selectively and keeps valid metadata and weights on expl
   harness.send({ type: 'load', loadId: 11 });
   await vi.waitFor(() => expect(harness.messages.some(message => message.type === 'ready')).toBe(true));
   expect(cache.delete).toHaveBeenCalledExactlyOnceWith({ url: prefix + 'config.json' });
+});
+
+
+describe('worker query resolution', () => {
+  it('rewrites a follow-up with deterministic decoding and the recent conversation', async () => {
+    const harness = await createHarness({ final: 'Resolve the subject.</think>coffee blood pressure' });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure', contextLimited: false });
+    const messages = harness.generator.mock.calls[0][0];
+    if (typeof messages === 'string') throw new Error('The first query call must use conversation messages.');
+    expect(messages.at(-1)!.content).toContain('coffee');
+    expect(messages.at(-1)!.content).toContain('What about it?');
+    expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 640, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: true } });
+  });
+  it('reports invalid rewriting output as a retryable resolution failure', async () => {
+    const harness = await createHarness({ final: '</think>First line\nSecond line' });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', requestId: 'resolve-1' });
+  });
+  it('caps the resolved query independently of its reasoning and returns only the final JSON query', async () => {
+    const harness = await createHarness();
+    harness.generator.mockImplementation(async (messages, options) => {
+      const tokens = options.streamer!.options.token_callback_function!;
+      const cap = options.stopping_criteria!.at(-1)!;
+      tokens([9n, 1n, 2n, 3n]); tokens(new Array(127).fill(9n)); expect(cap._call([[99]])).toEqual([false]);
+      tokens([9n]); expect(cap._call([[99]])).toEqual([true]);
+      return generatedOutput(messages, 'Reason about coffee.</think>{"query":"coffee blood pressure"}');
+    });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
+    expect(harness.messages.some(message => message.type === 'answer-delta' || message.type === 'thinking-delta')).toBe(false);
+  });
+  it('finalizes an exhausted query rewrite into deterministic bounded JSON without exposing reasoning', async () => {
+    const harness = await createHarness();
+    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => `${JSON.stringify(messages)}<think>`);
+    harness.generator.mockImplementation(async (messages, options) => {
+      if (typeof messages !== 'string') {
+        exhaustThinking(options, 'Resolve coffee as the subject.', 512);
+        return generatedOutput(messages, 'Resolve coffee as the subject.');
+      }
+      expect(messages).toContain('What about it?');
+      expect(messages).toContain('coffee');
+      expect(messages.endsWith('<think>Resolve coffee as the subject.\n</think>\n\n')).toBe(true);
+      expect(options).toMatchObject({ max_new_tokens: 128, do_sample: false, return_full_text: false, add_special_tokens: false });
+      expect(options.stopping_criteria).toHaveLength(1);
+      return generatedOutput(messages, '{"query":"coffee blood pressure"}');
+    });
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
+    expect(harness.generator).toHaveBeenCalledTimes(2);
+    expect(harness.messages.some(message => ['thinking-delta', 'answer-delta'].includes(message.type))).toBe(false);
+  });
+  it.each(['{"query":""}', JSON.stringify({ query: 'x'.repeat(501) })])
+    ('validates finalization query output instead of accepting malformed queries: %j', async final => {
+      const harness = await createHarness();
+      harness.generator.mockImplementation(async (messages, options) => {
+        if (typeof messages !== 'string') {
+          exhaustThinking(options, 'Resolve the subject.', 512);
+          return generatedOutput(messages, 'Resolve the subject.');
+        }
+        return generatedOutput(messages, final);
+      });
+      harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+      expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', operation: 'resolve-query', requestId: 'resolve-1' });
+      expect(harness.generator).toHaveBeenCalledTimes(2);
+      expect(harness.messages.some(message => message.type === 'resolved-query')).toBe(false);
+    });
+  it('cancels a queued rewrite before invoking the model', async () => {
+    const harness = await createHarness();
+    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'cancel', requestId: 'resolve-1' });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'cancelled' });
+    expect(harness.generator).not.toHaveBeenCalled();
+  });
 });

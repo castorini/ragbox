@@ -28,19 +28,19 @@ export interface SetupActions {
 
 export function setupSearchGuidance(states: ResourceStates, actions?: SetupActions) {
   for (const [name, prefix] of [['nfcorpus', 'fts'], ['msmarco', 'marco']] as const) {
-    const button = requiredElement<HTMLButtonElement>(`#${prefix}-search`);
-    const input = requiredElement<HTMLInputElement>(`#${prefix}-query`);
-    const form = requiredElement<HTMLFormElement>(`#${prefix}-form`);
+    const button = document.querySelector<HTMLButtonElement>(`#${prefix}-search`);
+    const input = document.querySelector<HTMLInputElement>(`#${prefix}-query`);
+    const form = document.querySelector<HTMLFormElement>(`#${prefix}-form`);
     const help = requiredElement<HTMLElement>(`#${prefix}-help`);
     const helpText = requiredElement<HTMLElement>(`#${prefix}-help-text`);
-    button.setAttribute('aria-describedby', `${prefix}-help`);
-    input.setAttribute('aria-describedby', `${prefix}-help`);
+    button?.setAttribute('aria-describedby', `${prefix}-help`);
+    input?.setAttribute('aria-describedby', `${prefix}-help`);
     states.subscribe(() => {
       const state = states.get(name);
       const unavailable = state.phase !== 'ready' || states.busy;
-      button.disabled = unavailable;
-      input.disabled = false;
-      form.classList.toggle('unavailable', unavailable);
+      if (button) button.disabled = unavailable;
+      if (input) input.disabled = false;
+      form?.classList.toggle('unavailable', unavailable);
       help.hidden = !unavailable || states.activeSearch === name;
       helpText.textContent = guidance(name, state, states.busy);
     });

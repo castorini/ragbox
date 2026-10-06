@@ -6,6 +6,8 @@ import {
   fitDocumentsToTokenBudget,
   streamedAnswer,
   stripThinking,
+  fitHistory,
+  validateResolvedQuery,
 } from '../src/rag.ts';
 
 const documents = [
@@ -60,6 +62,31 @@ describe('buildMessages', () => {
     expect(messages[1].content.indexOf('MARCO-123')).toBeLessThan(
       messages[1].content.indexOf('MARCO-456'),
     );
+  });
+});
+
+describe('conversation prompts', () => {
+  it('keeps recent whole exchanges within 750 tokens and reports omitted context', async () => {
+    const history = Array.from({ length: 5 }, (_, i) => [{ role: 'user' as const, content: `q${i}` }, { role: 'assistant' as const, content: 'a'.repeat(300) }]).flat();
+    const fitted = await fitHistory(history, async messages => messages.reduce((sum, message) => sum + message.content.length, 0));
+    expect(fitted.limited).toBe(true); expect(fitted.history.map(message => message.role)).toEqual(['user', 'assistant', 'user', 'assistant']);
+    expect(fitted.history[0].content).toBe('q3');
+  });
+  it('counts history and the resolved query in the same evidence budget used for generation', async () => {
+    const history = [{ role: 'user' as const, content: 'Previous question' }, { role: 'assistant' as const, content: 'Previous unsupported answer [OLD-1]' }];
+    const count = async (messages: ReturnType<typeof buildMessages>) => messages.reduce((sum, message) => sum + message.content.length, 0);
+    const budget = await count(buildMessages('What about it?', [], history, 'resolved topic')) + 250;
+    const fitted = await fitDocumentsToTokenBudget('What about it?', [{ id: 'NEW-1', title: 'Title', text: 'x'.repeat(1000) }], count, budget, history, 'resolved topic');
+    const messages = buildMessages('What about it?', fitted, history, 'resolved topic');
+    expect(await count(messages)).toBeLessThanOrEqual(budget);
+    expect(messages[0].content).toContain('Previous assistant answers are conversation context, not evidence');
+    expect(messages.at(-1)!.content).toContain('Allowed citation IDs: ["NEW-1"]');
+  });
+  it('validates resolved queries rather than accepting empty, multiline, or oversized output', () => {
+    expect(validateResolvedQuery(' "coffee blood pressure" ')).toBe('coffee blood pressure');
+    expect(validateResolvedQuery('{"query":"coffee blood pressure"}')).toBe('coffee blood pressure');
+    expect(validateResolvedQuery('```json\n{"query":"broccoli cancer"}\n```')).toBe('broccoli cancer');
+    for (const value of ['', 'Answer\nQuery', 'x'.repeat(501), '<think>reasoning</think>', '{"answer":"not a query"}', '{"query":42}', '{broken}', '{"query":"two\\nlines"}']) expect(() => validateResolvedQuery(value)).toThrow('resolve');
   });
 });
 
@@ -141,8 +168,8 @@ describe('fitDocumentsToTokenBudget', () => {
 });
 
 describe('answer parsing', () => {
-  it('uses MiniCPM direct-answer mode so reasoning cannot consume the output budget', () => {
-    expect(CHAT_TEMPLATE_OPTIONS).toEqual({ enable_thinking: false });
+  it('uses MiniCPM thinking mode while the worker separates reasoning from the answer', () => {
+    expect(CHAT_TEMPLATE_OPTIONS).toEqual({ enable_thinking: true });
   });
 
   it('streams direct answers immediately while filtering tagged reasoning', () => {
