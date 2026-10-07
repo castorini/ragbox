@@ -210,7 +210,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     }
   }
   let collectionsUpdating = false;
-  states.subscribe(() => {
+  const unsubscribe = states.watch(state => [state.busy, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase], () => {
     updateControls();
     const updating = (['nfcorpus', 'msmarco'] as const).some(name =>
       ['preparing', 'downloading', 'opening'].includes(states.get(name).phase));
@@ -234,5 +234,5 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   }
   void refresh();
   void refreshModel();
-  return { refresh: async () => { await Promise.all([refresh(), refreshModel()]); }, initialized() { initialized = true; updateControls(); } };
+  return { dispose: unsubscribe, refresh: async () => { await Promise.all([refresh(), refreshModel()]); }, initialized() { initialized = true; updateControls(); } };
 }

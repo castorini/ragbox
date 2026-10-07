@@ -83,13 +83,17 @@ src/llm-worker.ts             Query resolution, context fitting, and streamed in
 src/rag.ts                    Prompts, token budgets, and citation filtering
 src/generation-output.ts      Streaming reasoning/final-answer separation
 src/generation-budget.ts      Separate reasoning and final-output token limits
-src/conversations.ts          Observable store and versioned IndexedDB repository
+src/resource-state.ts         Zustand resource snapshots and shared operation gate
+src/conversations.ts          Zustand conversation state and versioned IndexedDB repository
+src/conversation-persistence.ts Serialized writes and streaming checkpoints
 src/chat-controller.ts        Stage orchestration, cancellation, and retries
 src/chat-view.ts               Transcript, composer, sources, and searchable history
 src/types.ts                  Shared conversation, retrieval, and worker contracts
 ```
 
 Runtime workers, connections, and abort controllers are kept outside persisted conversation state. One chat turn runs across the app; conversation, turn, and attempt IDs associate retrieval and worker requests. Late responses are ignored after Stop, collection changes, New chat, or opening another conversation. Initialization retains the shared coordinator, and database operations retain the existing gate.
+
+Shared state uses Zustand's vanilla stores with selector subscriptions; no React runtime is required. Collection selection comes from conversation state, and draft/control/resource changes do not render the transcript. Conversation reads are pure, unchanged turn objects retain their identity, and resource snapshots deduplicate equivalent model updates. The controller observes resource transitions directly and resumes pending work after adapter cleanup, independently of the view. IndexedDB persistence retains its schema, ordered writes, migration, retention, and checkpoint behavior; transient drafts and operation identities are excluded from saves.
 
 ## Validation and deployment
 

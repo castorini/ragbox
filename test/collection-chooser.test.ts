@@ -1,5 +1,7 @@
 import { it, expect, vi, afterEach } from 'vitest';
 import { setupCollectionChooser } from '../src/collection-chooser.ts';
+import { ConversationStore } from '../src/conversations.ts';
+import { memoryRepository } from './conversation-fixtures.ts';
 
 type FakeElement = {
   tagName?: string;
@@ -48,6 +50,19 @@ function harness(start = 'https://example.com/ragbox/') {
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+it('renders collection selection from the store when restoring and opening chats', async () => {
+  const ui = harness(); const store = new ConversationStore(memoryRepository()); await store.initialize();
+  store.select('msmarco'); store.append('Saved MARCO question', [], false); const saved = store.current().id;
+  store.select('nfcorpus');
+  const choose = vi.fn((corpus: 'nfcorpus' | 'msmarco') => store.select(corpus));
+  const chooser = setupCollectionChooser(choose, undefined, true, true, store);
+  store.open(saved);
+  expect(chooser.selected()).toBe('msmarco'); expect(ui.get('#collection-switch').value).toBe('msmarco');
+  expect(ui.get('#msmarco-collection').hidden).toBe(false); expect(choose).not.toHaveBeenCalled();
+  ui.get('#collection-switch').value = 'nfcorpus'; ui.get('#collection-switch').onchange?.();
+  expect(store.selected).toBe('nfcorpus'); expect(choose).toHaveBeenCalledOnce(); await store.flush();
+});
 
 it('opens NFCorpus search directly and keeps each query and result panel when switching', () => {
   const ui = harness();

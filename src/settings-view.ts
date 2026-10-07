@@ -32,7 +32,7 @@ export function setupSettingsView(states: ResourceStates, chooser: { search(corp
     return { corpus, row, badge, detail, search };
   });
   const modelDetail = requiredElement<HTMLElement>('#llm-settings-detail');
-  states.subscribe(() => {
+  const unsubscribe = states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy, state.resources.model.phase === 'unsupported'], () => {
     for (const { corpus, row, badge, detail, search } of rows) {
       const state = states.get(corpus);
       const status = settingsCollectionStatus(corpus, state);
@@ -46,4 +46,5 @@ export function setupSettingsView(states: ResourceStates, chooser: { search(corp
     modelDetail.hidden = states.get('model').phase !== 'unsupported';
     modelDetail.textContent = modelDetail.hidden ? '' : 'This device cannot generate AI answers. Document search remains available.';
   });
+  return { dispose: unsubscribe };
 }

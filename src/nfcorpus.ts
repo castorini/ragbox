@@ -2,7 +2,7 @@ import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
 import { errorMessage, requiredElement, rowsAs } from './boundaries.ts';
 import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
-import type { ResourcePhase } from './resource-state.ts';
+import { ResourceStates, type ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
 import { NFCORPUS_SEARCH_SQL, nfcorpusSearchSQL, queryBM25, retrieveNFCorpus } from './collection-retrieval.ts';
@@ -17,7 +17,7 @@ export const INDEX_SQL = `PRAGMA create_fts_index(
   'nfcorpus', 'id', 'contents', overwrite = 1
 )`;
 
-export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History) {
+export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, llm: SearchLLM, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, history?: History, gate = new ResourceStates()) {
   const status = requiredElement<HTMLElement>('#fts-status');
   const searchStatus = document.querySelector<HTMLElement>('#fts-search-status');
   const answerPanel = document.querySelector<HTMLElement>('#fts-answer-panel');
@@ -26,7 +26,6 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   const indexButton = requiredElement<HTMLButtonElement>('#fts-index');
   const searchButton = document.querySelector<HTMLButtonElement>('#fts-search');
   let ready = false;
-  let blocked = false;
   let searchSQL = SEARCH_SQL;
   let loaded = false;
   let queued = false;
@@ -39,8 +38,8 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   function updateControls() {
     setup.hidden = ready;
     indexButton.hidden = ready;
-    indexButton.disabled = blocked || queued || checking;
-    if (searchButton) searchButton.disabled = blocked || !ready;
+    indexButton.disabled = gate.busy || queued || checking;
+    if (searchButton) searchButton.disabled = gate.busy || !ready;
   }
   async function readSchema() { searchSQL = await nfcorpusSearchSQL(conn); }
   async function loadExtension() {
@@ -71,7 +70,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   }
 
   async function prepare() {
-    if (queued || checking || blocked) return;
+    if (queued || checking || gate.busy) return;
     queued = true;
     updateControls();
     report('preparing', 'Waiting to prepare index…');
@@ -122,7 +121,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   if (form) form.onsubmit = event => {
     if (!results || !answerPanel || !searchStatus) return;
     event.preventDefault();
-    if (!ready || blocked || queued || checking) return;
+    if (!ready || gate.busy || queued || checking) return;
     const query = requiredElement<HTMLInputElement>('#fts-query').value.trim();
     if (!query) return;
     requiredElement<HTMLElement>('#fts-results-area').hidden = false;
@@ -201,17 +200,18 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       }
     });
   };
-  updateControls();
+  const unsubscribe = gate.watch(state => state.busy, updateControls);
   onState?.('checking', 'Checking saved index…');
   return {
     prepare,
     async retrieve(query: string) {
-      if (!ready || blocked || queued || checking) throw new Error('NFCorpus is not ready to search.');
+      if (!ready || gate.busy || queued || checking) throw new Error('NFCorpus is not ready to search.');
       const result = await action(() => retrieveNFCorpus(conn, query), true);
       if (!result) throw new Error('NFCorpus search could not run.');
       return result;
     },
-    setBlocked(value: boolean) { blocked = value; updateControls(); },
+    setBlocked(value: boolean) { gate.setBusy(value); },
+    dispose: unsubscribe,
     async reopenSaved() {
       checking = true;
       updateControls();

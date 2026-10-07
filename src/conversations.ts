@@ -1,4 +1,8 @@
-import type { ChatTurn, Conversation, Corpus, SearchResult, ThinkingEffort } from './types.ts';
+import { createStore } from 'zustand/vanilla';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { shallow } from 'zustand/vanilla/shallow';
+import { ConversationPersistence } from './conversation-persistence.ts';
+import type { ChatOperation, ChatTurn, Conversation, Corpus, SearchResult, ThinkingEffort } from './types.ts';
 import { DEFAULT_THINKING_EFFORT, normalizeThinkingEffort } from './thinking-effort.ts';
 
 export const CONVERSATION_LIMIT = 50;
@@ -103,129 +107,170 @@ function restoreConversation(value: Conversation): Conversation | undefined {
   return turns.length ? { ...value, turns } : undefined;
 }
 
+export interface ConversationSnapshot {
+  items: Readonly<Record<string, Conversation>>;
+  active: Partial<Record<Corpus, string>>;
+  drafts: Readonly<Record<string, string>>;
+  selected: Corpus;
+  thinkingEffort: ThinkingEffort;
+  initialized: boolean;
+  unsaved: string;
+  activeOperation?: ChatOperation;
+  pendingTurn?: Pick<ChatOperation, 'conversationId' | 'turnId'>;
+}
+
+function emptyConversation(corpus: Corpus, time: number): Conversation {
+  return { id: id('chat'), corpus, title: 'New chat', createdAt: time, updatedAt: time, turns: [] };
+}
+function recordValue<T>(record: Readonly<Record<string, T>>, key: string | undefined): T | undefined {
+  return key !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
+}
+export function createConversationState() {
+  const initial = emptyConversation('nfcorpus', Date.now());
+  return createStore(subscribeWithSelector<ConversationSnapshot>(() => ({
+    items: { [initial.id]: initial }, active: { nfcorpus: initial.id }, drafts: {},
+    selected: 'nfcorpus', thinkingEffort: DEFAULT_THINKING_EFFORT, initialized: false, unsaved: '',
+  })));
+}
+export function currentConversation(state: ConversationSnapshot): Conversation {
+  return recordValue(state.items, state.active[state.selected])!;
+}
+export function currentDraft(state: ConversationSnapshot) { return recordValue(state.drafts, currentConversation(state).id) ?? ''; }
+export function savedConversations(state: ConversationSnapshot) {
+  return Object.values(state.items).filter(item => item.turns.length).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
 export class ConversationStore {
-  private items = new Map<string, Conversation>();
-  private listeners = new Set<() => void>();
-  private active: Partial<Record<Corpus, string>> = {};
-  private drafts = new Map<string, string>();
-  private queue: Promise<void> = Promise.resolve();
-  private checkpoints = new Map<string, ReturnType<typeof setTimeout>>();
-  private pending = new Map<string, Conversation>();
+  readonly state = createConversationState();
+  private persistence: ConversationPersistence;
   private timestamp = 0;
-  selected: Corpus = 'nfcorpus';
-  private effort: ThinkingEffort = DEFAULT_THINKING_EFFORT;
-  get thinkingEffort() { return this.effort; }
-  initialized = false;
-  unsaved = '';
-  constructor(private repository: ConversationRepository = new IndexedDBConversations(), private legacy = storage()) {}
-  subscribe(listener: () => void) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-  notify() { for (const listener of this.listeners) listener(); }
-  private now() { this.timestamp = Math.max(Date.now(), this.timestamp + 1); return this.timestamp; }
-  private write(task: () => Promise<void>) {
-    this.queue = this.queue.then(task).catch(() => { this.unsaved = 'Could not save conversations. This chat is available in this page only.'; this.notify(); });
+  private initialization?: Promise<void>;
+  constructor(private repository: ConversationRepository = new IndexedDBConversations(), private legacy = storage()) {
+    this.persistence = new ConversationPersistence(repository, () => {
+      this.state.setState({ unsaved: 'Could not save conversations. This chat is available in this page only.' });
+    });
   }
-  async initialize() {
+  get selected() { return this.state.getState().selected; }
+  get thinkingEffort() { return this.state.getState().thinkingEffort; }
+  get initialized() { return this.state.getState().initialized; }
+  get unsaved() { return this.state.getState().unsaved; }
+  watch<T>(selector: (state: ConversationSnapshot) => T, listener: (value: T, previous: T) => void, fireImmediately = false) {
+    return this.state.subscribe(selector, listener, { equalityFn: shallow, fireImmediately });
+  }
+  subscribe(listener: () => void) { return this.state.subscribe(listener); }
+  private now() { this.timestamp = Math.max(Date.now(), this.timestamp + 1); return this.timestamp; }
+  initialize() { return this.initialization ??= this.restore(); }
+  private async restore() {
+    const items: Record<string, Conversation> = Object.create(null);
+    let selected: Corpus = 'nfcorpus';
+    let active: Partial<Record<Corpus, string>> = {};
+    let thinkingEffort = DEFAULT_THINKING_EFFORT;
+    let unsaved = '';
     try {
       const loaded = await this.repository.load();
-      this.effort = normalizeThinkingEffort(loaded.navigation?.thinkingEffort);
+      thinkingEffort = normalizeThinkingEffort(loaded.navigation?.thinkingEffort);
       let legacy: Conversation[] = [];
       let legacyReadable = true;
       if (!loaded.imported) {
         try { legacy = importLegacyHistory(this.legacy?.getItem(LEGACY_KEY) ?? null); }
-        catch { legacyReadable = false; this.unsaved = 'Old search history could not be imported. Saved conversations are still available.'; }
+        catch { legacyReadable = false; unsaved = 'Old search history could not be imported. Saved conversations are still available.'; }
       }
       for (const candidate of [...legacy, ...loaded.conversations]) {
         const conversation = restoreConversation(candidate);
-        if (conversation) this.items.set(conversation.id, conversation);
+        if (conversation) items[conversation.id] = conversation;
       }
-      this.active = {};
-      // The marker and imported chats commit together; interrupted imports are safe to retry.
       if (loaded.navigation && isCorpus(loaded.navigation.selected)) {
-        this.selected = loaded.navigation.selected;
-        this.active = loaded.navigation.active ?? {};
+        selected = loaded.navigation.selected;
+        active = { ...loaded.navigation.active };
       }
       if (!loaded.imported && legacyReadable) await this.repository.import(legacy);
-      this.retain();
-    } catch { this.unsaved = 'Conversation storage is unavailable. New chats will stay in this page only.'; }
-    this.initialized = true;
-    this.current();
-    this.notify();
+    } catch { unsaved = 'Conversation storage is unavailable. New chats will stay in this page only.'; }
+    const retained = Object.values(items).sort((a, b) => b.updatedAt - a.updatedAt);
+    const old = retained.slice(CONVERSATION_LIMIT).map(item => item.id);
+    for (const conversationId of old) delete items[conversationId];
+    this.persistence.remove(old);
+    const existing = recordValue(items, active[selected]);
+    if (!existing || existing.corpus !== selected) {
+      const latest = retained.find(item => item.corpus === selected && items[item.id]);
+      const current = latest ?? emptyConversation(selected, this.now());
+      items[current.id] = current; active[selected] = current.id;
+    }
+    // Publish hydration atomically. Selectors never create a startup placeholder.
+    this.state.setState({ items, active, selected, thinkingEffort, unsaved, initialized: true });
   }
-  get(conversationId: string) { return this.items.get(conversationId); }
-  conversations() { return [...this.items.values()].filter(item => item.turns.length).sort((a, b) => b.updatedAt - a.updatedAt); }
-  current(): Conversation {
-    const existing = this.active[this.selected];
-    if (existing && this.items.get(existing)?.corpus === this.selected) return this.items.get(existing)!;
-    const latest = this.conversations().find(item => item.corpus === this.selected);
-    if (latest) { this.active[this.selected] = latest.id; return latest; }
-    return this.newChat(false);
+  get(conversationId: string) { return recordValue(this.state.getState().items, conversationId); }
+  conversations() { return savedConversations(this.state.getState()); }
+  current() { return currentConversation(this.state.getState()); }
+  draft() { return currentDraft(this.state.getState()); }
+  setDraft(value: string) {
+    const conversationId = this.current().id;
+    this.state.setState(state => currentDraft(state) === value ? state : { drafts: { ...state.drafts, [conversationId]: value } });
   }
-  draft() { return this.drafts.get(this.current().id) ?? ''; }
-  setDraft(value: string) { this.drafts.set(this.current().id, value); }
+  setExecution(activeOperation?: ChatOperation) {
+    this.state.setState(state => state.activeOperation === activeOperation ? state : { activeOperation });
+  }
+  setPending(pendingTurn?: ConversationSnapshot['pendingTurn']) {
+    this.state.setState(state => state.pendingTurn === pendingTurn ? state : { pendingTurn });
+  }
   private navigation() {
-    const snapshot: NavigationSnapshot = { selected: this.selected, active: { ...this.active }, thinkingEffort: this.effort };
-    this.write(() => this.repository.navigate(snapshot));
+    const { selected, active, thinkingEffort } = this.state.getState();
+    this.persistence.navigate({ selected, active: { ...active }, thinkingEffort });
   }
-  select(corpus: Corpus) { this.selected = corpus; this.current(); this.navigation(); this.notify(); }
+  select(corpus: Corpus) {
+    const state = this.state.getState();
+    if (state.selected === corpus) return;
+    const existing = recordValue(state.items, state.active[corpus]);
+    const current = existing?.corpus === corpus ? existing : this.conversations().find(item => item.corpus === corpus) ?? emptyConversation(corpus, this.now());
+    this.state.setState({ selected: corpus, items: state.items[current.id] ? state.items : { ...state.items, [current.id]: current }, active: { ...state.active, [corpus]: current.id } });
+    this.navigation();
+  }
   setThinkingEffort(value: unknown) {
-    this.effort = normalizeThinkingEffort(value);
-    this.navigation(); this.notify();
+    const thinkingEffort = normalizeThinkingEffort(value);
+    if (thinkingEffort === this.thinkingEffort) return;
+    this.state.setState({ thinkingEffort }); this.navigation();
   }
   open(conversationId: string) {
-    const conversation = this.items.get(conversationId);
+    const conversation = this.get(conversationId);
     if (!conversation) return;
-    this.selected = conversation.corpus;
-    this.active[this.selected] = conversationId;
-    this.navigation(); this.notify();
+    this.state.setState(state => ({ selected: conversation.corpus, active: { ...state.active, [conversation.corpus]: conversationId } }));
+    this.navigation();
   }
-  newChat(notify = true) {
-    const previous = this.active[this.selected];
-    if (previous && !this.items.get(previous)?.turns.length) { this.items.delete(previous); this.drafts.delete(previous); }
-    const time = this.now();
-    const conversation: Conversation = { id: id('chat'), corpus: this.selected, title: 'New chat', createdAt: time, updatedAt: time, turns: [] };
-    this.items.set(conversation.id, conversation); this.active[this.selected] = conversation.id;
-    if (notify) { this.navigation(); this.notify(); }
-    return conversation;
+  newChat() {
+    const state = this.state.getState();
+    const previous = state.active[state.selected];
+    const items = { ...state.items }; const drafts = { ...state.drafts };
+    if (previous && !items[previous]?.turns.length) { delete items[previous]; delete drafts[previous]; }
+    const conversation = emptyConversation(state.selected, this.now());
+    this.state.setState({ items: { ...items, [conversation.id]: conversation }, drafts, active: { ...state.active, [state.selected]: conversation.id } });
+    this.navigation(); return conversation;
   }
   append(question: string, history: ChatTurn['history'], contextLimited: boolean) {
-    const conversation = this.current();
-    const turn: ChatTurn = { id: id('turn'), question, history, contextLimited, thinkingEffort: this.effort, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
+    const state = this.state.getState(); const conversation = this.current();
+    const turn: ChatTurn = { id: id('turn'), question, history, contextLimited, thinkingEffort: state.thinkingEffort, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
     const updated = { ...conversation, title: conversation.turns.length ? conversation.title : question, updatedAt: this.now(), turns: [...conversation.turns, turn] };
-    this.items.set(updated.id, updated); this.drafts.set(updated.id, ''); this.persist(updated); this.retain(); this.navigation(); this.notify();
-    return turn;
+    const items = { ...state.items, [updated.id]: updated }; const drafts = { ...state.drafts, [updated.id]: '' };
+    const old = Object.values(items).filter(item => item.turns.length).sort((a, b) => b.updatedAt - a.updatedAt).slice(CONVERSATION_LIMIT).map(item => item.id);
+    for (const conversationId of old) { delete items[conversationId]; delete drafts[conversationId]; }
+    this.persistence.save(updated); this.persistence.remove(old);
+    this.state.setState({ items, drafts }); this.navigation(); return turn;
   }
   update(conversationId: string, turnId: string, changes: Partial<ChatTurn>, streaming = false) {
-    const conversation = this.items.get(conversationId);
-    if (!conversation) return;
+    const conversation = this.get(conversationId);
+    const previous = conversation?.turns.find(turn => turn.id === turnId);
+    if (!conversation || !previous || Object.entries(changes).every(([key, value]) => Object.is(previous[key as keyof ChatTurn], value))) return;
     const updated = { ...conversation, updatedAt: this.now(), turns: conversation.turns.map(turn => turn.id === turnId ? { ...turn, ...changes } : turn) };
-    this.items.set(conversationId, updated); this.persist(updated, streaming); this.notify();
+    this.persistence.save(updated, streaming);
+    this.state.setState(state => ({ items: { ...state.items, [conversationId]: updated } }));
   }
-  private persist(conversation: Conversation, streaming = false) {
-    if (streaming) {
-      this.pending.set(conversation.id, conversation);
-      if (!this.checkpoints.has(conversation.id)) this.checkpoints.set(conversation.id, setTimeout(() => this.checkpoint(conversation.id), 1000));
-      return;
-    }
-    clearTimeout(this.checkpoints.get(conversation.id)); this.checkpoints.delete(conversation.id); this.pending.delete(conversation.id);
-    this.write(() => this.repository.save(conversation));
-  }
-  private checkpoint(conversationId: string) {
-    const conversation = this.pending.get(conversationId);
-    if (conversation) this.persist(conversation);
-  }
-  private retain() {
-    const old = this.conversations().slice(CONVERSATION_LIMIT).map(item => item.id);
-    for (const conversationId of old) {
-      this.items.delete(conversationId); this.drafts.delete(conversationId);
-      clearTimeout(this.checkpoints.get(conversationId)); this.checkpoints.delete(conversationId); this.pending.delete(conversationId);
-    }
-    if (old.length) this.write(() => this.repository.remove(old));
-  }
-  async flush() { for (const conversationId of this.pending.keys()) this.checkpoint(conversationId); await this.queue; }
+  flush() { return this.persistence.flush(); }
   async clear() {
-    for (const timer of this.checkpoints.values()) clearTimeout(timer);
-    this.checkpoints.clear(); this.pending.clear(); this.items.clear(); this.drafts.clear(); this.active = {};
+    const conversation = emptyConversation(this.selected, this.now());
     try { this.legacy?.removeItem(LEGACY_KEY); } catch { /* Storage may be blocked. */ }
-    this.write(() => this.repository.clear()); this.newChat(); await this.queue;
+    this.persistence.clear();
+    this.state.setState({ items: { [conversation.id]: conversation }, drafts: {}, active: { [conversation.corpus]: conversation.id }, activeOperation: undefined, pendingTurn: undefined });
+    this.navigation(); await this.flush();
   }
+}
+export function createConversationStore(repository?: ConversationRepository, legacy?: Pick<Storage, 'getItem' | 'removeItem'>) {
+  return new ConversationStore(repository, legacy);
 }
