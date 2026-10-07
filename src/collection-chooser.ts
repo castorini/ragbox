@@ -1,5 +1,6 @@
 import { requiredElement } from './boundaries.ts';
 import type { Corpus } from './types.ts';
+import { HISTORY_ENABLED } from './features.ts';
 
 type View = 'search' | 'history' | 'setup';
 const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management', 'storage-management'];
@@ -10,6 +11,7 @@ export function setupCollectionChooser(
   onCollectionChange: (value: Corpus) => void = () => {},
   onHome: () => void = () => {},
   chat = false,
+  historyEnabled = HISTORY_ENABLED,
 ) {
   const selector = requiredElement<HTMLSelectElement>('#collection-switch');
   const search = requiredElement<HTMLElement>('#search-view');
@@ -18,6 +20,7 @@ export function setupCollectionChooser(
   const searchLink = requiredElement<HTMLAnchorElement>('#nav-search');
   const historyLink = requiredElement<HTMLAnchorElement>('#nav-history');
   const setupLink = requiredElement<HTMLAnchorElement>('#nav-setup');
+  historyLink.hidden = !historyEnabled;
   const skipLink = requiredElement<HTMLAnchorElement>('.skip-link');
   const panels = {
     nfcorpus: requiredElement<HTMLElement>('#nfcorpus-collection'),
@@ -36,7 +39,8 @@ export function setupCollectionChooser(
 
   function currentView(): View {
     const view = new URL(window.location.href).searchParams.get('view');
-    return view === 'setup' || view === 'history' ? view : 'search';
+    if (view === 'history') return historyEnabled ? 'history' : 'search';
+    return view === 'setup' ? 'setup' : 'search';
   }
 
   function showView(view: View, focus = false) {

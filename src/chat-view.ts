@@ -1,7 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import { renderAnswer } from './llm-controller.ts';
 import { EXAMPLE_QUERIES } from './example-queries.ts';
-import type { ChatController } from './chat-controller.ts';
+import { MAX_QUESTION_LENGTH, type ChatController } from './chat-controller.ts';
 import type { ResourceStates } from './resource-state.ts';
 import type { ChatTurn, Conversation } from './types.ts';
 
@@ -12,11 +12,16 @@ export function handleComposerKey(event: Pick<KeyboardEvent, 'key' | 'shiftKey' 
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
 }
 
+// Icon-only Send button: an up arrow, or a square while a reply is being written.
+const SEND_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
+const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/></svg>';
+
 export function setupChatView(controller: ChatController, states: ResourceStates) {
   const { store } = controller;
   const form = requiredElement<HTMLFormElement>('#chat-form');
   const query = requiredElement<HTMLTextAreaElement>('#chat-query');
   const send = requiredElement<HTMLButtonElement>('#chat-send');
+  const lengthWarning = requiredElement<HTMLElement>('#chat-length-warning');
   const effort = requiredElement<HTMLSelectElement>('#chat-thinking-effort');
   const transcript = requiredElement<HTMLElement>('#chat-transcript');
   const title = requiredElement<HTMLElement>('#chat-title');
@@ -39,7 +44,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   };
   window.addEventListener('resize', resize);
   const submit = () => {
-    if (!controller.canSend() || !query.value.trim()) return;
+    if (!controller.canSend() || !query.value.trim() || tooLong()) return;
     const question = query.value; query.value = ''; store.setDraft(''); resize();
     void controller.send(question);
   };
@@ -49,13 +54,25 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   effort.onchange = () => { store.setThinkingEffort(effort.value); };
   requiredElement<HTMLButtonElement>('#chat-new').onclick = () => { controller.newChat(); query.focus(); };
 
+  const tooLong = () => query.value.trim().length > MAX_QUESTION_LENGTH;
   function renderControls() {
+    const length = query.value.trim().length;
+    lengthWarning.hidden = !tooLong();
+    lengthWarning.textContent = tooLong()
+      ? `Your question is ${length} characters. Shorten it to ${MAX_QUESTION_LENGTH} or fewer to send.`
+      : '';
+    query.toggleAttribute('aria-invalid', tooLong());
     effort.value = store.thinkingEffort;
     effort.disabled = !store.initialized;
-    send.textContent = controller.running ? 'Stop' : 'Send';
+    const mode = controller.running ? 'stop' : 'send';
+    if (send.dataset.mode !== mode) {
+      send.dataset.mode = mode;
+      send.innerHTML = mode === 'stop' ? STOP_ICON : SEND_ICON;
+      send.title = mode === 'stop' ? 'Stop' : 'Send';
+    }
     send.setAttribute('aria-label', controller.running ? 'Stop current reply' : 'Send message');
-    send.disabled = controller.running ? false : !controller.canSend() || !query.value.trim();
-    query.setAttribute('aria-describedby', store.selected === 'nfcorpus' ? 'fts-help' : 'marco-help');
+    send.disabled = controller.running ? false : !controller.canSend() || !query.value.trim() || tooLong();
+    query.setAttribute('aria-describedby', `${store.selected === 'nfcorpus' ? 'fts-help' : 'marco-help'}${tooLong() ? ' chat-length-warning' : ''}`);
   }
   function createRow(conversation: Conversation, turn: ChatTurn): Row {
     const root = element('article', 'chat-turn'); root.setAttribute('aria-label', 'Question and reply');
@@ -103,7 +120,10 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     row.thinking.hidden = !turn.thinking && turn.phase !== 'generating';
     row.thinkingSummary.textContent = turn.phase === 'generating' && !turn.answer ? 'Thinking…' : turn.phase === 'stopped' ? 'Reasoning (stopped)' : 'Reasoning';
     if (row.thinkingText.textContent !== (turn.thinking ?? '')) row.thinkingText.textContent = turn.thinking ?? '';
-    row.status.textContent = turn.message; row.status.hidden = turn.phase === 'complete' && !turn.keywordOnly;
+    row.status.textContent = turn.message;
+    // The Thinking box already says "Thinking…"; don't repeat it as a status line.
+    const repeatsThinking = !row.thinking.hidden && turn.message === row.thinkingSummary.textContent;
+    row.status.hidden = (turn.phase === 'complete' && !turn.keywordOnly) || repeatsThinking;
     row.root.dataset.phase = turn.phase;
     row.context.hidden = !turn.contextLimited;
     row.context.textContent = 'Using up to the latest 3 turns, within the model’s context limit. Earlier messages remain saved.';

@@ -378,10 +378,13 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-input-row:focus-within{border-color:#76aa96;box-shadow:0 0 0 3px #76aa961f}
 .chat-input-row textarea{flex:1;width:100%;min-width:0;min-height:44px;max-height:150px;border:0;resize:none;font:inherit;font-size:15px;line-height:24px;padding:10px 12px;background:transparent;outline:none;box-sizing:border-box}
 .chat-input-row button{min-width:72px;min-height:44px;flex-shrink:0}
-.chat-composer-hint{font-size:11px;color:var(--muted);margin:8px 12px 0}
-.chat-composer-options{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:8px 12px 0;font-size:12px}
-.chat-composer-options select{width:auto;min-height:32px;margin:0;padding:4px 32px 4px 10px;font:inherit;appearance:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360736c' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center/14px 14px}
-.chat-composer-options span{color:var(--muted);font-size:11px}
+.chat-length-warning{font-size:13px;font-weight:600;color:#b23a35;margin:8px 12px 0}
+.chat-input-row:has(textarea[aria-invalid]){border-color:#d0726b}
+.chat-input-row:has(textarea[aria-invalid]):focus-within{box-shadow:0 0 0 3px #d0726b26}
+/* Thinking effort sits inside the search box, next to Send. */
+.chat-input-row .chat-effort{align-self:flex-end;margin-bottom:4px!important;flex:none;width:auto;min-height:36px;margin:0;padding:4px 30px 4px 12px;font:inherit;font-size:13px;color:#4b5f58;border:1px solid transparent;border-radius:10px;cursor:pointer;appearance:none;background:#f3f5ef url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360736c' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center/14px 14px}
+.chat-input-row .chat-effort:hover:not(:disabled){border-color:#d4dfd5;background-color:#eef2ea}
+.chat-input-row .chat-effort:focus-visible{outline:3px solid #87aa95;outline-offset:1px}
 #search-view #corpus-dashboard{margin:10px 0 36px;order:5}
 .conversation-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px;overflow-wrap:anywhere}
 .conversation-card h2{font-size:17px;margin:0 0 8px}
@@ -389,4 +392,36 @@ form.examples-open .example-queries{border-color:#76aa96}
 .conversation-card summary{font-size:12px;color:var(--muted);cursor:pointer}
 .conversation-preview{white-space:pre-wrap;font-size:14px;line-height:1.7;padding:14px 0 0}
 @media(max-width:700px){#collections .chat-composer{left:84px;right:20px}}
-@media(max-width:600px){#search-view{padding-top:20px;gap:14px}#search-view .search-brand{gap:10px}#search-view .search-logo{font-size:25px}.search-toolbar{gap:10px}.model-note{font-size:11px}.chat-heading{margin-top:18px}.chat-heading h2{font-size:17px}.chat-user{max-width:94%}.chat-examples{flex-direction:column}.chat-example{width:100%}.chat-composer-hint{font-size:10px;margin-left:4px}.chat-sources{padding:10px 12px}.chat-input-row textarea{padding-left:6px}.chat-sources ol{padding-left:18px}}
+@media(max-width:600px){#search-view{padding-top:20px;gap:14px}#search-view .search-brand{gap:10px}#search-view .search-logo{font-size:25px}.search-toolbar{gap:10px}.model-note{font-size:11px}.chat-heading{margin-top:18px}.chat-heading h2{font-size:17px}.chat-user{max-width:94%}.chat-examples{flex-direction:column}.chat-example{width:100%}.chat-sources{padding:10px 12px}.chat-input-row textarea{padding-left:6px}.chat-sources ol{padding-left:18px}}
+
+/* Front page (no messages yet): logo, search box, examples, collections, then notices.
+   The chat page keeps its own layout with the composer pinned to the bottom. */
+#search-view:has(#chat-empty:not([hidden])) #collections{display:contents}
+#search-view:has(#chat-empty:not([hidden])) .search-brand{order:0;flex-direction:column;align-items:center;gap:6px;margin-top:228px;text-align:center}
+#search-view:has(#chat-empty:not([hidden])) .search-logo{font-size:clamp(44px,6vw,60px);letter-spacing:-2.4px;line-height:1.1}
+#search-view:has(#chat-empty:not([hidden])) .search-tagline{font-size:16px}
+#search-view:has(#chat-empty:not([hidden])) #chat-form{order:1}
+#search-view:has(#chat-empty:not([hidden])) #chat-empty{order:2}
+#search-view:has(#chat-empty:not([hidden])) #corpus-dashboard{display:contents}
+#search-view:has(#chat-empty:not([hidden])) #corpus-dashboard>h2{order:3;margin:4px 0 -10px 4px}
+#search-view:has(#chat-empty:not([hidden])) .corpus-cards{order:3}
+#search-view:has(#chat-empty:not([hidden])){position:relative}
+#search-view:has(#chat-empty:not([hidden])) .tour-replay{position:absolute;top:40px;right:0;margin:0}
+.tour-replay-link{text-decoration:underline;text-underline-offset:3px}
+#search-view:has(#chat-empty:not([hidden])) .chat-transcript{display:none}
+#search-view:has(#chat-empty:not([hidden])) .collection-panel,
+#search-view:has(#chat-empty:not([hidden])) .search-toolbar,
+#search-view:has(#chat-empty:not([hidden])) #chat-unsaved{order:4}
+#search-view:has(#chat-empty:not([hidden])) .chat-heading,
+#search-view:has(#chat-empty:not([hidden])) .search-collection-select{display:none!important}
+#search-view:has(#chat-empty:not([hidden])) #collections .chat-composer{position:static;left:auto;right:auto;max-width:none;margin:28px 0 0;padding:0;border-top:0;background:none}
+#search-view:has(#chat-empty:not([hidden])) .chat-empty{padding:0}
+#search-view:has(#chat-empty:not([hidden])) .chat-empty>p{margin:0}
+#search-view:has(#chat-empty:not([hidden])) .chat-examples{margin-top:12px}
+#search-view:has(#chat-empty:not([hidden])) .search-toolbar{margin:0;justify-content:flex-start}
+#search-view:has(#chat-empty:not([hidden])) #collections .model-note{justify-content:flex-start}
+#search-view:has(#chat-empty:not([hidden])) .search-help{margin:0}
+
+/* Round icon Send / Stop button inside the search box. */
+.chat-input-row .chat-send{display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:50%}
+.chat-input-row .chat-send svg{display:block}

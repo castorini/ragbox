@@ -15,6 +15,7 @@ import { setupSettingsView } from './settings-view.ts';
 import { ConversationStore } from './conversations.ts';
 import { ChatController } from './chat-controller.ts';
 import { setupChatView, setupConversationHistory } from './chat-view.ts';
+import { HISTORY_ENABLED } from './features.ts';
 import { setupTour, tourSeen } from './tour.ts';
 
 const status = requiredElement<HTMLElement>('#status');
@@ -81,10 +82,12 @@ const chat = new ChatController(conversations, llm, {
   },
 });
 setupChatView(chat, states);
-setupConversationHistory(chat, conversation => {
-  chat.open(conversation.id);
-  chooser.search(conversation.corpus);
-});
+if (HISTORY_ENABLED) {
+  setupConversationHistory(chat, conversation => {
+    chat.open(conversation.id);
+    chooser.search(conversation.corpus);
+  });
+}
 void conversationsReady.then(() => chooser.choose(conversations.selected));
 window.addEventListener('pagehide', () => { void conversations.flush(); });
 const capability = llm.initializeCapability();

@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { overlayPath, placeCard, TOUR_STEPS, tourSeen, TOUR_KEY } from '../src/tour.ts';
+import { overlayPath, placeCard, TOUR_STEPS, tourSeen, tourSteps, TOUR_KEY } from '../src/tour.ts';
 
 const view = { w: 1280, h: 800 };
 const card = { w: 360, h: 200 };
@@ -32,9 +32,9 @@ it('explains the optional model step according to what this browser can do', () 
   expect(model.body('idle')).toMatch(/1\.84 GB.*skip it/i);
   expect(model.body('ready')).toMatch(/already installed/);
   expect(model.body('unsupported')).toMatch(/can’t run the answer model/);
-  expect(TOUR_STEPS.map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Continue a saved chat', 'Details live in Settings', 'Ask a question']);
-  expect(TOUR_STEPS[2].body('idle')).toMatch(/conversations.*sources/);
-  expect(TOUR_STEPS[3].body('idle')).toMatch(/index.*answer model/);
+  expect(tourSteps(true).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Continue a saved chat', 'Details live in Settings', 'Ask a question']);
+  expect(tourSteps(true)[2].body('idle')).toMatch(/conversations.*sources/);
+  expect(tourSteps(true)[3].body('idle')).toMatch(/index.*answer model/);
 });
 
 it('remembers that the tour was completed or skipped', () => {
@@ -51,4 +51,9 @@ it('puts the Settings card beside the sidebar, pointing at the icon', () => {
   expect(place.y).toBe(488 - 100);
   expect(place.arrow).toBe(100);
   expect(placeCard({ x: 1100, y: 400, w: 160, h: 60 }, card, view, 'right').side).not.toBe('right');
+});
+
+it('leaves out the History step while History is turned off', () => {
+  expect(tourSteps(false).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Details live in Settings', 'Ask a question']);
+  expect(TOUR_STEPS).toEqual(tourSteps(false));
 });

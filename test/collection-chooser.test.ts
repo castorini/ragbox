@@ -90,7 +90,7 @@ it('opens direct Setup links and supports in-page navigation and Back/Forward', 
 
 it('opens History from Settings as its own view without losing the query', () => {
   const ui = harness();
-  setupCollectionChooser();
+  setupCollectionChooser(undefined, undefined, false, true);
   ui.get('#collection-switch').value = 'msmarco';
   ui.get('#collection-switch').onchange?.();
   ui.get('#marco-query').value = 'example query';
@@ -128,7 +128,7 @@ it('focuses the model section instead when the load button is unavailable', () =
 it('returns to the starting search page from the logo, clearing results and stopping generation', () => {
   const ui = harness('https://example.com/ragbox/?view=history');
   const onHome = vi.fn();
-  setupCollectionChooser(undefined, onHome);
+  setupCollectionChooser(undefined, onHome, false, true);
   for (const prefix of ['fts', 'marco']) {
     ui.get(`#${prefix}-results-area`).hidden = false;
     ui.get(`#${prefix}-results`).textContent = 'result';
@@ -193,4 +193,12 @@ it.each(['collection-management', 'storage-management'])('opens and focuses inde
   setupCollectionChooser();
   expect(ui.get('#collection-management').open).toBe(true);
   expect(ui.get('#collection-management').focus).toHaveBeenCalled();
+});
+
+it('hides History and falls back to search while History is turned off', () => {
+  const ui = harness('https://example.com/ragbox/?view=history');
+  setupCollectionChooser(undefined, undefined, false, false);
+  expect((ui.get('#nav-history') as { hidden: boolean }).hidden).toBe(true);
+  expect(ui.get('#history-view').hidden).toBe(true);
+  expect(ui.get('#search-view').hidden).toBe(false);
 });

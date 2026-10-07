@@ -28,9 +28,8 @@
       <div id="chat-transcript" class="chat-transcript" role="log" aria-label="Conversation" aria-live="off"></div>
       <form id="chat-form" class="chat-composer">
         <label class="sr-only" for="chat-query">Message your document collection</label>
-        <div class="chat-input-row"><textarea id="chat-query" rows="1" placeholder="Ask your documents…" required maxlength="500"></textarea><button id="chat-send" class="primary" type="submit" disabled>Send</button></div>
-        <div class="chat-composer-options"><label for="chat-thinking-effort">Thinking effort</label><select id="chat-thinking-effort" aria-describedby="chat-effort-help" disabled><option value="low">Low</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select><span id="chat-effort-help">Applies to the next message</span></div>
-        <p class="chat-composer-hint">Enter to send · Shift+Enter for a new line · Up to 500 characters</p>
+        <div class="chat-input-row"><textarea id="chat-query" rows="1" placeholder="Ask your documents…" required></textarea><label class="sr-only" for="chat-thinking-effort">Thinking effort</label><select id="chat-thinking-effort" class="chat-effort" title="Thinking effort: how long the model reasons before answering" disabled><option value="low">Thinking: Low</option><option value="balanced" selected>Thinking: Balanced</option><option value="high">Thinking: High</option></select><button id="chat-send" class="primary chat-send" type="submit" aria-label="Send message" title="Send" data-mode="send" disabled><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button></div>
+        <p id="chat-length-warning" class="chat-length-warning" role="alert" hidden></p>
       </form>
     </section>
     <section id="corpus-dashboard" class="corpus-dashboard" aria-labelledby="corpus-dashboard-heading">
@@ -49,7 +48,7 @@
         <div class="corpus-actions"><button id="msmarco-dashboard-setup" class="corpus-action" type="button" hidden></button><span id="msmarco-dashboard-selected" class="corpus-selected" hidden>Selected</span></div>
       </li>
       </ul>
-      <button id="tour-start" class="tour-replay" type="button">New here? Take the tour</button>
+      <button id="tour-start" class="tour-replay" type="button">New here? <span class="tour-replay-link">Take the tour</span></button>
     </section>
 
   </section>

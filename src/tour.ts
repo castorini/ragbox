@@ -1,4 +1,5 @@
 import type { ResourcePhase } from './resource-state.ts';
+import { HISTORY_ENABLED } from './features.ts';
 
 // First-visit walkthrough of the search page: a dimmed overlay with a cut-out
 // around one target at a time, and a pointer card with Back / Next / Skip.
@@ -21,9 +22,11 @@ export interface TourStep {
   fitChildren?: boolean;
   // Put the card beside the target (for the sidebar) instead of above or below it.
   placement?: 'right';
+  // Only shown while the History feature is on.
+  history?: boolean;
 }
 
-export const TOUR_STEPS: TourStep[] = [
+const ALL_STEPS: TourStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('.corpus-cards'),
     title: 'Choose a collection',
@@ -47,6 +50,7 @@ export const TOUR_STEPS: TourStep[] = [
     body: () => 'History saves your conversations and their sources in this browser. Use Continue chat to reopen one and ask another question. Search the list when it gets long.',
     hint: 'Find it in the sidebar.',
     placement: 'right',
+    history: true,
   },
   {
     target: () => document.querySelector<HTMLElement>('#nav-setup'),
@@ -61,6 +65,12 @@ export const TOUR_STEPS: TourStep[] = [
     body: () => 'Type a question and press Enter. Then ask follow-up questions in the same chat. Open Sources beneath a reply to check its evidence. Shift+Enter adds a new line.',
   },
 ];
+
+export function tourSteps(historyEnabled = HISTORY_ENABLED) {
+  return ALL_STEPS.filter(step => historyEnabled || !step.history);
+}
+
+export const TOUR_STEPS = tourSteps();
 
 export function tourSeen(storage: Pick<Storage, 'getItem'> | undefined = safeStorage()) {
   try { return storage?.getItem(TOUR_KEY) === '1'; } catch { return false; }

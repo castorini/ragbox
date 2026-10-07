@@ -4,6 +4,8 @@ import { ConversationStore } from './conversations.ts';
 import { extractCitations, INSUFFICIENT_EVIDENCE } from './rag.ts';
 import { errorMessage } from './errors.ts';
 
+
+export const MAX_QUESTION_LENGTH = 500;
 export type ChatModel = Pick<ModelService, 'ready' | 'state' | 'model' | 'subscribe' | 'resolveQuery' | 'generateAnswer'>;
 interface Attempt extends ChatOperation { abort: AbortController }
 export interface ChatResources {
@@ -31,7 +33,7 @@ export class ChatController {
   canSend() { return this.store.initialized && this.resources.ready(this.store.selected) && !this.resources.busy() && !this.running; }
   async send(question: string) {
     question = question.trim();
-    if (!question || question.length > 500 || !this.canSend()) return;
+    if (!question || question.length > MAX_QUESTION_LENGTH || !this.canSend()) return;
     this.pending = undefined;
     const conversation = this.store.current();
     const turn = this.store.append(question, conversationHistory(conversation.turns), conversation.turns.length > 3);
