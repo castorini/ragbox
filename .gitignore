@@ -6,3 +6,6 @@ artifacts/
 .env.local
 .DS_Store
 .codex/environments/
+
+# Local Netlify folder
+.netlify
