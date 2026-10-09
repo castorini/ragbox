@@ -11,6 +11,7 @@ interface Attempt extends ChatOperation { abort: AbortController }
 export interface ChatResources {
   ready(corpus: Corpus): boolean;
   busy(): boolean;
+  subscribe?(listener: () => void): () => void;
   retrieve(corpus: Corpus, query: string, operation: ChatOperation): Promise<RetrievalResult>;
 }
 
@@ -23,14 +24,31 @@ export function conversationHistory(turns: ChatTurn[]): ChatMessage[] {
 
 export class ChatController {
   private active?: Attempt;
-  private pending?: { conversationId: string; turnId: string };
+  private get pending() { return this.store.state.getState().pendingTurn; }
+  private set pending(value: { conversationId: string; turnId: string } | undefined) { this.store.setPending(value); }
   private sequence = 0;
-  private unsubscribe: () => void;
+  private unsubscribers: (() => void)[];
+  private resourceTimer?: ReturnType<typeof setTimeout>;
+  private disposed = false;
   constructor(readonly store: ConversationStore, private model: ChatModel, private resources: ChatResources) {
-    this.unsubscribe = model.subscribe(() => this.resumePending());
+    let modelState = model.state;
+    this.unsubscribers = [model.subscribe(() => {
+      if (modelState === model.state) return;
+      modelState = model.state; this.resumePending();
+    })];
+    const unsubscribe = resources.subscribe?.(() => {
+      // Let the resource adapter finish its promise/finally cleanup before retrieval.
+      clearTimeout(this.resourceTimer);
+      this.resourceTimer = setTimeout(() => { this.resourceTimer = undefined; this.resumePending(); }, 0);
+    });
+    if (unsubscribe) this.unsubscribers.push(unsubscribe);
   }
-  get running() { return !!this.active || this.store.current().turns.at(-1)?.phase === 'waiting'; }
-  canSend() { return this.store.initialized && this.resources.ready(this.store.selected) && !this.resources.busy() && !this.running; }
+  private setActive(attempt?: Attempt) {
+    this.active = attempt;
+    this.store.setExecution(attempt && { conversationId: attempt.conversationId, turnId: attempt.turnId, attemptId: attempt.attemptId });
+  }
+  get running() { return !!this.store.state.getState().activeOperation || this.store.current().turns.at(-1)?.phase === 'waiting'; }
+  canSend() { return !this.disposed && this.store.initialized && this.resources.ready(this.store.selected) && !this.resources.busy() && !this.running; }
   async send(question: string) {
     question = question.trim();
     if (!question || question.length > MAX_QUESTION_LENGTH || !this.canSend()) return;
@@ -40,21 +58,21 @@ export class ChatController {
     await this.process(conversation.id, turn.id, turn.stage);
   }
   private valid(attempt: Attempt) {
-    return this.active === attempt && !attempt.abort.signal.aborted && this.store.current().id === attempt.conversationId;
+    return !this.disposed && this.active === attempt && !attempt.abort.signal.aborted && this.store.current().id === attempt.conversationId;
   }
   private turn(attempt: Attempt) { return this.store.get(attempt.conversationId)?.turns.find(turn => turn.id === attempt.turnId); }
   private update(attempt: Attempt, changes: Partial<ChatTurn>, streaming = false) {
     if (this.valid(attempt)) this.store.update(attempt.conversationId, attempt.turnId, changes, streaming);
   }
   private async process(conversationId: string, turnId: string, stage: TurnStage) {
-    if (this.active || this.resources.busy()) return;
+    if (this.disposed || this.active || this.resources.busy()) return;
     const conversation = this.store.get(conversationId);
     if (!conversation || !this.resources.ready(conversation.corpus)) return;
     const operation: ChatOperation = { conversationId, turnId, attemptId: `attempt-${++this.sequence}` };
     const attempt: Attempt = { ...operation, abort: new AbortController() };
-    this.active = attempt; this.pending = undefined;
+    this.setActive(attempt); this.pending = undefined;
     const turn = this.turn(attempt);
-    if (!turn) { this.active = undefined; return; }
+    if (!turn) { this.setActive(); return; }
     const history = turn.history;
     let query = turn.searchQuery ?? turn.question;
     let keywordOnly = turn.keywordOnly === true;
@@ -121,12 +139,12 @@ export class ChatController {
     } catch (error) {
       if (this.valid(attempt)) this.update(attempt, { phase: 'error', message: errorMessage(error) });
     } finally {
-      if (this.active === attempt) this.active = undefined;
-      this.store.notify();
+      if (this.active === attempt) this.setActive();
       this.resumePending();
     }
   }
   resumePending() {
+    if (this.disposed) return;
     const pending = this.pending;
     if (pending && !this.active && !this.model.ready && !['checking', 'loading'].includes(this.model.state)) {
       const turn = this.store.get(pending.conversationId)?.turns.find(turn => turn.id === pending.turnId);
@@ -142,12 +160,12 @@ export class ChatController {
   stop() {
     const target = this.active ?? this.pending;
     this.pending = undefined;
-    const attempt = this.active; this.active = undefined;
+    const attempt = this.active; this.setActive();
     if (target) {
       const turn = this.store.get(target.conversationId)?.turns.find(turn => turn.id === target.turnId);
       if (turn) this.store.update(target.conversationId, target.turnId, { phase: 'stopped', message: 'Stopped', citedIds: extractCitations(turn.answer, turn.includedIds) });
     }
-    attempt?.abort.abort(); this.store.notify();
+    attempt?.abort.abort();
   }
   async retry() {
     if (this.running || this.resources.busy()) return;
@@ -160,5 +178,9 @@ export class ChatController {
   newChat() { this.stop(); this.store.newChat(); }
   open(conversationId: string) { this.stop(); this.store.open(conversationId); }
   async clear() { this.stop(); await this.store.clear(); }
-  dispose() { this.stop(); this.unsubscribe(); }
+  dispose() {
+    this.disposed = true;
+    for (const unsubscribe of this.unsubscribers) unsubscribe();
+    clearTimeout(this.resourceTimer); this.stop();
+  }
 }

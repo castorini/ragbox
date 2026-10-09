@@ -4,6 +4,7 @@ import { EXAMPLE_QUERIES } from './example-queries.ts';
 import { MAX_QUESTION_LENGTH, type ChatController } from './chat-controller.ts';
 import type { ResourceStates } from './resource-state.ts';
 import type { ChatTurn, Conversation } from './types.ts';
+import { currentConversation, currentDraft } from './conversations.ts';
 
 export function sourceAnchor(conversationId: string, turnId: string, documentId: string) {
   return `chat-source-${encodeURIComponent(conversationId)}-${encodeURIComponent(turnId)}-${encodeURIComponent(documentId)}`;
@@ -32,8 +33,10 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const modelStatus = requiredElement<HTMLElement>('#model-search-status');
   const workspace = requiredElement<HTMLElement>('#search-view');
   let conversationId = '';
+  let draftConversationId = '';
+  let disposed = false;
   let exampleCorpus = '';
-  type Row = { root: HTMLElement; answer: HTMLElement; thinking: HTMLDetailsElement; thinkingSummary: HTMLElement; thinkingText: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string };
+  type Row = { root: HTMLElement; answer: HTMLElement; thinking: HTMLDetailsElement; thinkingSummary: HTMLElement; thinkingText: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string; turn?: ChatTurn; latest?: boolean };
   const rows = new Map<string, Row>();
   const element = <T extends keyof HTMLElementTagNameMap>(tag: T, className = '', text = '') => {
     const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
@@ -73,6 +76,10 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     send.setAttribute('aria-label', controller.running ? 'Stop current reply' : 'Send message');
     send.disabled = controller.running ? false : !controller.canSend() || !query.value.trim() || tooLong();
     query.setAttribute('aria-describedby', `${store.selected === 'nfcorpus' ? 'fts-help' : 'marco-help'}${tooLong() ? ' chat-length-warning' : ''}`);
+    const conversation = store.current();
+    const latest = conversation.turns.at(-1);
+    const row = latest && rows.get(latest.id);
+    if (row) row.retry.disabled = controller.running || states.busy || states.get(conversation.corpus).phase !== 'ready' || (states.get('model').phase === 'unsupported' && latest.stage === 'generate' && !latest.keywordOnly);
   }
   function createRow(conversation: Conversation, turn: ChatTurn): Row {
     const root = element('article', 'chat-turn'); root.setAttribute('aria-label', 'Question and reply');
@@ -110,6 +117,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   function renderRow(conversation: Conversation, turn: ChatTurn, latest: boolean) {
     let row = rows.get(turn.id);
     if (!row) { row = createRow(conversation, turn); rows.set(turn.id, row); }
+    if (row.turn === turn && row.latest === latest) return;
+    row.turn = turn; row.latest = latest;
     const answerKey = `${turn.answer}\0${turn.includedIds.join('\0')}`;
     if (row.answerKey !== answerKey) {
       const included = new Set(turn.includedIds);
@@ -152,32 +161,49 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const scrollTop = window.scrollY;
     const nearBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 160;
     if (changed) { rows.clear(); transcript.replaceChildren(); conversationId = conversation.id; }
-    if (changed || document.activeElement !== query) { query.value = store.draft(); resize(); }
     title.textContent = conversation.turns.length ? conversation.title : 'Ask your documents';
     empty.hidden = !!conversation.turns.length; dashboard.hidden = !!conversation.turns.length;
     for (const [index, turn] of conversation.turns.entries()) renderRow(conversation, turn, index === conversation.turns.length - 1);
-    unsaved.textContent = store.unsaved; unsaved.hidden = !store.unsaved;
-    if (exampleCorpus !== store.selected) {
-      exampleCorpus = store.selected;
-      examples.replaceChildren(...EXAMPLE_QUERIES[store.selected].map(question => {
-        const button = element('button', 'chat-example', question); button.type = 'button';
-        button.onclick = () => { query.value = question; store.setDraft(question); resize(); if (controller.canSend()) submit(); else query.focus(); };
-        return button;
-      }));
-    }
-    renderControls();
     // Only transcript updates in the visible chat may move the scroll position.
     if (!changed && nearBottom && !requiredElement<HTMLElement>('#search-view').hidden && conversation.turns.length) {
       requestAnimationFrame(() => {
-        if (store.current().id === conversation.id && !requiredElement<HTMLElement>('#search-view').hidden && window.scrollY === scrollTop) {
+        if (!disposed && store.current().id === conversation.id && !requiredElement<HTMLElement>('#search-view').hidden && window.scrollY === scrollTop) {
           window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
         }
       });
     }
-    modelStatus.setAttribute('aria-live', 'off');
   }
-  store.subscribe(render); states.subscribe(() => { render(); controller.resumePending(); }); render();
-  return { render };
+  function renderComposer() {
+    const changed = draftConversationId !== store.current().id;
+    draftConversationId = store.current().id;
+    if (changed || document.activeElement !== query) {
+      if (query.value !== store.draft()) { query.value = store.draft(); resize(); }
+    }
+    renderControls();
+  }
+  modelStatus.setAttribute('aria-live', 'off');
+  const unsubscribers = [
+    store.watch(currentConversation, render, true),
+    store.watch(state => [currentConversation(state).id, currentDraft(state), state.thinkingEffort, state.initialized, state.activeOperation, currentConversation(state).turns.at(-1)?.phase], renderComposer, true),
+    store.watch(state => state.unsaved, message => { unsaved.textContent = message; unsaved.hidden = !message; }, true),
+    store.watch(state => state.selected, selected => {
+      if (exampleCorpus === selected) return;
+      exampleCorpus = selected;
+      examples.replaceChildren(...EXAMPLE_QUERIES[selected].map(question => {
+        const button = element('button', 'chat-example', question); button.type = 'button';
+        button.onclick = () => { query.value = question; store.setDraft(question); resize(); if (controller.canSend()) submit(); else query.focus(); };
+        return button;
+      }));
+    }, true),
+    states.watch(state => [state.busy, state.shuttingDown, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase === 'unsupported'], renderControls),
+  ];
+  resize();
+  return { render, dispose() {
+    disposed = true;
+    for (const unsubscribe of unsubscribers) unsubscribe();
+    window.removeEventListener('resize', resize);
+    form.onsubmit = null; query.oninput = null; query.onkeydown = null; effort.onchange = null;
+  } };
 }
 
 export function matchesConversation(conversation: Conversation, filter: string) {
@@ -193,7 +219,7 @@ export function setupConversationHistory(controller: ChatController, open: (conv
   const tools = requiredElement<HTMLElement>('#history-tools');
   const empty = requiredElement<HTMLElement>('#history-empty');
   const noMatch = requiredElement<HTMLElement>('#history-no-match');
-  const cards = new Map<string, { root: HTMLLIElement; title: HTMLElement; meta: HTMLElement; preview: HTMLElement }>();
+  const cards = new Map<string, { root: HTMLLIElement; title: HTMLElement; meta: HTMLElement; preview: HTMLElement; conversation?: Conversation; filter?: string }>();
   function render() {
     const conversations = controller.store.conversations();
     const ids = new Set(conversations.map(conversation => conversation.id));
@@ -210,10 +236,14 @@ export function setupConversationHistory(controller: ChatController, open: (conv
         resume.onclick = () => { const current = controller.store.get(conversation.id); if (current) open(current); };
         root.append(title, meta, resume, details); card = { root, title, meta, preview }; cards.set(conversation.id, card);
       }
-      card.title.textContent = conversation.title;
-      card.meta.textContent = `${conversation.corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus'} · ${conversation.turns.length} ${conversation.turns.length === 1 ? 'turn' : 'turns'} · ${new Date(conversation.updatedAt).toLocaleString()}`;
-      card.preview.textContent = conversation.turns.map(turn => `You: ${turn.question}\nRAGbox: ${turn.answer || turn.message}${turn.phase === 'stopped' ? ' (Stopped)' : ''}`).join('\n\n');
-      card.root.hidden = !matchesConversation(conversation, filter.value); if (!card.root.hidden) shown++;
+      if (card.conversation !== conversation) {
+        card.title.textContent = conversation.title;
+        card.meta.textContent = `${conversation.corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus'} · ${conversation.turns.length} ${conversation.turns.length === 1 ? 'turn' : 'turns'} · ${new Date(conversation.updatedAt).toLocaleString()}`;
+        card.preview.textContent = conversation.turns.map(turn => `You: ${turn.question}\nRAGbox: ${turn.answer || turn.message}${turn.phase === 'stopped' ? ' (Stopped)' : ''}`).join('\n\n');
+      }
+      if (card.conversation !== conversation || card.filter !== filter.value) card.root.hidden = !matchesConversation(conversation, filter.value);
+      card.conversation = conversation; card.filter = filter.value;
+      if (!card.root.hidden) shown++;
       if (list.children[index] !== card.root) list.insertBefore(card.root, list.children[index] ?? null);
     }
     empty.hidden = !!conversations.length; tools.hidden = !conversations.length; clear.hidden = !conversations.length;
@@ -227,5 +257,6 @@ export function setupConversationHistory(controller: ChatController, open: (conv
       void controller.clear().then(() => open(controller.store.current()));
     }
   };
-  controller.store.subscribe(render); render();
+  const unsubscribe = controller.store.watch(state => state.items, render, true);
+  return { dispose() { unsubscribe(); filter.oninput = null; clear.onclick = null; } };
 }

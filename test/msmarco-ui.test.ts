@@ -13,6 +13,7 @@ import { normalizeMSMarcoResults, setupMSMarco } from '../src/msmarco.ts';
 import { FakeElements, fakeElement } from './fake-elements.ts';
 import type { RunTask } from '../src/types.ts';
 import { LoadCoordinator } from '../src/load-coordinator.ts';
+import { ResourceStates } from '../src/resource-state.ts';
 
 const mockedOpenPrebuilt = vi.mocked(openPrebuilt);
 const mockedDownload = vi.mocked(downloadPrebuilt);
@@ -298,6 +299,17 @@ it('queues saved-index opening without blocking unrelated search while a model l
   await opening;
   expect(runCalls).toBe(1);
   expect(openPrebuilt).toHaveBeenCalledOnce();
+});
+
+it('releases an opening queued behind the shared gate when shutdown begins', async () => {
+  getDirectory.mockResolvedValue({ getFileHandle: vi.fn().mockResolvedValue({}) });
+  const gate = new ResourceStates(); const loads = new LoadCoordinator();
+  const controller = setupMSMarco(task => task(), createLLM(), undefined, loads, undefined, gate);
+  await controller.checkSaved(); gate.setBusy(true);
+  const opening = controller.reopenSaved(); await Promise.resolve();
+  gate.beginShutdown(); await opening;
+  await loads.run(() => controller.close());
+  expect(openPrebuilt).not.toHaveBeenCalled(); expect(gate.busy).toBe(true);
 });
 
 it('ignores stale retrieval after a collection switch or home reset', async () => {

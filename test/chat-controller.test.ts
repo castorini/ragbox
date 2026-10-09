@@ -4,6 +4,7 @@ import { ConversationStore } from '../src/conversations.ts';
 import type { ModelService, ControllerState } from '../src/model-service.ts';
 import type { ChatMessage, ChatOperation, ModelStatus, RetrievalResult } from '../src/types.ts';
 import { deferred, memoryRepository } from './conversation-fixtures.ts';
+import { ResourceStates } from '../src/resource-state.ts';
 
 const documents = [{ id: 'MED-1', title: 'Evidence', text: 'Supported finding.', score: 2 }];
 const operation = expect.objectContaining({ conversationId: expect.any(String), turnId: expect.any(String), attemptId: expect.any(String) });
@@ -31,6 +32,39 @@ async function harness() {
 }
 
 describe('chat orchestration', () => {
+  it('resumes after resource cleanup without a mounted view and releases subscriptions on disposal', async () => {
+    const store = new ConversationStore(memoryRepository()); await store.initialize();
+    const states = new ResourceStates(); states.set('nfcorpus', 'ready', 'Ready');
+    const model = new FakeModel(); model.setState('idle');
+    let adapterReady = true;
+    const retrieve = vi.fn(async () => {
+      if (!adapterReady) throw new Error('Adapter cleanup has not finished');
+      return { documents, elapsedMs: 1 };
+    });
+    const chat = new ChatController(store, model, {
+      ready: corpus => states.get(corpus).phase === 'ready', busy: () => states.busy, retrieve,
+      subscribe: listener => states.watch(state => [state.busy, state.resources.nfcorpus.phase], listener, false),
+    });
+    await chat.send('coffee'); expect(store.current().turns[0].phase).toBe('blocked');
+    states.setBusy(true); adapterReady = false; model.setState('ready');
+    states.setBusy(false);
+    await Promise.resolve(); adapterReady = true;
+    await vi.waitFor(() => expect(store.current().turns[0].phase).toBe('complete'));
+    expect(model.generateAnswer).toHaveBeenCalledOnce();
+    expect(store.state.getState().activeOperation).toBeUndefined(); expect(chat.canSend()).toBe(true);
+    chat.dispose(); const snapshot = store.state.getState();
+    model.setState('loading'); states.setBusy(true); states.setBusy(false); model.setState('ready');
+    await new Promise(resolve => setTimeout(resolve, 10));
+    expect(store.state.getState()).toBe(snapshot); expect(chat.canSend()).toBe(false);
+    await store.flush();
+  });
+  it('publishes active-operation completion separately from the final answer', async () => {
+    const h = await harness(); const activity: boolean[] = [];
+    h.store.watch(state => !!state.activeOperation, active => activity.push(active));
+    await h.chat.send('coffee');
+    expect(activity).toEqual([true, false]); expect(h.latest().phase).toBe('complete'); expect(h.chat.running).toBe(false);
+    h.chat.dispose(); await h.store.flush();
+  });
   it('keeps submitted effort through retrieval and retry when the preference changes', async () => {
     const h = await harness(); h.store.setThinkingEffort('high');
     const retrieval = deferred<RetrievalResult>(); h.resources.retrieve.mockReturnValueOnce(retrieval.promise);

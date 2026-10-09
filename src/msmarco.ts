@@ -3,7 +3,7 @@ import { downloadPrebuilt } from './download-prebuilt.ts';
 import { errorMessage, errorName, requiredElement, rowsAs } from './boundaries.ts';
 import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
-import type { ResourcePhase } from './resource-state.ts';
+import { ResourceStates, type ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
 import { MSMARCO_SEARCH_SQL, queryBM25, retrieveMSMarco } from './collection-retrieval.ts';
@@ -20,7 +20,7 @@ export function normalizeMSMarcoResults<T extends { id: string | number | bigint
   }));
 }
 
-export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number, savedAvailable?: boolean) => void, loads?: LoadCoordinator, history?: History) {
+export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onState?: (phase: ResourcePhase, message: string, progress?: number, savedAvailable?: boolean) => void, loads?: LoadCoordinator, history?: History, gate = new ResourceStates()) {
   const status = requiredElement<HTMLElement>('#marco-status');
   const announcement = requiredElement<HTMLElement>('#marco-announcement');
   const searchStatus = document.querySelector<HTMLElement>('#marco-search-status');
@@ -38,7 +38,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   const downloadBytes = 3346542592;
   let prebuilt: Awaited<ReturnType<typeof openPrebuilt>> | undefined;
   let busy = false;
-  let blocked = false;
   let checkingSaved = true;
   let retryOpen = false;
   let hasSaved: boolean | undefined;
@@ -63,13 +62,13 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     reopenButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !retryOpen;
     reopenButton.textContent = 'Retry opening collection';
     replaceButton.hidden = !hasSaved;
-    replaceButton.disabled = !supported || checkingSaved || busy || blocked || openingQueued;
-    fetchButton.disabled = !supported || busy || blocked || openingQueued;
-    reopenButton.disabled = !supported || busy || blocked || openingQueued;
-    if (searchButton) searchButton.disabled = !supported || busy || blocked || openingQueued || !prebuilt;
+    replaceButton.disabled = !supported || checkingSaved || busy || gate.busy || openingQueued;
+    fetchButton.disabled = !supported || busy || gate.busy || openingQueued;
+    reopenButton.disabled = !supported || busy || gate.busy || openingQueued;
+    if (searchButton) searchButton.disabled = !supported || busy || gate.busy || openingQueued || !prebuilt;
   }
   async function action<T>(task: () => Promise<T>, lockDatabase = true, searching = false): Promise<T | undefined> {
-    if (busy || blocked || !supported) return;
+    if (busy || gate.busy || !supported) return;
     busy = true;
     updateButtons();
     try {
@@ -117,7 +116,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   }
   cancelDownload.onclick = () => downloadController?.abort();
   function download() {
-    if (busy || blocked) return;
+    if (busy || gate.busy) return;
     if (!confirm('Download 3.35 GB into this browser’s storage? This replaces any saved MS MARCO index. Close other search tabs first.')) return;
     return action(async () => {
       await closePrebuilt();
@@ -174,7 +173,8 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     updateButtons();
     try {
       const open = async () => {
-        while (blocked) await new Promise<void>(resolve => unblockWaiters.add(resolve));
+        while (gate.busy && !gate.shuttingDown) await new Promise<void>(resolve => unblockWaiters.add(resolve));
+        if (gate.shuttingDown) return;
         return action(async () => {
           await closePrebuilt();
           output?.replaceChildren();
@@ -192,7 +192,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   if (form) form.onsubmit = event => {
     if (!output || !answerPanel || !searchStatus) return;
     event.preventDefault();
-    if (!prebuilt || busy || blocked || openingQueued) return;
+    if (!prebuilt || busy || gate.busy || openingQueued) return;
     const query = requiredElement<HTMLInputElement>('#marco-query').value.trim();
     if (!query) return;
     requiredElement<HTMLElement>('#marco-results-area').hidden = false;
@@ -282,10 +282,17 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     })();
     try { await checkingPromise; } finally { checkingPromise = undefined; }
   }
+  const unsubscribe = gate.watch(state => [state.busy, state.shuttingDown], () => {
+    updateButtons();
+    if (!gate.busy || gate.shuttingDown) {
+      for (const resolve of unblockWaiters) resolve();
+      unblockWaiters.clear();
+    }
+  });
   return {
     download,
     async retrieve(query: string) {
-      if (!prebuilt || busy || blocked || openingQueued) throw new Error('MS MARCO is not ready to search.');
+      if (!prebuilt || busy || gate.busy || openingQueued) throw new Error('MS MARCO is not ready to search.');
       const index = prebuilt;
       const result = await action(() => retrieveMSMarco(index.conn, query), true, true);
       if (!result) throw new Error('MS MARCO search failed. Retry the question.');
@@ -300,15 +307,9 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       if (!hasSaved || prebuilt) return;
       await openSaved();
     },
-    setBlocked(value: boolean) {
-      blocked = value;
-      updateButtons();
-      if (!value) {
-        for (const resolve of unblockWaiters) resolve();
-        unblockWaiters.clear();
-      }
-    },
+    setBlocked(value: boolean) { gate.setBusy(value); },
     async close() {
+      unsubscribe();
       await closePrebuilt();
       output?.replaceChildren();
       report('saved', 'Saved index available.');

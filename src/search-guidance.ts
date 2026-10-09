@@ -27,6 +27,7 @@ export interface SetupActions {
 }
 
 export function setupSearchGuidance(states: ResourceStates, actions?: SetupActions) {
+  const unsubscribers: (() => void)[] = [];
   for (const [name, prefix] of [['nfcorpus', 'fts'], ['msmarco', 'marco']] as const) {
     const button = document.querySelector<HTMLButtonElement>(`#${prefix}-search`);
     const input = document.querySelector<HTMLInputElement>(`#${prefix}-query`);
@@ -35,7 +36,7 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
     const helpText = requiredElement<HTMLElement>(`#${prefix}-help-text`);
     button?.setAttribute('aria-describedby', `${prefix}-help`);
     input?.setAttribute('aria-describedby', `${prefix}-help`);
-    states.subscribe(() => {
+    unsubscribers.push(states.watch(state => [state.resources[name], state.busy, state.activeSearch], () => {
       const state = states.get(name);
       const unavailable = state.phase !== 'ready' || states.busy;
       if (button) button.disabled = unavailable;
@@ -43,9 +44,9 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
       form?.classList.toggle('unavailable', unavailable);
       help.hidden = !unavailable || states.activeSearch === name;
       helpText.textContent = guidance(name, state, states.busy);
-    });
+    }));
   }
-  if (!actions) return;
+  if (!actions) return { dispose() { for (const unsubscribe of unsubscribers) unsubscribe(); } };
   const prepare = requiredElement<HTMLButtonElement>('#fts-prepare');
   const download = requiredElement<HTMLButtonElement>('#marco-download');
   const open = requiredElement<HTMLButtonElement>('#marco-open');
@@ -55,7 +56,7 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
   download.onclick = () => { void actions.download(); };
   open.onclick = () => { void actions.openSaved(); };
   cancel.onclick = () => { actions.cancelDownload(); };
-  states.subscribe(() => {
+  unsubscribers.push(states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy], () => {
     const nf = states.get('nfcorpus');
     const marco = states.get('msmarco');
     prepare.hidden = !['missing', 'error'].includes(nf.phase);
@@ -69,5 +70,6 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
     progress.hidden = marco.phase !== 'downloading';
     if (marco.progress === undefined) progress.removeAttribute?.('value');
     else progress.value = marco.progress;
-  });
+  }));
+  return { dispose() { for (const unsubscribe of unsubscribers) unsubscribe(); } };
 }

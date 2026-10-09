@@ -1,6 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import type { Corpus } from './types.ts';
 import { HISTORY_ENABLED } from './features.ts';
+import type { ConversationStore } from './conversations.ts';
 
 type View = 'search' | 'history' | 'setup';
 const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management', 'storage-management'];
@@ -12,6 +13,7 @@ export function setupCollectionChooser(
   onHome: () => void = () => {},
   chat = false,
   historyEnabled = HISTORY_ENABLED,
+  selection?: ConversationStore,
 ) {
   const selector = requiredElement<HTMLSelectElement>('#collection-switch');
   const search = requiredElement<HTMLElement>('#search-view');
@@ -26,15 +28,22 @@ export function setupCollectionChooser(
     nfcorpus: requiredElement<HTMLElement>('#nfcorpus-collection'),
     msmarco: requiredElement<HTMLElement>('#msmarco-collection'),
   };
-  function selected(): Corpus { return selector.value === 'msmarco' ? 'msmarco' : 'nfcorpus'; }
+  function selected(): Corpus { return selection?.selected ?? (selector.value === 'msmarco' ? 'msmarco' : 'nfcorpus'); }
   function composer(value = selected()) { return chat ? '#chat-query' : value === 'nfcorpus' ? '#fts-query' : '#marco-query'; }
 
   function select(value: Corpus, notify = true) {
+    if (selection) {
+      if (notify) onCollectionChange(value);
+      return;
+    }
+    renderSelection(value);
+    if (notify) onCollectionChange(value);
+  }
+  function renderSelection(value: Corpus) {
     selector.value = value;
     panels.nfcorpus.hidden = value !== 'nfcorpus';
     panels.msmarco.hidden = value !== 'msmarco';
     if (currentView() === 'search') skipLink.href = composer(value);
-    if (notify) onCollectionChange(value);
   }
 
   function currentView(): View {
@@ -137,14 +146,19 @@ export function setupCollectionChooser(
   }
 
   selector.onchange = () => {
-    select(selected());
+    select(selector.value === 'msmarco' ? 'msmarco' : 'nfcorpus');
     if (!search.hidden) requiredElement<HTMLElement>(composer()).focus();
   };
-  window.addEventListener('popstate', () => showView(currentView()));
-  select('nfcorpus', false);
+  const onPopState = () => showView(currentView());
+  window.addEventListener('popstate', onPopState);
+  const unsubscribe = selection?.watch(state => state.selected, renderSelection, true);
+  if (!selection) select('nfcorpus', false);
   showView(currentView());
   return {
     selected,
+    subscribe: selection ? (listener: () => void) => selection.watch(state => state.selected, listener) : undefined,
+    dispose() { unsubscribe?.(); window.removeEventListener('popstate', onPopState); },
+    showSearch() { navigate('search'); },
     choose(value: Corpus) {
       select(value);
       requiredElement<HTMLElement>(composer(value)).focus();

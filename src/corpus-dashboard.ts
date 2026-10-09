@@ -16,6 +16,7 @@ interface DashboardChooser {
   selected(): Corpus;
   choose(value: Corpus): void;
   openSetup(corpus: Corpus): void;
+  subscribe?(listener: () => void): () => void;
 }
 
 const corpora = {
@@ -57,7 +58,7 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
     };
     use.onclick = () => {
       chooser.choose(corpus);
-      render();
+      if (!chooser.subscribe) render();
     };
     return { corpus, card, label, detail, setup, use, selectedBadge, defaultDetail };
   });
@@ -80,6 +81,7 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
     }
   }
 
-  states.subscribe(render);
-  return { render };
+  const unsubscribe = states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy], render);
+  const unsubscribeSelection = chooser.subscribe?.(render);
+  return { render, dispose() { unsubscribe(); unsubscribeSelection?.(); } };
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ModelService } from '../src/model-service.ts';
 import type { WorkerRequest, WorkerResponse } from '../src/types.ts';
+import { ResourceStates } from '../src/resource-state.ts';
 
 class FakeWorker {
   messages: WorkerRequest[] = [];
@@ -10,9 +11,11 @@ class FakeWorker {
   terminate = vi.fn();
   emit(data: WorkerResponse) { this.onmessage?.({ data }); }
 }
-async function harness() {
+async function harness(states?: ResourceStates) {
   const worker = new FakeWorker();
-  const model = new ModelService({ workerFactory: () => worker as unknown as Worker, detectWebGPU: async () => ({ supported: true }), inspectCache: async () => 'installed' });
+  const model = new ModelService({ workerFactory: () => worker as unknown as Worker, detectWebGPU: async () => ({ supported: true }), inspectCache: async () => 'installed',
+    onState: states && ((phase, message, status) => states.set('model', phase, message, status)),
+  });
   await model.initializeCapability(); await model.load(true);
   const load = worker.messages[0];
   if (load.type !== 'load') throw new Error('Expected load');
@@ -23,6 +26,17 @@ const operation = { conversationId: 'c1', turnId: 't1', attemptId: 'a1' };
 const options = { corpus: 'nfcorpus' as const, question: 'coffee', documents: [{ id: 'MED-1', title: 'Coffee', text: 'Evidence' }], citationTargets: new Map([['MED-1', '#source']]), operation };
 
 describe('headless model operations', () => {
+  it('does not republish resource state for streamed or ignored worker deltas', async () => {
+    const states = new ResourceStates(); const h = await harness(states); const onDelta = vi.fn();
+    const answer = h.model.generateAnswer({ ...options, onDelta }, h.abort.signal);
+    const request = h.worker.messages.at(-1)!; if (request.type !== 'generate') throw new Error('Expected answer');
+    const resourceChanges = vi.fn(); states.watch(state => state, resourceChanges, false);
+    h.worker.emit({ type: 'answer-delta', requestId: request.requestId, text: 'Finding' });
+    h.worker.emit({ type: 'answer-delta', requestId: 'obsolete', text: 'Ignored' });
+    expect(onDelta).toHaveBeenCalledExactlyOnceWith('Finding'); expect(resourceChanges).not.toHaveBeenCalled();
+    h.worker.emit({ type: 'complete', requestId: request.requestId, answer: 'Finding [MED-1].', documentIds: ['MED-1'] });
+    await answer;
+  });
   it('resolves a query with operation identity, ignoring late output from the cancelled attempt', async () => {
     const h = await harness();
     const first = h.model.resolveQuery('What about it?', [], h.abort.signal, operation);
