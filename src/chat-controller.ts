@@ -116,7 +116,7 @@ export class ChatController {
         this.update(attempt, { phase: 'complete', stage: 'generate', answer: INSUFFICIENT_EVIDENCE, message: 'No matching documents.', keywordOnly: false });
         return;
       }
-      this.update(attempt, { phase: 'generating', stage: 'generate', keywordOnly: false, answer: '', thinking: '', includedIds: [], citedIds: [], message: 'Thinking…' });
+      this.update(attempt, { phase: 'generating', stage: 'generate', keywordOnly: false, answer: '', thinking: '', includedIds: [], citedIds: [], message: turn.thinkingEffort === 'off' ? 'Writing answer…' : 'Thinking…' });
       const answer = await this.model.generateAnswer({
         corpus: conversation.corpus, question: turn.question, searchQuery: query, documents: retrieved.results, history, thinkingEffort: turn.thinkingEffort, operation,
         citationTargets: new Map(retrieved.results.map(document => [document.id, document.id])),

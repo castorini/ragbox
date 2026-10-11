@@ -16,17 +16,25 @@ Open **http://127.0.0.1:5173/**. The preparation script validates BEIR NFCorpus 
 
 Use the same exact address and browser profile on return visits. `localhost:5173` and `127.0.0.1:5173` have separate storage. Keep one RAGbox tab open per origin because DuckDB OPFS handles are exclusive.
 
+## Start page
+
+The start page shows the RAGbox logo with the search box beneath it, then starter questions for the selected collection, then **Collections in this browser**: one card per collection with its readiness status and setup action. Notices about the answer model (install status and **Download model**) and collection setup (for example **Prepare NFCorpus**) appear below the cards. Clicking a starter question sends it when the collection is ready; otherwise it fills the search box.
+
+On a first visit, a short guided tour highlights the collection cards, the optional answer model, Settings, and the search box. **Skip tour** or **Esc** ends it, and running a search finishes it. It is shown once per browser; **New here? Take the tour** in the top right replays it.
+
 ## Chatting with documents
 
-Choose a **Document collection** and prepare or open its index. Ask a question in the bottom composer; **Enter** sends, **Shift+Enter** adds a newline, and messages are limited to 500 characters. The draft remains editable during processing. **Stop** retains partial answer text, reasoning, and valid citation links.
+Choose a collection from the start-page cards (or the collection menu once a chat has started) and prepare or open its index. Type a question in the search box; after the first message, the conversation fills the page and the composer stays at the bottom. **Enter** sends and **Shift+Enter** adds a newline. Messages are limited to 500 characters: a longer draft shows a warning with its length, and Send stays disabled until it is shortened. The draft remains editable during processing. While a reply runs, the Send arrow becomes a **Stop** button, which retains partial answer text, reasoning, and valid citation links.
 
-Choose **Thinking effort** beside the composer: **Low** allows less reasoning for faster replies, **Balanced** is the default, and **High** allows more reasoning and may take longer. The preference is saved in this browser and applies to newly submitted messages. A running reply and its retries keep the effort chosen when the message was sent. More reasoning does not guarantee a better answer.
+Choose **Thinking effort** with the lightbulb button inside the search box. It opens a slider with three levels: **Off** (the default) answers directly without reasoning, **Low** allows brief reasoning, and **Medium** allows more reasoning and takes longer. In local testing on an Apple silicon laptop with NFCorpus, a reply took about 20 seconds with Off and about two minutes with Medium, because generated reasoning dominates response time. The preference is saved in this browser and applies to newly submitted messages; a saved preference from the earlier **High** level falls back to Off. A running reply and its retries keep the effort chosen when the message was sent. More reasoning does not guarantee a better answer.
 
-The model's reasoning appears in a **Thinking** section that stays folded by default. Expand it to inspect progress; the final answer appears separately when reasoning ends. Citations, **Copy**, and context for later questions use only the final answer. Reasoning is retained with the saved reply, but its citation-like text does not become source links or factual support.
+With Low or Medium, the model's reasoning appears in a **Reasoning** section that stays folded by default. Expand it to inspect progress; the final answer appears separately when reasoning ends. Citations, the copy button beside the answer, and context for later questions use only the final answer. Reasoning is retained with the saved reply, but its citation-like text does not become source links or factual support.
 
 Each reply has expandable **Sources** containing the retrieved document snapshot, BM25 scores, resolved search query, and full text. Clicking a citation opens its sources and focuses the cited document. Links are created only for IDs in the current fitted evidence. Unknown IDs remain plain text. Output is rendered as text, not model-supplied HTML.
 
-**New chat** and the RAGbox logo start an empty chat in the selected collection. Switching collections stops current work and restores the selected collection's chat. **Settings** and **History** preserve ongoing work. History searches conversation titles, questions, answers, and source titles; **Continue chat** selects the saved chat's collection.
+Once a chat has started, its title and **New chat** appear above the conversation. **New chat** and the RAGbox logo start an empty chat in the selected collection. Switching collections stops current work and restores the selected collection's chat. **Settings** preserves ongoing work.
+
+The **History** page, which searches saved conversation titles, questions, answers, and source titles and offers **Continue chat**, is currently turned off. `HISTORY_ENABLED` in `src/features.ts` hides its sidebar link, page, and tour step; conversations are still saved for reloads and follow-up questions. Set the flag to `true` to restore it.
 
 The first message searches directly. Later messages are rewritten by the local model into a standalone query before searching. A rewrite failure shows **Retry** rather than guessing. Generation retries reuse the turn's question, captured history, and retrieved sources; failed rewrite or retrieval stages run again. Retry updates the latest turn without duplicating it.
 
@@ -46,9 +54,9 @@ The index files live in the browser's Origin Private File System, not the Downlo
 
 ## Local model and context
 
-Click **Download model (~1.84 GB)** in Chat or Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). A Web Worker uses Transformers.js, WebGPU, `q4f16` weights, and the model's supported thinking template. The pinned model revision is shared by loading and tokenizer discovery. Stream parsing keeps reasoning separate from the final answer, including when the template prefills the opening thinking tag.
+Click **Download model (~1.84 GB)** on the start page or in Settings to install the quantized [MiniCPM5-2B ONNX model](https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX). A Web Worker uses Transformers.js 4.2, WebGPU, `q4f16` weights, and the model's supported thinking template. The pinned model revision is shared by loading and tokenizer discovery. Stream parsing keeps reasoning separate from the final answer, including when the template prefills the opening thinking tag.
 
-Follow-up rewriting uses deterministic decoding with up to 512 reasoning tokens followed by a 128-token query limit, independent of the effort preference. Answer generation allows 256 reasoning tokens for Low, 1,024 for Balanced, or 2,048 for High, followed by the existing 512-token answer limit. This is an application token budget, not a native model effort parameter. The limits apply separately, so reasoning does not consume the final-output allowance. If the model reaches its reasoning limit, the worker closes the same assistant's reasoning prefix and requests a bounded final output. Empty answers or invalid final queries still expose **Retry**; reasoning is never presented as an answer or used as a guessed search query.
+Thinking effort sets the reasoning allowance for both follow-up rewriting and answer generation. With **Off**, the chat template's thinking mode is disabled: rewriting uses deterministic decoding with a 128-token query limit, and answers stream directly within the 512-token answer limit. With **Low** or **Medium**, rewriting allows up to 512 reasoning tokens followed by the 128-token query limit, and answer generation allows 256 (Low) or 1,024 (Medium) reasoning tokens followed by the 512-token answer limit. Medium is stored as `balanced`. This is an application token budget, not a native model effort parameter. The limits apply separately, so reasoning does not consume the final-output allowance. If the model reaches its reasoning limit, the worker closes the same assistant's reasoning prefix and requests a bounded final output. Empty answers or invalid final queries still expose **Retry**; reasoning is never presented as an answer or used as a guessed search query.
 
 Both operations receive up to three recent turns; user questions and completed final replies are limited to 750 tokens by dropping the oldest exchanges. Reasoning is excluded from that history. Instructions, the current message, history, and fitted documents share the 3,500-token initial answer input budget. A finalization request also includes the reasoning generated during that turn, so its input can exceed the initial budget. A notice appears when earlier conversation context is omitted; the saved transcript remains complete.
 
@@ -66,7 +74,7 @@ Existing localStorage search history imports as individual one-turn conversation
 
 Reload restores the selected collection and its chat. Interrupted turns become **Stopped** and require explicit Retry; inference never restarts from a saved transcript automatically. If storage fails, the current chat stays usable in memory and an unsaved notice appears. Browser storage can be cleared or evicted, so saved chats are not an independent backup.
 
-**Clear history** requires confirmation, stops active work, clears conversations and legacy search history, and opens an empty chat. Index or model deletion keeps conversations and source snapshots readable. New retrieval requires a prepared collection.
+**Clear history** (on the History page, unavailable while History is turned off) requires confirmation, stops active work, clears conversations and legacy search history, and opens an empty chat. Index or model deletion keeps conversations and source snapshots readable. New retrieval requires a prepared collection.
 
 Settings groups index and model management separately. **Advanced file management** exposes file listings, refresh actions, and MS MARCO replacement. Deep links to Settings sections remain supported. **Delete index data**, **Delete model**, and **Delete indexes and model** close the appropriate runtimes, delete only RAGbox-owned files, and reload after confirmation. Deletion is disabled during active resource work. **Reload to recover** appears if shutdown or deletion fails.
 
@@ -88,6 +96,12 @@ src/conversations.ts          Zustand conversation state and versioned IndexedDB
 src/conversation-persistence.ts Serialized writes and streaming checkpoints
 src/chat-controller.ts        Stage orchestration, cancellation, and retries
 src/chat-view.ts               Transcript, composer, sources, and searchable history
+src/effort-picker.ts          Thinking effort button and slider popover
+src/thinking-effort.ts        Effort levels, default, and reasoning token limits
+src/corpus-dashboard.ts       Start-page collection cards and readiness status
+src/example-queries.ts        Starter questions for each collection
+src/tour.ts                   First-visit guided tour
+src/features.ts               Feature switches (History)
 src/types.ts                  Shared conversation, retrieval, and worker contracts
 ```
 
@@ -103,7 +117,7 @@ npm run typecheck
 npm run build -- --base=/ragbox/
 ```
 
-Tests cover retrieval, context fitting, reasoning and final-output separation, generation budgets, worker lifecycle, orchestration, migration, serialized saves, retention, and recovery. A supported-browser smoke test with the real cached model is also required; mocks cannot establish answer quality. See [chat validation](docs/chat-validation.md) for the review sequence and browser checks.
+Tests cover retrieval, context fitting, reasoning and final-output separation, generation budgets and thinking levels, worker lifecycle, orchestration, the effort picker and tour, migration, serialized saves, retention, and recovery. A supported-browser smoke test with the real cached model is also required; mocks cannot establish answer quality. See [chat validation](docs/chat-validation.md) for the review sequence and browser checks.
 
 The workflow in `.github/workflows/pages.yml` builds and deploys on pushes to `main` or manual runs. Set GitHub Pages **Source** to **GitHub Actions**. The workflow downloads BEIR NFCorpus and includes the prepared data in `dist/`; Vite's deployment base comes from Pages metadata. Workers, datasets, navigation, and Settings links support deployment under `/ragbox/`.
 

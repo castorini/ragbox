@@ -139,7 +139,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       row.answerKey = answerKey;
     }
     row.answer.hidden = !turn.answer;
-    row.thinking.hidden = !turn.thinking && turn.phase !== 'generating';
+    // Thinking Off produces no reasoning, so only show the box when reasoning can exist.
+    row.thinking.hidden = !turn.thinking && (turn.phase !== 'generating' || turn.thinkingEffort === 'off');
     row.thinkingSummary.textContent = turn.phase === 'generating' && !turn.answer ? 'Thinking…' : turn.phase === 'stopped' ? 'Reasoning (stopped)' : 'Reasoning';
     if (row.thinkingText.textContent !== (turn.thinking ?? '')) row.thinkingText.textContent = turn.thinking ?? '';
     row.status.textContent = turn.message;

@@ -32,6 +32,18 @@ async function harness() {
 }
 
 describe('chat orchestration', () => {
+  it.each([['off', 'Writing answer…'], ['low', 'Thinking…'], ['balanced', 'Thinking…']] as const)('labels generation with effort %s as %j', async (effort, message) => {
+    const h = await harness(); h.store.setThinkingEffort(effort);
+    let seen = '';
+    h.model.generateAnswer.mockImplementationOnce(async options => {
+      seen = h.latest().message;
+      options.onDelta?.('A finding [MED-1].');
+      return { answer: 'A finding [MED-1].', documentIds: [options.documents[0].id] };
+    });
+    await h.chat.send('coffee');
+    expect(seen).toBe(message);
+    await h.store.flush();
+  });
   it('resumes after resource cleanup without a mounted view and releases subscriptions on disposal', async () => {
     const store = new ConversationStore(memoryRepository()); await store.initialize();
     const states = new ResourceStates(); states.set('nfcorpus', 'ready', 'Ready');
