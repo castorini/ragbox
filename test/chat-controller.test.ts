@@ -66,22 +66,22 @@ describe('chat orchestration', () => {
     h.chat.dispose(); await h.store.flush();
   });
   it('keeps submitted effort through retrieval and retry when the preference changes', async () => {
-    const h = await harness(); h.store.setThinkingEffort('high');
+    const h = await harness(); h.store.setThinkingEffort('balanced');
     const retrieval = deferred<RetrievalResult>(); h.resources.retrieve.mockReturnValueOnce(retrieval.promise);
     h.model.generateAnswer.mockRejectedValueOnce(new Error('Generation failed'));
     const sending = h.chat.send('coffee'); h.store.setThinkingEffort('low');
     retrieval.resolve({ documents, elapsedMs: 1 }); await sending;
     expect(h.latest().phase).toBe('error');
-    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('high');
+    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('balanced');
     await h.chat.retry();
-    expect(h.model.generateAnswer.mock.calls[1][0].thinkingEffort).toBe('high');
+    expect(h.model.generateAnswer.mock.calls[1][0].thinkingEffort).toBe('balanced');
     expect(h.store.current().turns).toHaveLength(1); expect(h.latest().phase).toBe('complete');
     await h.chat.send('And blood pressure?');
     expect(h.model.generateAnswer.mock.calls[2][0].thinkingEffort).toBe('low');
   });
   it('keeps captured effort when model recovery resumes a keyword-only turn', async () => {
     const h = await harness(); h.model.setState('idle'); h.store.setThinkingEffort('low');
-    await h.chat.send('coffee'); h.store.setThinkingEffort('high'); h.model.setState('ready');
+    await h.chat.send('coffee'); h.store.setThinkingEffort('balanced'); h.model.setState('ready');
     await vi.waitFor(() => expect(h.latest().phase).toBe('complete'));
     expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('low');
   });
@@ -91,7 +91,7 @@ describe('chat orchestration', () => {
     expect(h.model.resolveQuery).not.toHaveBeenCalled();
     expect(h.latest()).toMatchObject({ phase: 'complete', question: 'coffee', searchQuery: 'coffee', citedIds: ['MED-1'] });
     await h.chat.send('What does it do to blood pressure?');
-    expect(h.model.resolveQuery).toHaveBeenCalledWith('What does it do to blood pressure?', [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'A finding [MED-1].' }], expect.any(AbortSignal), operation);
+    expect(h.model.resolveQuery).toHaveBeenCalledWith('What does it do to blood pressure?', [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'A finding [MED-1].' }], expect.any(AbortSignal), operation, 'off');
     expect(h.resources.retrieve).toHaveBeenLastCalledWith('nfcorpus', 'coffee blood pressure', operation);
     expect(h.store.current().turns).toHaveLength(2);
   });
@@ -164,7 +164,7 @@ describe('chat orchestration', () => {
     await h.chat.send('coffee');
     expect(h.latest()).toMatchObject({ phase: 'complete', answer: 'Final finding [MED-2].', thinking: 'Private comparison [MED-1] and unknown [MED-404].', citedIds: ['MED-2'] });
     await h.chat.send('What about it?');
-    expect(h.model.resolveQuery).toHaveBeenCalledWith('What about it?', [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Final finding [MED-2].' }], expect.any(AbortSignal), operation);
+    expect(h.model.resolveQuery).toHaveBeenCalledWith('What about it?', [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Final finding [MED-2].' }], expect.any(AbortSignal), operation, 'off');
     expect(h.latest().history.some(message => message.content.includes('Private comparison'))).toBe(false);
     expect(h.model.generateAnswer.mock.calls[1][0].history).toEqual(h.latest().history);
   });

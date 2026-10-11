@@ -9,6 +9,7 @@ import {
 import type { TextGenerationPipeline } from '@huggingface/transformers';
 import {
   CHAT_TEMPLATE_OPTIONS,
+  DIRECT_ANSWER_TEMPLATE_OPTIONS,
   buildMessages,
   buildQueryMessages,
   fitHistory,
@@ -246,7 +247,9 @@ async function generate({ requestId, question, documents, history = [], searchQu
     });
     const messages = buildMessages(question, fitted, context.history, searchQuery);
     const thinkingLimit = thinkingTokenLimit(thinkingEffort);
-    const budget = outputBudget(model, thinkingLimit, MAX_ANSWER_TOKENS);
+    // Effort Off answers directly; only the answer allowance applies.
+    const thinks = thinkingLimit > 0;
+    const budget = thinks ? outputBudget(model, thinkingLimit, MAX_ANSWER_TOKENS) : undefined;
     let streamed = '';
     let visibleLength = 0;
     let thinkingLength = 0;
@@ -268,11 +271,11 @@ async function generate({ requestId, question, documents, history = [], searchQu
       // MiniCPM's <think> tags are ordinary added tokens, so this preserves
       // reasoning boundaries while omitting EOS/chat control tokens.
       skip_special_tokens: true,
-      token_callback_function: tokens => { budget.add(tokens); },
+      token_callback_function: tokens => { budget?.add(tokens); },
       callback_function(text) {
         if (state.cancelled) return;
         streamed += text;
-        publish(parseGenerationOutput(streamed));
+        publish(parseGenerationOutput(streamed, thinks));
       },
     });
 
@@ -281,15 +284,15 @@ async function generate({ requestId, question, documents, history = [], searchQu
       max_new_tokens: thinkingLimit + MAX_ANSWER_TOKENS,
       ...sampling,
       streamer,
-      stopping_criteria: [stoppingCriteria, new OutputBudgetCriteria(budget)],
-      tokenizer_encode_kwargs: CHAT_TEMPLATE_OPTIONS,
+      stopping_criteria: budget ? [stoppingCriteria, new OutputBudgetCriteria(budget)] : [stoppingCriteria],
+      tokenizer_encode_kwargs: thinks ? CHAT_TEMPLATE_OPTIONS : DIRECT_ANSWER_TEMPLATE_OPTIONS,
     });
     if (state.cancelled) {
       report({ type: 'cancelled', requestId });
       return;
     }
-    let parsed = parseGenerationOutput(generatedText(output, streamed));
-    if (budget.exhaustedThinking && !parsed.answer.trim()) {
+    let parsed = parseGenerationOutput(generatedText(output, streamed), thinks);
+    if (budget?.exhaustedThinking && !parsed.answer.trim()) {
       const thinking = parsed.thinking;
       publish(parsed);
       let finalStream = '';
@@ -327,7 +330,7 @@ async function generate({ requestId, question, documents, history = [], searchQu
   }
 }
 
-async function resolveQuery({ requestId, question, history }: Extract<WorkerRequest, { type: 'resolve-query' }>) {
+async function resolveQuery({ requestId, question, history, thinkingEffort }: Extract<WorkerRequest, { type: 'resolve-query' }>) {
   if (cancelledRequestIds.delete(requestId)) { report({ type: 'cancelled', requestId }); return; }
   const stoppingCriteria = new InterruptableStoppingCriteria();
   const state = { requestId, stoppingCriteria, cancelled: false };
@@ -336,22 +339,24 @@ async function resolveQuery({ requestId, question, history }: Extract<WorkerRequ
     const model = await loadModel();
     const context = await fitHistory(history, countTokens);
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    const budget = outputBudget(model, MAX_QUERY_THINKING_TOKENS, MAX_QUERY_TOKENS);
+    // Effort Off rewrites the follow-up directly instead of reasoning first.
+    const thinks = thinkingTokenLimit(thinkingEffort) > 0;
+    const budget = thinks ? outputBudget(model, MAX_QUERY_THINKING_TOKENS, MAX_QUERY_TOKENS) : undefined;
     let streamed = '';
     const streamer = new TextStreamer(model.tokenizer, {
       skip_prompt: true, skip_special_tokens: true,
-      token_callback_function: tokens => { budget.add(tokens); },
+      token_callback_function: tokens => { budget?.add(tokens); },
       callback_function: text => { streamed += text; },
     });
     const messages = buildQueryMessages(question, context.history);
     const output = await model(messages, {
-      max_new_tokens: MAX_QUERY_THINKING_TOKENS + MAX_QUERY_TOKENS, do_sample: false,
-      streamer, stopping_criteria: [stoppingCriteria, new OutputBudgetCriteria(budget)],
-      tokenizer_encode_kwargs: CHAT_TEMPLATE_OPTIONS,
+      max_new_tokens: (thinks ? MAX_QUERY_THINKING_TOKENS : 0) + MAX_QUERY_TOKENS, do_sample: false,
+      streamer, stopping_criteria: budget ? [stoppingCriteria, new OutputBudgetCriteria(budget)] : [stoppingCriteria],
+      tokenizer_encode_kwargs: thinks ? CHAT_TEMPLATE_OPTIONS : DIRECT_ANSWER_TEMPLATE_OPTIONS,
     });
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    let parsed = parseGenerationOutput(generatedText(output, streamed));
-    if (budget.exhaustedThinking && !parsed.answer.trim()) {
+    let parsed = parseGenerationOutput(generatedText(output, streamed), thinks);
+    if (budget?.exhaustedThinking && !parsed.answer.trim()) {
       const finalOutput = await model(finalAnswerPrefix(model, messages, parsed.thinking), {
         max_new_tokens: MAX_QUERY_TOKENS, do_sample: false, stopping_criteria: [stoppingCriteria],
         return_full_text: false, add_special_tokens: false,

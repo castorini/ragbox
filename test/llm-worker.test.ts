@@ -89,7 +89,7 @@ async function createHarness({ chunks = ['</think>A useful fact [MED-14].'], fin
   await import('../src/llm-worker.ts');
   const send = (data: WorkerRequest) => worker.onmessage?.({ data });
   const generate = (overrides: Partial<Extract<WorkerRequest, { type: 'generate' }>> = {}) => send({
-    type: 'generate', requestId: 'request-1', corpus: 'nfcorpus', question: 'What is known?', documents, ...overrides,
+    type: 'generate', requestId: 'request-1', corpus: 'nfcorpus', question: 'What is known?', documents, thinkingEffort: 'balanced', ...overrides,
   });
   const terminal = async (requestId = 'request-1') => {
     await vi.waitFor(() => expect(messages.some(message =>
@@ -116,7 +116,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
   it.each([
-    ['low', 256], ['balanced', 1024], ['high', 2048], [undefined, 1024], ['invalid', 1024],
+    ['low', 256], ['balanced', 1024],
   ] as const)('enforces effort %s while preserving the separate final-answer allowance', async (effort, limit) => {
     const harness = await createHarness();
     harness.generator.mockImplementation(async (messages, options) => {
@@ -136,6 +136,16 @@ describe('LLM worker generation', () => {
     harness.generate({ thinkingEffort: effort as Extract<WorkerRequest, { type: 'generate' }>['thinkingEffort'] });
     expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'Final finding [MED-14].', thinking: 'Budgeted reasoning.' });
     expect(harness.generator).toHaveBeenCalledTimes(2);
+  });
+  it.each([['off'], [undefined], ['invalid']] as const)('answers directly without reasoning when effort is %s', async effort => {
+    const harness = await createHarness({ chunks: ['A direct ', 'finding [MED-14].'] });
+    harness.generate({ thinkingEffort: effort as Extract<WorkerRequest, { type: 'generate' }>['thinkingEffort'] });
+    expect(await harness.terminal()).toMatchObject({ type: 'complete', answer: 'A direct finding [MED-14].', thinking: '' });
+    expect(harness.generator).toHaveBeenCalledOnce();
+    const options = harness.generator.mock.calls[0][1];
+    expect(options).toMatchObject({ max_new_tokens: 512, tokenizer_encode_kwargs: { enable_thinking: false } });
+    expect(options.stopping_criteria).toHaveLength(1);
+    expect(harness.messages.some(message => message.type === 'thinking-delta')).toBe(false);
   });
   it('uses thinking mode for budgeting and generation while streaming only final text as the answer', async () => {
     const harness = await createHarness({ chunks: ['Check evidence first.', '</think>A useful ', 'fact [MED-14].'] });
@@ -586,7 +596,7 @@ it('cleans invalid JSON selectively and keeps valid metadata and weights on expl
 describe('worker query resolution', () => {
   it('rewrites a follow-up with deterministic decoding and the recent conversation', async () => {
     const harness = await createHarness({ final: 'Resolve the subject.</think>coffee blood pressure' });
-    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure', contextLimited: false });
     const messages = harness.generator.mock.calls[0][0];
     if (typeof messages === 'string') throw new Error('The first query call must use conversation messages.');
@@ -594,9 +604,16 @@ describe('worker query resolution', () => {
     expect(messages.at(-1)!.content).toContain('What about it?');
     expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 640, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: true } });
   });
+  it('rewrites a follow-up directly without reasoning when effort is off', async () => {
+    const harness = await createHarness({ final: 'coffee blood pressure' });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'off', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
+    expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 128, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: false } });
+    expect(harness.generator).toHaveBeenCalledOnce();
+  });
   it('reports invalid rewriting output as a retryable resolution failure', async () => {
     const harness = await createHarness({ final: '</think>First line\nSecond line' });
-    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', requestId: 'resolve-1' });
   });
   it('caps the resolved query independently of its reasoning and returns only the final JSON query', async () => {
@@ -608,7 +625,7 @@ describe('worker query resolution', () => {
       tokens([9n]); expect(cap._call([[99]])).toEqual([true]);
       return generatedOutput(messages, 'Reason about coffee.</think>{"query":"coffee blood pressure"}');
     });
-    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
     expect(harness.messages.some(message => message.type === 'answer-delta' || message.type === 'thinking-delta')).toBe(false);
   });
@@ -627,7 +644,7 @@ describe('worker query resolution', () => {
       expect(options.stopping_criteria).toHaveLength(1);
       return generatedOutput(messages, '{"query":"coffee blood pressure"}');
     });
-    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
     expect(harness.generator).toHaveBeenCalledTimes(2);
     expect(harness.messages.some(message => ['thinking-delta', 'answer-delta'].includes(message.type))).toBe(false);
@@ -642,14 +659,14 @@ describe('worker query resolution', () => {
         }
         return generatedOutput(messages, final);
       });
-      harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+      harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
       expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', operation: 'resolve-query', requestId: 'resolve-1' });
       expect(harness.generator).toHaveBeenCalledTimes(2);
       expect(harness.messages.some(message => message.type === 'resolved-query')).toBe(false);
     });
   it('cancels a queued rewrite before invoking the model', async () => {
     const harness = await createHarness();
-    harness.send({ type: 'resolve-query', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
     harness.send({ type: 'cancel', requestId: 'resolve-1' });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'cancelled' });
     expect(harness.generator).not.toHaveBeenCalled();

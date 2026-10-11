@@ -16,6 +16,8 @@ export function handleComposerKey(event: Pick<KeyboardEvent, 'key' | 'shiftKey' 
 // Icon-only Send button: an up arrow, or a square while a reply is being written.
 const SEND_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
 const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/></svg>';
+const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>';
+const COPIED_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 
 export function setupChatView(controller: ChatController, states: ResourceStates) {
   const { store } = controller;
@@ -93,15 +95,25 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const status = element('p', 'chat-turn-status'); status.setAttribute('role', 'status');
     const context = element('p', 'chat-context');
     const sources = element('details', 'chat-sources');
-    const copy = element('button', '', 'Copy'); copy.type = 'button';
+    // Icon-only copy button beside the answer it copies.
+    const copy = element('button', 'chat-copy'); copy.type = 'button';
+    const showCopyIcon = (copied: boolean) => {
+      copy.innerHTML = copied ? COPIED_ICON : COPY_ICON;
+      copy.title = copied ? 'Copied' : 'Copy answer';
+      copy.setAttribute('aria-label', copied ? 'Answer copied' : 'Copy answer');
+    };
+    showCopyIcon(false);
     const retry = element('button', '', 'Retry'); retry.type = 'button'; retry.onclick = () => { void controller.retry(); };
     const feedback = element('span', 'action-feedback'); feedback.setAttribute('role', 'status');
     copy.onclick = async () => {
       const current = store.get(conversation.id)?.turns.find(value => value.id === turn.id);
       if (!current) return;
-      try { if (!navigator.clipboard) throw new Error('Clipboard unavailable'); await navigator.clipboard.writeText(current.answer); feedback.textContent = 'Copied'; }
-      catch { feedback.textContent = 'Could not copy. Select the answer text to copy.'; }
-      setTimeout(() => { if (rows.get(turn.id)?.feedback === feedback) feedback.textContent = ''; }, 3000);
+      try {
+        if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+        await navigator.clipboard.writeText(current.answer);
+        feedback.textContent = 'Copied'; showCopyIcon(true);
+      } catch { feedback.textContent = 'Could not copy. Select the answer text to copy.'; }
+      setTimeout(() => { if (rows.get(turn.id)?.feedback === feedback) { feedback.textContent = ''; showCopyIcon(false); } }, 2000);
     };
     answer.onclick = event => {
       const link = (event.target as Element).closest('a');
@@ -109,8 +121,9 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       const target = document.getElementById(link.hash.slice(1));
       if (target) { event.preventDefault(); sources.open = true; target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'nearest' }); }
     };
-    const actions = element('div', 'chat-answer-actions'); actions.append(copy, retry, feedback);
-    assistant.append(element('span', 'chat-speaker', 'RAGbox'), thinking, answer, status, context, sources, actions);
+    const answerBlock = element('div', 'chat-answer-block'); answerBlock.append(answer, copy, feedback);
+    const actions = element('div', 'chat-answer-actions'); actions.append(retry);
+    assistant.append(element('span', 'chat-speaker', 'RAGbox'), thinking, answerBlock, status, context, sources, actions);
     root.append(user, assistant); transcript.append(root);
     return { root, answer, thinking, thinkingSummary, thinkingText, status, context, sources, copy, retry, feedback };
   }

@@ -15,6 +15,8 @@ Use only actual supplied evidence and IDs, not the fictional example. Keep analy
 // MiniCPM5-2B supports thinking mode. The worker separates the prefilled
 // reasoning channel from the final answer and gives each its own token budget.
 export const CHAT_TEMPLATE_OPTIONS = Object.freeze({ enable_thinking: true });
+// Thinking effort Off: the template skips reasoning and the model answers directly.
+export const DIRECT_ANSWER_TEMPLATE_OPTIONS = Object.freeze({ enable_thinking: false });
 
 function serializableDocument(document: EvidenceDocument): EvidenceDocument {
   return {

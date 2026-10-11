@@ -79,7 +79,7 @@ export class ChatController {
     try {
       const resolve = async () => {
         this.update(attempt, { phase: 'resolving', stage: 'resolve', message: 'Understanding your follow-up…', answer: '', includedIds: [], citedIds: [] });
-        const resolved = await this.model.resolveQuery(turn.question, history, attempt.abort.signal, operation);
+        const resolved = await this.model.resolveQuery(turn.question, history, attempt.abort.signal, operation, turn.thinkingEffort);
         if (!this.valid(attempt)) return;
         query = resolved.query; keywordOnly = false;
         this.update(attempt, { searchQuery: query, keywordOnly: false, contextLimited: turn.contextLimited || resolved.contextLimited });

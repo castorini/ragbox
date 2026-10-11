@@ -425,3 +425,13 @@ form.examples-open .example-queries{border-color:#76aa96}
 /* Round icon Send / Stop button inside the search box. */
 .chat-input-row .chat-send{display:inline-flex;align-items:center;justify-content:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border-radius:50%}
 .chat-input-row .chat-send svg{display:block}
+
+/* Copy icon sits at the top-right of the answer it copies. */
+.chat-answer-block{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:start}
+.chat-answer-block .llm-answer{grid-column:1}
+.chat-answer-block .chat-copy{grid-column:2;grid-row:1;display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;min-width:34px;min-height:34px;margin:8px 0 0;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted)}
+.chat-answer-block .chat-copy:hover:not(:disabled){background:#e8eee6;border-color:#d4dfd5;color:#243733}
+.chat-answer-block .chat-copy:focus-visible{outline:3px solid #87aa95;outline-offset:1px}
+.chat-answer-block .chat-copy[aria-label="Answer copied"]{color:var(--accent)}
+.chat-answer-block .action-feedback{grid-column:1 / -1;grid-row:2;margin:0;text-align:right;font-size:11px}
+.chat-answer-block:has(.chat-copy[hidden]) .action-feedback{display:none}

@@ -121,7 +121,7 @@ export class ModelService {
 
   get ready() { return this.state === 'ready' || this.state === 'generating'; }
 
-  resolveQuery(question: string, history: ChatMessage[], signal: AbortSignal, operation?: ChatOperation): Promise<{ query: string; contextLimited: boolean }> {
+  resolveQuery(question: string, history: ChatMessage[], signal: AbortSignal, operation?: ChatOperation, thinkingEffort?: ThinkingEffort): Promise<{ query: string; contextLimited: boolean }> {
     if (!this.ready || signal.aborted) return Promise.reject(new DOMException('Cancelled', 'AbortError'));
     this.cancel(true);
     const id = `resolve-${++this.requestNumber}`;
@@ -132,7 +132,7 @@ export class ModelService {
       signal.addEventListener('abort', abort, { once: true });
       this.state = 'generating';
       this.updateControls();
-      try { this.ensureWorker().postMessage({ type: 'resolve-query', requestId: id, question, history, operation } satisfies WorkerRequest); }
+      try { this.ensureWorker().postMessage({ type: 'resolve-query', requestId: id, question, history, operation, thinkingEffort } satisfies WorkerRequest); }
       catch (error) { this.handleMessage({ type: 'error', operation: 'resolve-query', requestId: id, message: errorMessage(error) }); }
     });
   }
