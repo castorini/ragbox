@@ -1,3 +1,4 @@
+import { setupEffortPicker } from './effort-picker.ts';
 import { requiredElement } from './boundaries.ts';
 import { renderAnswer } from './llm-controller.ts';
 import { EXAMPLE_QUERIES } from './example-queries.ts';
@@ -25,7 +26,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const query = requiredElement<HTMLTextAreaElement>('#chat-query');
   const send = requiredElement<HTMLButtonElement>('#chat-send');
   const lengthWarning = requiredElement<HTMLElement>('#chat-length-warning');
-  const effort = requiredElement<HTMLSelectElement>('#chat-thinking-effort');
+  const effort = setupEffortPicker({ get: () => store.thinkingEffort, set: value => store.setThinkingEffort(value) });
   const transcript = requiredElement<HTMLElement>('#chat-transcript');
   const title = requiredElement<HTMLElement>('#chat-title');
   const empty = requiredElement<HTMLElement>('#chat-empty');
@@ -56,7 +57,6 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   form.onsubmit = event => { event.preventDefault(); if (controller.running) controller.stop(); else submit(); };
   query.onkeydown = event => handleComposerKey(event, submit);
   query.oninput = () => { store.setDraft(query.value); resize(); renderControls(); };
-  effort.onchange = () => { store.setThinkingEffort(effort.value); };
   requiredElement<HTMLButtonElement>('#chat-new').onclick = () => { controller.newChat(); query.focus(); };
 
   const tooLong = () => query.value.trim().length > MAX_QUESTION_LENGTH;
@@ -67,8 +67,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       ? `Your question is ${length} characters. Shorten it to ${MAX_QUESTION_LENGTH} or fewer to send.`
       : '';
     query.toggleAttribute('aria-invalid', tooLong());
-    effort.value = store.thinkingEffort;
-    effort.disabled = !store.initialized;
+    effort.render();
+    effort.setDisabled(!store.initialized);
     const mode = controller.running ? 'stop' : 'send';
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
@@ -215,7 +215,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     disposed = true;
     for (const unsubscribe of unsubscribers) unsubscribe();
     window.removeEventListener('resize', resize);
-    form.onsubmit = null; query.oninput = null; query.onkeydown = null; effort.onchange = null;
+    form.onsubmit = null; query.oninput = null; query.onkeydown = null; effort.dispose();
   } };
 }
 

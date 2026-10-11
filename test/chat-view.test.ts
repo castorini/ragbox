@@ -9,7 +9,7 @@ class Node {
   children: Node[] = [];
   parent?: Node;
   dataset: Record<string, string> = {};
-  style: Record<string, string> = {};
+  style: Record<string, unknown> = { setProperty: (name: string, value: string) => { this.style[name] = value; } };
   hidden = false; disabled = false; open = false; value = ''; className = ''; id = ''; tabIndex = 0;
   offsetHeight = 50; scrollHeight = 40; writes = 0;
   private text = '';
@@ -33,7 +33,8 @@ const mutations = (node: Node): number => node.writes + node.children.reduce((su
 async function harness() {
   const nodes = new Map<string, Node>();
   const get = (id: string) => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id)!; };
-  const document = { querySelector: get, createElement: () => new Node(), activeElement: get('#chat-query'), documentElement: { scrollHeight: 1000 } };
+  const document = { querySelector: get, createElement: () => new Node(), activeElement: get('#chat-query'), documentElement: { scrollHeight: 1000 },
+    addEventListener: vi.fn(), removeEventListener: vi.fn() };
   const window = { addEventListener: vi.fn(), removeEventListener: vi.fn(), scrollY: 400, innerHeight: 600, scrollTo: vi.fn() };
   const frame = vi.fn();
   vi.stubGlobal('document', document); vi.stubGlobal('window', window); vi.stubGlobal('requestAnimationFrame', frame);
