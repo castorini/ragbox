@@ -5,6 +5,7 @@ export const DEMO_FILES = [
   'analytics.duckdb.wal.checkpoint',
   'analytics.duckdb.wal.recovery',
   'analytics.duckdb',
+  'msmarco-prebuilt.duckdb.wal',
   'msmarco-prebuilt.duckdb',
   'cache/monthly_totals.parquet',
   'export/transactions.parquet',

@@ -52,7 +52,7 @@ File listings can include files that RAGbox does not own. Deletion is limited to
 | **Delete index data** | Both collection databases, their owned helper files, and legacy demo Parquet files. | Model cache, conversations, and source snapshots. |
 | **Delete model** | Cached MiniCPM model files. | Collection indexes, conversations, and source snapshots. |
 | **Delete indexes and model** | The index-data set and model files above. | Conversations and source snapshots. |
-| Individual OPFS file deletion | The selected owned file; deleting `analytics.duckdb` also removes its WAL/helper files. | Other files, model cache, and conversations. |
+| Individual OPFS file deletion | The selected owned file; deleting either collection database also removes its owned WAL/helper files. | Other files, model cache, and conversations. |
 | **Clear history**, when History is enabled | Saved conversations and legacy search history. | Collection indexes and model files. |
 
 Resource deletion requires confirmation, closes the appropriate runtimes, and reloads the page. Controls are disabled during active resource work. If shutdown or deletion fails, **Reload to recover** appears. Close other RAGbox tabs before retrying.

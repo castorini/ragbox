@@ -86,8 +86,8 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       await shutdown();
       const root = await navigator.storage.getDirectory();
       // Database WAL files belong to the same database and must not survive its deletion.
-      if (path === 'analytics.duckdb') {
-        for (const name of DEMO_FILES.filter(name => name.startsWith('analytics.duckdb'))) await deleteDemoFile(root, name);
+      if (path === 'analytics.duckdb' || path === 'msmarco-prebuilt.duckdb') {
+        for (const name of DEMO_FILES.filter(name => name === path || name.startsWith(`${path}.wal`))) await deleteDemoFile(root, name);
       } else if (path) await deleteDemoFile(root, path);
       else await deleteDemoFiles(root);
       if (all) await deleteModelCacheFiles(caches);

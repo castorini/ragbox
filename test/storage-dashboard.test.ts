@@ -45,13 +45,17 @@ it('rejects arbitrary deletion paths and tolerates files already missing', async
 
 it('resets only known files, removes WAL before the database, and keeps directories', async () => {
   const cache = directory({ 'personal.txt': 1 });
-  const root = directory({ cache });
+  const root = directory({ 'msmarco-prebuilt.duckdb': 2048, 'msmarco-prebuilt.duckdb.wal': 512, 'personal.txt': 1, cache });
   await deleteDemoFiles(root);
   expect(vi.mocked(root.removeEntry).mock.calls.map(call => call[0])).toEqual([
     'analytics.duckdb.wal', 'analytics.duckdb.wal.checkpoint', 'analytics.duckdb.wal.recovery',
-    'analytics.duckdb', 'msmarco-prebuilt.duckdb',
+    'analytics.duckdb', 'msmarco-prebuilt.duckdb.wal', 'msmarco-prebuilt.duckdb',
   ]);
   expect(cache.removeEntry).toHaveBeenCalledExactlyOnceWith('monthly_totals.parquet');
+  expect(await listStoredFiles(root)).toEqual([
+    { path: 'cache/personal.txt', size: 1, owned: false },
+    { path: 'personal.txt', size: 1, owned: false },
+  ]);
 });
 
 function harness(shutdown = vi.fn(async () => {}), root = directory({ 'analytics.duckdb': 2048, 'personal.txt': 1 })) {
@@ -233,6 +237,34 @@ it('closes databases before deleting a database and its WAL, then reloads', asyn
     'analytics.duckdb.wal', 'analytics.duckdb.wal.checkpoint', 'analytics.duckdb.wal.recovery', 'analytics.duckdb',
   ]);
   expect(ui.elements.get('#storage-files').children[1].children[2].textContent).toBe('Other origin file');
+});
+
+it.each([0, 512])('recognizes the MS MARCO WAL as an app file and deletes it with its database (%i bytes)', async walSize => {
+  const ui = harness(undefined, directory({
+    'analytics.duckdb': 1024,
+    'msmarco-prebuilt.duckdb': 2048,
+    'msmarco-prebuilt.duckdb.wal': walSize,
+    'msmarco-prebuilt.duckdb.backup': 8,
+    'personal.txt': 1,
+  }));
+  await ready(ui);
+  expect(ui.elements.get('#storage-summary').textContent).toBe(`3 app files · ${formatBytes(3072 + walSize)}`);
+  expect(ui.elements.get('#storage-usage').textContent).toBe(formatBytes(3072 + walSize));
+  const rows = ui.elements.get('#storage-files').children;
+  const walRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb.wal')!;
+  expect(walRow.children[2].children[0].textContent).toBe('Delete');
+  const databaseRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb')!;
+  databaseRow.children[2].children[0].onclick();
+  await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
+  expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ui.root.removeEntry).mock.invocationCallOrder[0]);
+  expect(vi.mocked(ui.root.removeEntry).mock.calls.map(call => call[0])).toEqual([
+    'msmarco-prebuilt.duckdb.wal', 'msmarco-prebuilt.duckdb',
+  ]);
+  expect(await listStoredFiles(ui.root)).toEqual([
+    { path: 'analytics.duckdb', size: 1024, owned: true },
+    { path: 'msmarco-prebuilt.duckdb.backup', size: 8, owned: false },
+    { path: 'personal.txt', size: 1, owned: false },
+  ]);
 });
 
 it('reports a shutdown failure without deleting files and allows reloading to recover', async () => {
