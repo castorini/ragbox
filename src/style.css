@@ -24,7 +24,7 @@ body{padding-left:80px}
 .side-rail{position:fixed;inset:0 auto 0 0;width:80px;z-index:20;background:#ebebe3;border-right:1px solid #dddfd5;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:16px 8px}
 .rail-link{width:62px;min-height:62px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border-radius:12px;color:#60736c;text-decoration:none;transition:background .15s,color .15s}
 .rail-link svg{width:23px;height:23px;flex-shrink:0}
-.rail-link span{font-size:10px;font-weight:600;line-height:1.4}
+.rail-link span{font-size:10px;font-weight:600;line-height:1.4;text-align:center}
 .rail-link:hover{background:#e0e3d8;color:#243733}
 .rail-link[aria-current=page]{background:#dfe9ce;color:#203d33}
 .results-area{scroll-margin-top:24px;outline-offset:6px}

@@ -39,7 +39,7 @@ The History page is currently disabled by [src/features.ts](../src/features.ts).
 
 ## Inspect saved files
 
-Open Settings to manage collections and the answer model. The **Guide** tab in the sidebar explains browser execution, BM25 retrieval, local database files, and network requirements. Link directly to it with `?view=duckdb`.
+Open Settings to manage collections and the answer model. The **How it works** tab in the sidebar explains browser execution, BM25 retrieval, local database files, and network requirements. Link directly to it with `?view=duckdb`.
 
 **Advanced file management** exposes OPFS file listings, model-cache listings, refresh controls, individual owned-file deletion, and MS MARCO replacement.
 
