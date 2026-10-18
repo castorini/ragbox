@@ -113,78 +113,117 @@
   </section>
 
   <section id="duckdb-view" aria-labelledby="duckdb-heading" hidden>
-    <div class="setup-header settings-header"><div><h1 id="duckdb-heading" tabindex="-1">How it works</h1><p>The database behind RAGbox’s local document search.</p></div><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
+    <div class="setup-header settings-header"><h1 id="duckdb-heading" tabindex="-1">How it works</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
     <section class="setup-card duckdb-intro" aria-labelledby="duckdb-intro-heading">
-      <div class="duckdb-eyebrow"><i data-lucide="monitor" aria-hidden="true"></i> Local document search</div>
       <h2 id="duckdb-intro-heading">Your search engine, inside the browser.</h2>
-      <p>DuckDB-Wasm runs the DuckDB database on your device. It searches your saved collection in a background worker, then passes the sources back to your chat.</p>
-      <figure class="duckdb-pipeline" aria-labelledby="duckdb-pipeline-caption">
-        <figcaption id="duckdb-pipeline-caption"><span><i data-lucide="app-window" aria-hidden="true"></i> Inside your browser</span><span class="duckdb-local-badge"><i data-lucide="shield-check" aria-hidden="true"></i> Runs on your device</span></figcaption>
-        <ol class="duckdb-flow" aria-label="From question to answer">
+      <figure class="duckdb-pipeline" aria-label="From question to answer">
+        <ol class="duckdb-flow">
           <li><span class="duckdb-node-icon"><i data-lucide="search" aria-hidden="true"></i></span><span class="duckdb-step-label">01 · Ask</span><h3>Your question</h3><p>Keywords from your message become a search query.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
-          <li class="duckdb-engine"><span class="duckdb-node-icon"><i data-lucide="database" aria-hidden="true"></i></span><span class="duckdb-step-label">02 · Retrieve</span><h3>DuckDB search</h3><p>BM25 finds matches in your saved full-text index.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
+          <li class="duckdb-engine"><span class="duckdb-node-icon"><i data-lucide="database" aria-hidden="true"></i></span><span class="duckdb-step-label">02 · Retrieve</span><h3>DuckDB search</h3><p>DuckDB-Wasm searches your index with BM25 in a background worker, separate from the chat interface.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
           <li><span class="duckdb-node-icon"><i data-lucide="files" aria-hidden="true"></i></span><span class="duckdb-step-label">03 · Read</span><h3>Top sources</h3><p>Up to ten matching documents return to your chat.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
-          <li class="duckdb-optional"><span class="duckdb-node-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span class="duckdb-step-label">04 · Optional</span><h3>Cited answer</h3><p>A local model writes an answer using the retrieved text.</p></li>
+          <li class="duckdb-optional"><span class="duckdb-node-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span class="duckdb-step-label">04 · Optional</span><h3>Cited answer</h3><p>The model writes an answer from these sources. Search works without this step.</p></li>
         </ol>
       </figure>
-      <p class="duckdb-inline-note"><i data-lucide="brain-circuit" aria-hidden="true"></i> DuckDB finds the evidence. The optional model writes the answer. Search works without the model.</p>
     </section>
 
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-ranking-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="text-search" aria-hidden="true"></i></span><div><h2 id="duckdb-ranking-heading">A question becomes keywords.</h2><p>See what changes when your search words change.</p></div></div>
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="text-search" aria-hidden="true"></i></span><h2 id="duckdb-ranking-heading">A question becomes keywords.</h2></div>
       <figure class="duckdb-match-demo" aria-labelledby="duckdb-demo-caption">
         <div class="duckdb-demo-toolbar"><label for="duckdb-demo-query"><i data-lucide="search" aria-hidden="true"></i> Try a search</label><select id="duckdb-demo-query" aria-describedby="duckdb-demo-caption"><option value="the solar energy">the solar energy</option><option value="wind energy">wind energy</option><option value="river">river</option></select><i data-lucide="arrow-right" class="duckdb-token-arrow" aria-hidden="true"></i><div id="duckdb-demo-tokens" class="duckdb-tokens" aria-label="Search keywords"><span>solar</span><span>energy</span></div></div>
         <p id="duckdb-demo-note" class="duckdb-demo-note">The common word “the” is removed.</p>
-        <div class="duckdb-match-labels"><span>Sample document text</span><span>Query terms matched</span></div>
+        <div class="duckdb-match-labels"><span>Sample documents</span><span>Matching terms</span></div>
         <ul id="duckdb-demo-documents" class="duckdb-match-list">
           <li class="duckdb-match-row"><i data-lucide="file-text" aria-hidden="true"></i><p class="duckdb-match-text">Solar energy powers homes.</p><div class="duckdb-match-track" aria-hidden="true"><span class="duckdb-match-fill" style="width:100%"></span></div><span class="duckdb-match-count">2 / 2</span></li>
           <li class="duckdb-match-row"><i data-lucide="file-text" aria-hidden="true"></i><p class="duckdb-match-text">Wind energy powers turbines.</p><div class="duckdb-match-track" aria-hidden="true"><span class="duckdb-match-fill" style="width:50%"></span></div><span class="duckdb-match-count">1 / 2</span></li>
           <li class="duckdb-match-row"><i data-lucide="file-text" aria-hidden="true"></i><p class="duckdb-match-text">Rainfall shapes river systems.</p><div class="duckdb-match-track" aria-hidden="true"><span class="duckdb-match-fill" style="width:0%"></span></div><span class="duckdb-match-count">0 / 2</span></li>
         </ul>
-        <figcaption id="duckdb-demo-caption">Illustration using sample text. Bars count exact keyword matches, not BM25 scores or live collection results.</figcaption>
+        <figcaption id="duckdb-demo-caption">Bars count matching terms in these illustrative documents.</figcaption>
         <p id="duckdb-demo-status" class="sr-only" role="status"></p>
       </figure>
-      <p>DuckDB’s full-text search extension uses <strong>BM25</strong> to rank real results. It weighs more than the number of matching words:</p>
+      <p><a href="https://duckdb.org/docs/current/core_extensions/full_text_search" target="_blank" rel="noopener noreferrer">BM25</a>, DuckDB’s full-text ranking method, weighs:</p>
       <ul class="duckdb-ranking-factors" aria-label="BM25 ranking factors">
         <li><i data-lucide="tag" aria-hidden="true"></i><div><h3>Word rarity</h3><p>Distinctive terms carry more weight.</p></div></li>
         <li><i data-lucide="repeat-2" aria-hidden="true"></i><div><h3>Word frequency</h3><p>Repeated matches help, with diminishing returns.</p></div></li>
         <li><i data-lucide="ruler" aria-hidden="true"></i><div><h3>Document length</h3><p>Length is factored into the score.</p></div></li>
       </ul>
-      <p>A higher score means a stronger match for that query, not greater factual accuracy. Specific terms from your topic can help.</p>
-      <details class="duckdb-query"><summary>See the SQL behind an NFCorpus search</summary>
+      <p>Scores measure relevance to a query, not factual accuracy.</p>
+      <details class="duckdb-query"><summary>NFCorpus search SQL</summary>
         <pre><code>SELECT id, title, text,
        fts_main_nfcorpus.match_bm25(id, ?) AS score
 FROM nfcorpus
 WHERE score IS NOT NULL
 ORDER BY score DESC, id
 LIMIT 10;</code></pre>
-        <p>The <code>?</code> receives the normalized search text as a bound parameter. DuckDB retrieves the sources; the optional answer model writes the response.</p>
+        <p>The <code>?</code> is a bound parameter containing the normalized search text.</p>
       </details>
     </section>
 
-    <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-files-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span><div><h2 id="duckdb-files-heading">Three kinds of data. One browser.</h2><p>Each has its own storage location and purpose.</p></div></div>
-      <figure class="duckdb-storage-map" aria-labelledby="duckdb-storage-caption">
-        <div class="duckdb-storage-root"><i data-lucide="app-window" aria-hidden="true"></i> This site · this browser profile</div>
-        <dl class="duckdb-storage-tree">
-          <div class="duckdb-storage-group duckdb-storage-indexes"><dt><i data-lucide="database" aria-hidden="true"></i><span>Search indexes<small>OPFS · private database files</small></span></dt><dd><span class="duckdb-stored-file"><i data-lucide="file-text" aria-hidden="true"></i><span>NFCorpus<code>analytics.duckdb</code></span></span><span class="duckdb-stored-file"><i data-lucide="file-text" aria-hidden="true"></i><span>MS MARCO<code>msmarco-prebuilt.duckdb</code></span></span></dd></div>
-          <div class="duckdb-storage-group"><dt><i data-lucide="brain-circuit" aria-hidden="true"></i><span>Answer model<small>Cache Storage</small></span></dt><dd><span class="duckdb-storage-visual" aria-hidden="true"><i data-lucide="brain-circuit"></i></span><strong>Model &amp; tokenizer files</strong><span>Downloaded once, loaded when needed.</span></dd></div>
-          <div class="duckdb-storage-group"><dt><i data-lucide="messages-square" aria-hidden="true"></i><span>Conversations<small>IndexedDB</small></span></dt><dd><span class="duckdb-storage-visual" aria-hidden="true"><i data-lucide="messages-square"></i></span><strong>Chats &amp; source snapshots</strong><span>Saved so you can pick up where you left off.</span></dd></div>
-        </dl>
-        <figcaption id="duckdb-storage-caption"><i data-lucide="lock-keyhole" aria-hidden="true"></i> Saved for this site and browser profile. Clearing site data can remove all three.</figcaption>
+    <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-local-heading">
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="cpu" aria-hidden="true"></i></span><h2 id="duckdb-local-heading">How it runs on your device</h2></div>
+      <p>A <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers" target="_blank" rel="noopener noreferrer">web worker</a> runs code in the background. The chat page sends work to these workers and displays their results, keeping the interface responsive.</p>
+      <figure class="duckdb-execution" aria-label="Local execution: chat exchanges messages with a DuckDB worker on the CPU and an optional model worker on the GPU">
+        <div class="duckdb-browser-boundary">
+          <div class="duckdb-browser-label"><i data-lucide="app-window" aria-hidden="true"></i>Your browser</div>
+          <div class="duckdb-execution-workspace">
+            <div class="duckdb-chat-node"><i data-lucide="messages-square" aria-hidden="true"></i><h3>Chat page</h3><p>Coordinates work and displays results.</p></div>
+            <div class="duckdb-worker-lanes">
+              <div class="duckdb-worker-lane">
+                <div class="duckdb-worker-route">
+                  <div class="duckdb-route-out"><span><small>From chat: </small>SQL query</span><i data-lucide="arrow-right" aria-hidden="true"></i></div>
+                  <div class="duckdb-route-in"><span><small>To chat: </small>Sources</span><i data-lucide="arrow-left" aria-hidden="true"></i></div>
+                </div>
+                <div class="duckdb-worker-node">
+                  <div class="duckdb-worker-heading"><i data-lucide="database" aria-hidden="true"></i><h3>DuckDB worker</h3><span class="duckdb-hardware">CPU</span></div>
+                  <p><a href="https://duckdb.org/docs/current/clients/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a> is the DuckDB database compiled to <a href="https://developer.mozilla.org/en-US/docs/WebAssembly" target="_blank" rel="noopener noreferrer">WebAssembly</a>, a code format your browser executes on your device’s CPU.</p>
+                  <p>The worker opens your saved collection and runs the chat’s SQL query against its full-text index. It returns matching documents and relevance scores for the chat to display.</p>
+                </div>
+              </div>
+              <div class="duckdb-worker-lane">
+                <div class="duckdb-worker-route">
+                  <div class="duckdb-route-out"><span><small>From chat: </small>Prompt + sources</span><i data-lucide="arrow-right" aria-hidden="true"></i></div>
+                  <div class="duckdb-route-in"><span><small>To chat: </small>Answer stream</span><i data-lucide="arrow-left" aria-hidden="true"></i></div>
+                </div>
+                <div class="duckdb-worker-node duckdb-model-node">
+                  <div class="duckdb-worker-heading"><i data-lucide="brain-circuit" aria-hidden="true"></i><h3>Model worker</h3><span class="duckdb-hardware">GPU · optional</span></div>
+                  <p><a href="https://huggingface.co/docs/transformers.js/index" target="_blank" rel="noopener noreferrer">Transformers.js</a> loads the saved language model into memory and converts your question and retrieved sources into tokens: small pieces of text the model processes.</p>
+                  <p><a href="https://onnxruntime.ai/docs/tutorials/web/ep-webgpu.html" target="_blank" rel="noopener noreferrer">ONNX Runtime</a> runs the model’s calculations through <a href="https://huggingface.co/docs/transformers.js/guides/webgpu" target="_blank" rel="noopener noreferrer">WebGPU</a>, which gives the browser access to a compatible GPU. The worker generates an answer from that context and streams the text back to chat.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <figcaption><i data-lucide="shield-check" aria-hidden="true"></i>These messages stay in your browser. No inference server or API key is involved.</figcaption>
       </figure>
-      <div class="duckdb-collection-notes"><p><strong>NFCorpus</strong> imports and indexes 3,633 articles during setup.</p><p><strong>MS MARCO</strong> downloads a prebuilt database of about 3.35 GB and opens it read-only.</p></div>
+      <p class="duckdb-network-note">The browser downloads engine code, extensions, collections, and optional model files. Startup may still need network access on later visits.</p>
     </section>
 
-    <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-local-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span><div><h2 id="duckdb-local-heading">What does “local” mean?</h2><p>On-device processing, with a few things to keep in mind.</p></div></div>
-      <ul class="duckdb-notes">
-        <li><i data-lucide="shield-check" aria-hidden="true"></i><div><h3>Questions stay on your device</h3><p>Search and answers run here, without sending your question or document text to an inference server.</p></div></li>
-        <li><i data-lucide="cloud-download" aria-hidden="true"></i><div><h3>Downloads need the network</h3><p>Runtime assets, extensions, collections, and model files still need downloading. Startup may need a connection.</p></div></li>
-        <li><i data-lucide="fingerprint" aria-hidden="true"></i><div><h3>Storage belongs to this browser</h3><p>A different browser profile, host, or port has separate data. Saved files remain until you or the browser clear them.</p></div></li>
-        <li><i data-lucide="copy" aria-hidden="true"></i><div><h3>One RAGbox tab per site</h3><p>Database files use exclusive access. Close other RAGbox tabs if a saved database will not open.</p></div></li>
-      </ul>
-      <p class="duckdb-docs"><a href="https://duckdb.org/docs/stable/clients/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm docs <i data-lucide="arrow-up-right" aria-hidden="true"></i></a><a href="https://duckdb.org/docs/stable/core_extensions/full_text_search" target="_blank" rel="noopener noreferrer">Full-text search guide <i data-lucide="arrow-up-right" aria-hidden="true"></i></a></p>
+    <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-files-heading">
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span><h2 id="duckdb-files-heading">Where data is saved</h2></div>
+      <figure class="duckdb-storage-map" aria-labelledby="duckdb-files-heading" aria-describedby="duckdb-storage-caption">
+        <dl class="duckdb-storage-list">
+          <div class="duckdb-storage-row">
+            <dt><i data-lucide="database" aria-hidden="true"></i>Search indexes</dt>
+            <dd class="duckdb-storage-location">OPFS<small>Private database files</small></dd>
+            <dd>
+              <ul class="duckdb-stored-files" aria-label="Index databases">
+                <li><span>NFCorpus</span><code>analytics.duckdb</code><p>Imports and indexes 3,633 articles during setup.</p></li>
+                <li><span>MS MARCO</span><code>msmarco-prebuilt.duckdb</code><p>Downloads a prebuilt database of about 3.35 GB and opens it read-only.</p></li>
+              </ul>
+            </dd>
+          </div>
+          <div class="duckdb-storage-row">
+            <dt><i data-lucide="brain-circuit" aria-hidden="true"></i>Answer model</dt>
+            <dd class="duckdb-storage-location">Cache Storage</dd>
+            <dd>Model &amp; tokenizer files</dd>
+          </div>
+          <div class="duckdb-storage-row">
+            <dt><i data-lucide="messages-square" aria-hidden="true"></i>Conversations</dt>
+            <dd class="duckdb-storage-location">IndexedDB</dd>
+            <dd>Chats &amp; source snapshots</dd>
+          </div>
+        </dl>
+        <figcaption id="duckdb-storage-caption"><i data-lucide="lock-keyhole" aria-hidden="true"></i> A different browser profile, host, or port has separate storage. Clearing site data or browser eviction can remove saved data. Keep one RAGbox tab open per site; database files require exclusive access.</figcaption>
+      </figure>
     </section>
   </section>
 </main>

@@ -1,7 +1,7 @@
 import {
-  AppWindow, ArrowRight, ArrowUpRight, BookOpen, BrainCircuit, CloudDownload, Copy,
-  Database, Files, FileText, Fingerprint, HardDrive, LockKeyhole, MessagesSquare,
-  Monitor, Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch, createIcons,
+  AppWindow, ArrowLeft, ArrowRight, BookOpen, BrainCircuit, Cpu,
+  Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
+  Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch, createIcons,
 } from 'lucide';
 import { requiredElement } from './boundaries.ts';
 import './duckdb-view.css';
@@ -9,9 +9,9 @@ import './duckdb-view.css';
 export function setupDuckDBView() {
   createIcons({
     icons: {
-      AppWindow, ArrowRight, ArrowUpRight, BookOpen, BrainCircuit, CloudDownload, Copy,
-      Database, Files, FileText, Fingerprint, HardDrive, LockKeyhole, MessagesSquare,
-      Monitor, Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch,
+      AppWindow, ArrowLeft, ArrowRight, BookOpen, BrainCircuit, Cpu,
+      Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
+      Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch,
     },
     attrs: { 'aria-hidden': 'true', 'stroke-width': 1.7 },
   });
@@ -38,7 +38,7 @@ export function setupDuckDBView() {
       token.textContent = word;
       return token;
     }));
-    note.textContent = words.includes('the') ? 'The common word “the” is removed.' : 'These keywords are used to find matches.';
+    note.hidden = !words.includes('the');
     let matchingDocuments = 0;
     for (const { row, text, original, fill, count } of documents) {
       const matched = new Set<string>();
