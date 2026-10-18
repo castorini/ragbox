@@ -80,10 +80,7 @@
 .duckdb-worker-route>div{position:relative;padding-bottom:11px}
 .duckdb-worker-route span{display:block;text-align:center;line-height:1.4}
 .duckdb-worker-route small{display:none}
-.duckdb-worker-route>div::after{content:"";position:absolute;left:calc(-1 * var(--duckdb-wire));right:0;bottom:3px;height:1px;background:#a1b197}
-#duckdb-view .duckdb-worker-route svg{position:absolute;width:14px;height:14px;bottom:-3px;color:#829977;background:#f7f9f3;z-index:1}
-.duckdb-route-out svg{right:0}
-.duckdb-route-in svg{left:calc(-1 * var(--duckdb-wire))}
+#duckdb-view .duckdb-worker-route svg{position:absolute;left:calc(-1 * var(--duckdb-wire));bottom:-2px;width:calc(100% + var(--duckdb-wire));height:12px;color:#829977;overflow:visible}
 .duckdb-worker-node{min-width:0;padding:14px;border:1px solid #d6e1ce;border-radius:9px;background:#fff}
 .duckdb-worker-heading{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:var(--accent)}
 #duckdb-view .duckdb-worker-heading h3{font-size:13px;color:#2d4939}
@@ -141,6 +138,6 @@
   .duckdb-worker-route>div{padding:0}
   .duckdb-worker-route span{text-align:left}
   .duckdb-worker-route small{display:inline;font-size:inherit;font-weight:600}
-  .duckdb-worker-route>div::after,#duckdb-view .duckdb-worker-route svg{display:none}
+  #duckdb-view .duckdb-worker-route svg{display:none}
 }
 @media(prefers-reduced-motion:reduce){.duckdb-match-fill{transition:none}}

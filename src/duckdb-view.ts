@@ -1,5 +1,5 @@
 import {
-  AppWindow, ArrowLeft, ArrowRight, BookOpen, BrainCircuit, Cpu,
+  AppWindow, ArrowRight, BookOpen, BrainCircuit, Cpu,
   Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
   Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch, createIcons,
 } from 'lucide';
@@ -9,7 +9,7 @@ import './duckdb-view.css';
 export function setupDuckDBView() {
   createIcons({
     icons: {
-      AppWindow, ArrowLeft, ArrowRight, BookOpen, BrainCircuit, Cpu,
+      AppWindow, ArrowRight, BookOpen, BrainCircuit, Cpu,
       Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
       Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch,
     },
