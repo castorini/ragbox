@@ -103,6 +103,54 @@ it('opens direct Setup links and supports in-page navigation and Back/Forward', 
   expect(ui.get('#setup-view').hidden).toBe(false);
 });
 
+it('opens the DuckDB sidebar page and returns to chat without losing the query', () => {
+  const ui = harness();
+  setupCollectionChooser();
+  ui.get('#fts-query').value = 'vitamin d';
+  ui.click('#nav-duckdb');
+  expect(ui.href).toBe('https://example.com/ragbox/?view=duckdb');
+  expect(ui.get('#duckdb-view').hidden).toBe(false);
+  expect(ui.get('#setup-view').hidden).toBe(true);
+  expect(ui.get('#search-view').hidden).toBe(true);
+  expect(ui.get('#history-view').hidden).toBe(true);
+  expect(ui.get('#nav-duckdb').setAttribute).toHaveBeenCalledWith('aria-current', 'page');
+  expect(ui.get('#nav-setup').removeAttribute).toHaveBeenCalledWith('aria-current');
+  expect(ui.get('#duckdb-heading').focus).toHaveBeenCalled();
+  expect(ui.get('.skip-link').href).toBe('#duckdb-heading');
+  ui.click('#duckdb-back');
+  expect(ui.href).toBe('https://example.com/ragbox/');
+  expect(ui.get('#search-view').hidden).toBe(false);
+  expect(ui.get('#duckdb-view').hidden).toBe(true);
+  expect(ui.get('#fts-query').value).toBe('vitamin d');
+});
+
+it('opens bookmarked DuckDB links and restores sidebar pages with Back/Forward', () => {
+  const ui = harness('https://example.com/ragbox/?view=duckdb');
+  setupCollectionChooser();
+  expect(document.title).toBe('How it works · ragbox');
+  expect(ui.get('#duckdb-view').hidden).toBe(false);
+  ui.click('#nav-setup');
+  expect(ui.href).toBe('https://example.com/ragbox/?view=setup');
+  expect(ui.get('#setup-view').hidden).toBe(false);
+  expect(ui.get('#duckdb-view').hidden).toBe(true);
+  ui.setHref('https://example.com/ragbox/?view=duckdb');
+  expect(ui.get('#duckdb-view').hidden).toBe(false);
+  expect(ui.get('#setup-view').hidden).toBe(true);
+  ui.setHref('https://example.com/ragbox/?view=setup');
+  expect(ui.get('#setup-view').hidden).toBe(false);
+  expect(ui.get('#duckdb-view').hidden).toBe(true);
+});
+
+it('opens model settings shortcuts from the DuckDB page', () => {
+  const ui = harness('https://example.com/ragbox/?view=duckdb');
+  setupCollectionChooser();
+  ui.click('#model-setup-link');
+  expect(ui.href).toBe('https://example.com/ragbox/?view=setup#model');
+  expect(ui.get('#setup-view').hidden).toBe(false);
+  expect(ui.get('#duckdb-view').hidden).toBe(true);
+  expect(ui.get('#llm-load').focus).toHaveBeenCalled();
+});
+
 it('opens History from Settings as its own view without losing the query', () => {
   const ui = harness();
   setupCollectionChooser(undefined, undefined, false, true);

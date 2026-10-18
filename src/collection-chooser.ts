@@ -3,7 +3,7 @@ import type { Corpus } from './types.ts';
 import { HISTORY_ENABLED } from './features.ts';
 import type { ConversationStore } from './conversations.ts';
 
-type View = 'search' | 'history' | 'setup';
+type View = 'search' | 'history' | 'setup' | 'duckdb';
 const setupSections = ['model', 'model-storage', 'model-management', 'setup-nfcorpus', 'setup-msmarco', 'collection-management', 'storage-management'];
 // Sections whose guidance points at one button; focus it so Enter performs the next step.
 const sectionActions: Record<string, string> = { '#model': '#llm-load' };
@@ -18,10 +18,12 @@ export function setupCollectionChooser(
   const selector = requiredElement<HTMLSelectElement>('#collection-switch');
   const search = requiredElement<HTMLElement>('#search-view');
   const setup = requiredElement<HTMLElement>('#setup-view');
+  const duckdb = requiredElement<HTMLElement>('#duckdb-view');
   const history = requiredElement<HTMLElement>('#history-view');
   const searchLink = requiredElement<HTMLAnchorElement>('#nav-search');
   const historyLink = requiredElement<HTMLAnchorElement>('#nav-history');
   const setupLink = requiredElement<HTMLAnchorElement>('#nav-setup');
+  const duckdbLink = requiredElement<HTMLAnchorElement>('#nav-duckdb');
   historyLink.hidden = !historyEnabled;
   const skipLink = requiredElement<HTMLAnchorElement>('.skip-link');
   const panels = {
@@ -49,6 +51,7 @@ export function setupCollectionChooser(
   function currentView(): View {
     const view = new URL(window.location.href).searchParams.get('view');
     if (view === 'history') return historyEnabled ? 'history' : 'search';
+    if (view === 'duckdb') return 'duckdb';
     return view === 'setup' ? 'setup' : 'search';
   }
 
@@ -56,16 +59,17 @@ export function setupCollectionChooser(
     search.hidden = view !== 'search';
     history.hidden = view !== 'history';
     setup.hidden = view !== 'setup';
-    for (const [name, link] of [['search', searchLink], ['history', historyLink], ['setup', setupLink]] as const) {
+    duckdb.hidden = view !== 'duckdb';
+    for (const [name, link] of [['search', searchLink], ['history', historyLink], ['setup', setupLink], ['duckdb', duckdbLink]] as const) {
       if (name === view) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     }
-    const label = view === 'setup' ? 'Settings' : view === 'history' ? 'History' : chat ? 'Chat' : 'Search';
+    const label = view === 'setup' ? 'Settings' : view === 'duckdb' ? 'How it works' : view === 'history' ? 'History' : chat ? 'Chat' : 'Search';
     document.title = `${label} · ragbox`;
     const hash = new URL(window.location.href).hash;
     const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1))
       ? (hash === '#storage-management' ? '#collection-management' : hash) : undefined;
-    const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'history'
+    const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'duckdb' ? '#duckdb-heading' : view === 'history'
       ? '#history-heading'
       : composer();
     skipLink.href = target;
@@ -130,6 +134,7 @@ export function setupCollectionChooser(
 
   for (const [id, view] of [
     ['#nav-search', 'search'], ['#nav-history', 'history'], ['#nav-setup', 'setup'],
+    ['#nav-duckdb', 'duckdb'], ['#duckdb-back', 'search'],
     ['#fts-setup-link', 'setup'], ['#marco-setup-link', 'setup'],
     ['#model-setup-link', 'setup'], ['#model-repair-link', 'setup'], ['#setup-back', 'search'],
     ['#model-storage-repair', 'setup'],
