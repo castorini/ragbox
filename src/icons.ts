@@ -1,5 +1,5 @@
 import {
-  AppWindow, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
+  AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
   Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole,
   MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
   ShieldCheck, SlidersHorizontal, Sparkles, Tag, TextSearch, Trash2, createElement, createIcons,
@@ -16,7 +16,7 @@ export function appIcon(icon: IconNode, size: number, attrs: SVGProps = {}) {
 export function setupIcons() {
   createIcons({
     icons: {
-      AppWindow, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
+      AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
       Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole,
       MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
       ShieldCheck, SlidersHorizontal, Sparkles, Tag, TextSearch, Trash2,

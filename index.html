@@ -117,33 +117,42 @@
     <section aria-labelledby="duckdb-intro-heading">
       <div class="setup-header settings-header"><h1 id="duckdb-intro-heading" tabindex="-1">Get started with RAGbox.</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
       <div class="setup-card duckdb-guide">
-        <ol class="duckdb-flow" aria-label="Getting started">
-          <li>
-            <span class="duckdb-node-icon"><i data-lucide="database" aria-hidden="true"></i></span>
-            <div class="duckdb-guide-action"><span class="duckdb-step-label">01 · Set up</span><h3>Choose a collection</h3><p>Set up <a id="duckdb-guide-nfcorpus" href="?view=setup#setup-nfcorpus">NFCorpus</a> for nutrition research, or download <a id="duckdb-guide-msmarco" href="?view=setup#setup-msmarco">MS&nbsp;MARCO</a> for general web questions.</p></div>
-            <p class="duckdb-guide-detail">Setup saves the documents and their search index in your browser.</p>
-          </li>
-          <li>
-            <span class="duckdb-node-icon"><i data-lucide="messages-square" aria-hidden="true"></i></span>
-            <div class="duckdb-guide-action"><span class="duckdb-step-label">02 · Ask</span><h3>Ask a question</h3><p>Open <a id="duckdb-guide-chat" href="?">Chat</a>, type your question, and press <kbd>Enter</kbd>.</p></div>
-            <p class="duckdb-guide-detail">Your question becomes search terms; common words such as “the” are ignored.</p>
-          </li>
-          <li class="duckdb-guide-search">
-            <span class="duckdb-node-icon"><i data-lucide="search" aria-hidden="true"></i></span>
-            <div class="duckdb-guide-action"><span class="duckdb-step-label">03 · Retrieve</span><h3>DuckDB search</h3><p>DuckDB-Wasm searches your saved index in a background worker.</p></div>
-            <p class="duckdb-guide-detail">BM25 ranks keyword matches by relevance and returns up to ten documents.</p>
-          </li>
-          <li>
-            <span class="duckdb-node-icon"><i data-lucide="files" aria-hidden="true"></i></span>
-            <div class="duckdb-guide-action"><span class="duckdb-step-label">04 · Check</span><h3>Read the sources</h3><p>Expand <strong>Sources</strong> beneath a reply to read the matching documents.</p></div>
-            <p class="duckdb-guide-detail">AI answer citations jump back to these documents so you can check the evidence.</p>
-          </li>
-          <li class="duckdb-optional">
-            <span class="duckdb-node-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span>
-            <div class="duckdb-guide-action"><span class="duckdb-step-label">05 · Optional</span><h3>Add AI answers</h3><p>Download the model in <a id="duckdb-guide-model" href="?view=setup#model">Model settings</a> (~1.84 GB).</p></div>
-            <p class="duckdb-guide-detail">It writes answers from the retrieved text and uses chat history for follow-ups. Search also works without it.</p>
-          </li>
-        </ol>
+        <div class="duckdb-guide-setup">
+          <section aria-labelledby="duckdb-guide-prepare-heading">
+            <h2 id="duckdb-guide-prepare-heading">Prepare once</h2>
+            <p>Choose the documents you want to search.</p>
+            <div class="duckdb-guide-collections">
+              <a id="duckdb-guide-nfcorpus" href="?view=setup#setup-nfcorpus"><span><strong>NFCorpus</strong><small>Nutrition &amp; medical research</small></span><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+              <a id="duckdb-guide-msmarco" href="?view=setup#setup-msmarco"><span><strong>MS MARCO</strong><small>General web passages · 3.35 GB</small></span><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <p class="duckdb-guide-note">Setup saves the collection and its search index in this browser.</p>
+          </section>
+          <section class="duckdb-guide-model" aria-labelledby="duckdb-guide-model-heading">
+            <div class="duckdb-guide-model-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="duckdb-guide-model-heading">AI answers</h3><span>Optional</span></div>
+            <p>Add the model for written answers and contextual follow-ups.</p>
+            <a id="duckdb-guide-model" class="duckdb-guide-settings" href="?view=setup#model">Model settings <i data-lucide="arrow-right" aria-hidden="true"></i></a>
+            <p class="duckdb-guide-note">~1.84 GB download. Search works without it.</p>
+          </section>
+        </div>
+        <section class="duckdb-guide-chat" aria-labelledby="duckdb-guide-chat-heading">
+          <h2 id="duckdb-guide-chat-heading">Each time you ask</h2>
+          <div class="duckdb-guide-question">
+            <div class="duckdb-guide-node-heading"><i data-lucide="messages-square" aria-hidden="true"></i><h3>Ask a question</h3></div>
+            <p>Open <a id="duckdb-guide-chat" href="?">Chat</a>, type a question, and press <kbd>Enter</kbd>. For example:</p>
+            <blockquote>Does coffee affect heart health?</blockquote>
+          </div>
+          <div class="duckdb-guide-connector" aria-hidden="true"><i data-lucide="arrow-down"></i></div>
+          <div class="duckdb-guide-retrieval">
+            <div class="duckdb-guide-node-heading"><i data-lucide="database" aria-hidden="true"></i><h3>DuckDB finds the evidence</h3></div>
+            <p>DuckDB searches the saved index on your device. BM25 ranks keyword matches and returns up to ten source documents.</p>
+          </div>
+          <div class="duckdb-guide-connector" aria-hidden="true"><i data-lucide="arrow-down"></i></div>
+          <div class="duckdb-guide-result">
+            <div class="duckdb-guide-node-heading"><i data-lucide="files" aria-hidden="true"></i><h3>Explore the sources</h3></div>
+            <p>Expand <strong>Sources</strong> beneath the reply to read the original passages.</p>
+            <div class="duckdb-guide-answer"><i data-lucide="sparkles" aria-hidden="true"></i><p>With the model enabled, you also get an answer written from these sources. Select a citation to check its evidence, or ask a follow-up in the same chat.</p></div>
+          </div>
+        </section>
       </div>
     </section>
 
