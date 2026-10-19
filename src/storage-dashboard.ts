@@ -2,6 +2,8 @@ import { errorMessage, requiredElement } from './boundaries.ts';
 import { DEMO_FILES, deleteDemoFile, deleteDemoFiles } from './reset.ts';
 import type { ResourceStates } from './resource-state.ts';
 import { deleteModelCacheFiles, listModelCacheFiles, type ModelCacheFile } from './model-cache.ts';
+import { Trash2 } from 'lucide';
+import { appIcon } from './icons.ts';
 
 export interface StoredFile { path: string; size: number; owned: boolean }
 
@@ -182,8 +184,11 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
         if (file.owned) {
           const button = document.createElement('button');
           button.type = 'button';
-          button.textContent = 'Delete';
-          button.className = 'danger';
+          const label = document.createElement('span');
+          label.textContent = 'Delete';
+          button.append(appIcon(Trash2, 18), label);
+          button.className = 'danger settings-delete-button';
+          button.title = `Delete ${file.path}`;
           button.setAttribute('aria-label', `Delete ${file.path}`);
           button.onclick = () => { void remove(file.path); };
           deleteButtons.push(button);

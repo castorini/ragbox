@@ -10,6 +10,8 @@ const CITATION = /\[([A-Za-z0-9_.:-]+)\]/g;
 interface ControllerElements {
   setup?: HTMLElement | null;
   loadButton: HTMLButtonElement;
+  loadButtonLabel?: HTMLElement;
+  loadButtonIcon?: HTMLElement;
   stopButton?: HTMLButtonElement;
   cancelLoadButton?: HTMLButtonElement;
   searchStatus?: HTMLElement;
@@ -104,7 +106,14 @@ export class LLMController extends ModelService {
       if (!button) continue;
       button.hidden = !canLoad;
       button.disabled = !canLoad;
-      button.textContent = this.loadAction();
+      const action = this.loadAction();
+      if (button === this.elements.loadButton && this.elements.loadButtonLabel) {
+        setText(this.elements.loadButtonLabel, action === 'Download model (~1.84 GB)' ? '~1.84 GB'
+          : action === 'Download missing files' ? 'Missing files' : action);
+        if (this.elements.loadButtonIcon) this.elements.loadButtonIcon.hidden = !action.startsWith('Download');
+        button.ariaLabel = action;
+        button.title = action;
+      } else button.textContent = action;
     }
     for (const button of [this.elements.cancelLoadButton, this.elements.searchCancelButton]) {
       if (!button) continue;
@@ -188,6 +197,8 @@ export function setupLLM(onState?: (state: ControllerState, message: string, mod
   const elements: ControllerElements = {
     setup: requiredElement<HTMLElement>('#llm-setup'),
     loadButton: requiredElement<HTMLButtonElement>('#llm-load'),
+    loadButtonLabel: requiredElement<HTMLElement>('#llm-load-label'),
+    loadButtonIcon: requiredElement<HTMLElement>('#llm-load-icon'),
     cancelLoadButton: requiredElement<HTMLButtonElement>('#llm-cancel-load'),
     searchStatus: requiredElement<HTMLElement>('#model-search-status'),
     searchLoadButton: requiredElement<HTMLButtonElement>('#model-search-load'),

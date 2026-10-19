@@ -1,21 +1,7 @@
-import {
-  AppWindow, ArrowRight, BookOpen, BrainCircuit, Cpu,
-  Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
-  Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch, createIcons,
-} from 'lucide';
 import { requiredElement } from './boundaries.ts';
 import './duckdb-view.css';
 
 export function setupDuckDBView() {
-  createIcons({
-    icons: {
-      AppWindow, ArrowRight, BookOpen, BrainCircuit, Cpu,
-      Database, Files, FileText, HardDrive, LockKeyhole, MessagesSquare,
-      Repeat2, Ruler, Search, ShieldCheck, Sparkles, Tag, TextSearch,
-    },
-    attrs: { 'aria-hidden': 'true', 'stroke-width': 1.7 },
-  });
-
   const query = requiredElement<HTMLSelectElement>('#duckdb-demo-query');
   const tokens = requiredElement<HTMLElement>('#duckdb-demo-tokens');
   const note = requiredElement<HTMLElement>('#duckdb-demo-note');

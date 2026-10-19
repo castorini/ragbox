@@ -6,6 +6,8 @@ import { MAX_QUESTION_LENGTH, type ChatController } from './chat-controller.ts';
 import type { ResourceStates } from './resource-state.ts';
 import type { ChatTurn, Conversation } from './types.ts';
 import { currentConversation, currentDraft } from './conversations.ts';
+import { ArrowUp, Check, Copy, Square } from 'lucide';
+import { appIcon } from './icons.ts';
 
 export function sourceAnchor(conversationId: string, turnId: string, documentId: string) {
   return `chat-source-${encodeURIComponent(conversationId)}-${encodeURIComponent(turnId)}-${encodeURIComponent(documentId)}`;
@@ -13,12 +15,6 @@ export function sourceAnchor(conversationId: string, turnId: string, documentId:
 export function handleComposerKey(event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'isComposing' | 'preventDefault'>, send: () => void) {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
 }
-
-// Icon-only Send button: an up arrow, or a square while a reply is being written.
-const SEND_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>';
-const STOP_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2.5" fill="currentColor"/></svg>';
-const COPY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>';
-const COPIED_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 
 export function setupChatView(controller: ChatController, states: ResourceStates) {
   const { store } = controller;
@@ -72,7 +68,9 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const mode = controller.running ? 'stop' : 'send';
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
-      send.innerHTML = mode === 'stop' ? STOP_ICON : SEND_ICON;
+      send.replaceChildren(mode === 'stop'
+        ? appIcon(Square, 16, { fill: 'currentColor', 'stroke-width': 0 })
+        : appIcon(ArrowUp, 20, { 'stroke-width': 2.2 }));
       send.title = mode === 'stop' ? 'Stop' : 'Send';
     }
     send.setAttribute('aria-label', controller.running ? 'Stop current reply' : 'Send message');
@@ -98,7 +96,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     // Icon-only copy button beside the answer it copies.
     const copy = element('button', 'chat-copy'); copy.type = 'button';
     const showCopyIcon = (copied: boolean) => {
-      copy.innerHTML = copied ? COPIED_ICON : COPY_ICON;
+      copy.replaceChildren(appIcon(copied ? Check : Copy, 16, { 'stroke-width': copied ? 2.2 : 1.8 }));
       copy.title = copied ? 'Copied' : 'Copy answer';
       copy.setAttribute('aria-label', copied ? 'Answer copied' : 'Copy answer');
     };

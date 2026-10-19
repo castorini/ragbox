@@ -80,7 +80,8 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             checkingSaved = false;
             if (errorName(error) === 'NotFoundError') hasSaved = false;
             retryOpen = errorName(error) !== 'NotFoundError' && hasSaved !== false;
-            fetchButton.textContent = 'Retry download · 3.35 GB';
+            fetchButton.ariaLabel = 'Retry downloading MS MARCO · 3.35 GB';
+            fetchButton.title = fetchButton.ariaLabel;
             report(errorName(error) === 'NotFoundError' ? 'missing' : 'error',
               errorName(error) === 'NotFoundError'
                 ? 'No saved index. Download the index first.'

@@ -16,6 +16,7 @@ class Node {
   get textContent() { return this.text; }
   set textContent(value: string) { this.text = value; this.writes++; }
   append(...items: Node[]) { for (const item of items) item.parent = this; this.children.push(...items); }
+  appendChild(item: Node) { this.append(item); return item; }
   replaceChildren(...items: Node[]) { this.writes++; this.children = []; this.append(...items); }
   insertBefore(item: Node, before: Node | null) {
     item.remove(); const index = before ? this.children.indexOf(before) : this.children.length;
@@ -33,7 +34,7 @@ const mutations = (node: Node): number => node.writes + node.children.reduce((su
 async function harness() {
   const nodes = new Map<string, Node>();
   const get = (id: string) => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id)!; };
-  const document = { querySelector: get, createElement: () => new Node(), activeElement: get('#chat-query'), documentElement: { scrollHeight: 1000 },
+  const document = { querySelector: get, createElement: () => new Node(), createElementNS: () => new Node(), activeElement: get('#chat-query'), documentElement: { scrollHeight: 1000 },
     addEventListener: vi.fn(), removeEventListener: vi.fn() };
   const window = { addEventListener: vi.fn(), removeEventListener: vi.fn(), scrollY: 400, innerHeight: 600, scrollTo: vi.fn() };
   const frame = vi.fn();

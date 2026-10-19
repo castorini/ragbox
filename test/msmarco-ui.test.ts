@@ -406,7 +406,7 @@ it('offers retry downloading when a first download fails, and keeps a completed 
   mockedDownload.mockRejectedValueOnce(new Error('Network interrupted'));
   await controller.download();
   expect(onState).toHaveBeenLastCalledWith('error', expect.stringContaining('Network interrupted'), undefined, false);
-  expect(elements.get('#marco-fetch')).toMatchObject({ hidden: false, disabled: false, textContent: 'Retry download · 3.35 GB' });
+    expect(elements.get('#marco-fetch')).toMatchObject({ hidden: false, disabled: false, title: 'Retry downloading MS MARCO · 3.35 GB' });
   expect(elements.get('#marco-reopen').hidden).toBe(true);
   mockedDownload.mockResolvedValueOnce(3346542592);
   mockedOpenPrebuilt.mockRejectedValueOnce(new Error('GPU busy'));

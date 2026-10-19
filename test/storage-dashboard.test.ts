@@ -63,6 +63,10 @@ function harness(shutdown = vi.fn(async () => {}), root = directory({ 'analytics
   vi.stubGlobal('document', {
     querySelector: (id: string) => elements.get(id),
     createElement: (tag: string) => Object.assign(fakeElement(tag), { setAttribute: vi.fn() }),
+    createElementNS: (_namespace: string, tag: string) => {
+      const node = Object.assign(fakeElement(tag), { setAttribute: vi.fn() });
+      return Object.assign(node, { appendChild: (child: ReturnType<typeof fakeElement>) => { node.append(child); return child; } });
+    },
   });
   const confirm = vi.fn(() => true);
   const reload = vi.fn();
@@ -252,7 +256,7 @@ it.each([0, 512])('recognizes the MS MARCO WAL as an app file and deletes it wit
   expect(ui.elements.get('#storage-usage').textContent).toBe(formatBytes(3072 + walSize));
   const rows = ui.elements.get('#storage-files').children;
   const walRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb.wal')!;
-  expect(walRow.children[2].children[0].textContent).toBe('Delete');
+  expect(walRow.children[2].children[0]).toMatchObject({ title: 'Delete msmarco-prebuilt.duckdb.wal' });
   const databaseRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb')!;
   databaseRow.children[2].children[0].onclick();
   await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
