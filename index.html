@@ -116,44 +116,44 @@
   <section id="duckdb-view" aria-labelledby="duckdb-heading" hidden>
     <section aria-labelledby="duckdb-intro-heading">
       <div class="setup-header settings-header"><h1 id="duckdb-intro-heading" tabindex="-1">Get started with RAGbox.</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
-      <div class="setup-card duckdb-guide">
-        <div class="duckdb-guide-setup">
-          <section aria-labelledby="duckdb-guide-prepare-heading">
-            <h2 id="duckdb-guide-prepare-heading">Prepare once</h2>
-            <p>Choose the documents you want to search.</p>
-            <div class="duckdb-guide-collections">
-              <a id="duckdb-guide-nfcorpus" href="?view=setup#setup-nfcorpus"><span><strong>NFCorpus</strong><small>Nutrition &amp; medical research</small></span><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-              <a id="duckdb-guide-msmarco" href="?view=setup#setup-msmarco"><span><strong>MS MARCO</strong><small>General web passages · 3.35 GB</small></span><i data-lucide="arrow-right" aria-hidden="true"></i></a>
-            </div>
-            <p class="duckdb-guide-note">Setup saves the collection and its search index in this browser.</p>
-          </section>
-          <section class="duckdb-guide-model" aria-labelledby="duckdb-guide-model-heading">
-            <div class="duckdb-guide-model-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="duckdb-guide-model-heading">AI answers</h3><span>Optional</span></div>
-            <p>Add the model for written answers and contextual follow-ups.</p>
-            <a id="duckdb-guide-model" class="duckdb-guide-settings" href="?view=setup#model">Model settings <i data-lucide="arrow-right" aria-hidden="true"></i></a>
-            <p class="duckdb-guide-note">~1.84 GB download. Search works without it.</p>
-          </section>
-        </div>
-        <section class="duckdb-guide-chat" aria-labelledby="duckdb-guide-chat-heading">
-          <h2 id="duckdb-guide-chat-heading">Each time you ask</h2>
-          <div class="duckdb-guide-question">
-            <div class="duckdb-guide-node-heading"><i data-lucide="messages-square" aria-hidden="true"></i><h3>Ask a question</h3></div>
-            <p>Open <a id="duckdb-guide-chat" href="?">Chat</a>, type a question, and press <kbd>Enter</kbd>. For example:</p>
-            <blockquote>Does coffee affect heart health?</blockquote>
-          </div>
-          <div class="duckdb-guide-connector" aria-hidden="true"><i data-lucide="arrow-down"></i></div>
-          <div class="duckdb-guide-retrieval">
-            <div class="duckdb-guide-node-heading"><i data-lucide="database" aria-hidden="true"></i><h3>DuckDB finds the evidence</h3></div>
-            <p>DuckDB searches the saved index on your device. BM25 ranks keyword matches and returns up to ten source documents.</p>
-          </div>
-          <div class="duckdb-guide-connector" aria-hidden="true"><i data-lucide="arrow-down"></i></div>
-          <div class="duckdb-guide-result">
-            <div class="duckdb-guide-node-heading"><i data-lucide="files" aria-hidden="true"></i><h3>Explore the sources</h3></div>
-            <p>Expand <strong>Sources</strong> beneath the reply to read the original passages.</p>
-            <div class="duckdb-guide-answer"><i data-lucide="sparkles" aria-hidden="true"></i><p>With the model enabled, you also get an answer written from these sources. Select a citation to check its evidence, or ask a follow-up in the same chat.</p></div>
-          </div>
-        </section>
-      </div>
+      <section class="setup-card duckdb-guide" aria-labelledby="duckdb-guide-heading">
+        <header class="duckdb-guide-intro">
+          <h2 id="duckdb-guide-heading">Your first search, step by step</h2>
+          <p>Follow a real NFCorpus search from choosing a collection to reading the original article. No model download needed.</p>
+        </header>
+        <ol class="duckdb-guide-steps" role="list" aria-label="Steps for your first search">
+          <li class="duckdb-guide-step">
+            <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">01</span><h3>Choose and prepare a collection</h3><span class="duckdb-guide-badge">One-time setup</span></div>
+            <p>In Chat, select <strong>NFCorpus</strong> and click <strong>Prepare NFCorpus</strong>. Wait for <strong>Ready to search</strong>. The collection and its index are saved in this browser for next time.</p>
+            <figure class="duckdb-guide-figure">
+              <a class="duckdb-guide-screenshot" href="./images/how-it-works/01-choose-collection.png" target="_blank" rel="noopener noreferrer" aria-label="Open full-size screenshot of choosing and preparing NFCorpus"><img src="/images/how-it-works/01-choose-collection.png" width="1872" height="468" alt="NFCorpus selected on the Chat page, with the Prepare NFCorpus button on its collection card." decoding="async"></a>
+              <figcaption>The collection cards let you choose your documents and start setup. <span>Select a screenshot to view it full size.</span></figcaption>
+            </figure>
+            <p class="duckdb-guide-note">Collection settings: <a id="duckdb-guide-nfcorpus" href="?view=setup#setup-nfcorpus">NFCorpus</a> · <a id="duckdb-guide-msmarco" href="?view=setup#setup-msmarco">MS MARCO</a> (general web passages · 3.35 GB).</p>
+          </li>
+          <li class="duckdb-guide-step">
+            <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">02</span><h3>Enter your search and send</h3></div>
+            <p>Open <a id="duckdb-guide-chat" href="?">Chat</a>, type <strong>coffee blood pressure</strong>, and press <kbd>Enter</kbd> or click the <strong>Send</strong> arrow. Start with keywords when searching without the optional answer model.</p>
+            <figure class="duckdb-guide-figure">
+              <a class="duckdb-guide-screenshot" href="./images/how-it-works/02-search-collection.png" target="_blank" rel="noopener noreferrer" aria-label="Open full-size screenshot of entering a search"><img src="/images/how-it-works/02-search-collection.png" width="1872" height="732" alt="The RAGbox search box filled with coffee blood pressure and the Send arrow enabled." loading="lazy" decoding="async"></a>
+              <figcaption>Use the same keywords to try this search yourself.</figcaption>
+            </figure>
+            <p class="duckdb-guide-background"><i data-lucide="database" aria-hidden="true"></i><span><strong>Behind this search:</strong> DuckDB searches your saved index on your device. BM25 ranks the keyword matches and returns up to ten source documents automatically.</span></p>
+          </li>
+          <li class="duckdb-guide-step">
+            <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">03</span><h3>Open Sources and check the evidence</h3></div>
+            <p>Expand <strong>Sources</strong> beneath the reply to see the matching articles. Open <strong>Full document text</strong> on an article to read beyond the excerpt.</p>
+            <figure class="duckdb-guide-figure">
+              <a class="duckdb-guide-screenshot" href="./images/how-it-works/03-read-sources.png" target="_blank" rel="noopener noreferrer" aria-label="Open full-size screenshot of retrieved sources and an expanded article"><img src="/images/how-it-works/03-read-sources.png" width="1804" height="1126" alt="The real coffee blood pressure search returns ten sources, with the first article and its full document text expanded." loading="lazy" decoding="async"></a>
+              <figcaption>Actual results from the same NFCorpus search. These screenshots show search without the optional answer model.</figcaption>
+            </figure>
+          </li>
+        </ol>
+        <aside class="duckdb-guide-optional" aria-labelledby="duckdb-guide-model-heading">
+          <div class="duckdb-guide-optional-heading"><i data-lucide="sparkles" aria-hidden="true"></i><h3 id="duckdb-guide-model-heading">Want a written answer, too?</h3><span class="duckdb-guide-badge">Optional</span></div>
+          <p>On a supported GPU, add the local model in <a id="duckdb-guide-model" href="?view=setup#model">Model settings</a> (~1.84 GB). It writes answers from your sources and supports contextual follow-ups. Select a citation to jump to its evidence. Search works without it.</p>
+        </aside>
+      </section>
     </section>
 
     <div class="setup-header settings-header"><h1 id="duckdb-heading" tabindex="-1">How it works</h1></div>
