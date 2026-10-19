@@ -116,9 +116,25 @@
   <section id="duckdb-view" aria-labelledby="duckdb-heading" hidden>
     <section aria-labelledby="duckdb-intro-heading">
       <div class="setup-header settings-header"><h1 id="duckdb-intro-heading" tabindex="-1">Get started with RAGbox.</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
+      <nav class="duckdb-contents" aria-labelledby="duckdb-contents-heading">
+        <p id="duckdb-contents-heading" class="duckdb-contents-label">On this page</p>
+        <ol class="duckdb-contents-list" role="list">
+          <li>
+            <a class="duckdb-contents-link" href="#duckdb-guide-heading"><span class="duckdb-contents-number" aria-hidden="true">01</span><span><strong>Get started</strong><small>Your first search in three steps</small></span><i data-lucide="arrow-down" aria-hidden="true"></i></a>
+          </li>
+          <li>
+            <a class="duckdb-contents-link" href="#duckdb-heading"><span class="duckdb-contents-number" aria-hidden="true">02</span><span><strong>How it works</strong><small>Explore what happens on your device</small></span><i data-lucide="arrow-down" aria-hidden="true"></i></a>
+            <ul class="duckdb-contents-topics" aria-label="How it works topics">
+              <li><a href="#duckdb-ranking-heading">Search &amp; ranking</a></li>
+              <li><a href="#duckdb-local-heading">On-device execution</a></li>
+              <li><a href="#duckdb-files-heading">Where data is saved</a></li>
+            </ul>
+          </li>
+        </ol>
+      </nav>
       <section class="setup-card duckdb-guide" aria-labelledby="duckdb-guide-heading">
         <header class="duckdb-guide-intro">
-          <h2 id="duckdb-guide-heading">Your first search, step by step</h2>
+          <h2 id="duckdb-guide-heading" tabindex="-1">Your first search, step by step</h2>
           <p>Follow a real NFCorpus search from choosing a collection to reading the original article. No model download needed.</p>
         </header>
         <ol class="duckdb-guide-steps" role="list" aria-label="Steps for your first search">
@@ -158,7 +174,7 @@
 
     <div class="setup-header settings-header"><h1 id="duckdb-heading" tabindex="-1">How it works</h1></div>
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-ranking-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="text-search" aria-hidden="true"></i></span><h2 id="duckdb-ranking-heading">A question becomes keywords.</h2></div>
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="text-search" aria-hidden="true"></i></span><h2 id="duckdb-ranking-heading" tabindex="-1">A question becomes keywords.</h2></div>
       <figure class="duckdb-match-demo" aria-labelledby="duckdb-demo-caption">
         <div class="duckdb-demo-toolbar"><label for="duckdb-demo-query"><i data-lucide="search" aria-hidden="true"></i> Try a search</label><select id="duckdb-demo-query" aria-describedby="duckdb-demo-caption"><option value="the solar energy">the solar energy</option><option value="wind energy">wind energy</option><option value="river">river</option></select><i data-lucide="arrow-right" class="duckdb-token-arrow" aria-hidden="true"></i><div id="duckdb-demo-tokens" class="duckdb-tokens" aria-label="Search keywords"><span>solar</span><span>energy</span></div></div>
         <p id="duckdb-demo-note" class="duckdb-demo-note">The common word “the” is removed.</p>
@@ -190,7 +206,7 @@ LIMIT 10;</code></pre>
     </section>
 
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-local-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="cpu" aria-hidden="true"></i></span><h2 id="duckdb-local-heading">How it runs on your device</h2></div>
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="cpu" aria-hidden="true"></i></span><h2 id="duckdb-local-heading" tabindex="-1">How it runs on your device</h2></div>
       <p>A <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers" target="_blank" rel="noopener noreferrer">web worker</a> runs code in the background. The chat page sends work to these workers and displays their results, keeping the interface responsive.</p>
       <figure class="duckdb-execution" aria-label="Local execution: chat exchanges messages with a DuckDB worker on the CPU and an optional model worker on the GPU">
         <div class="duckdb-browser-boundary">
@@ -229,7 +245,7 @@ LIMIT 10;</code></pre>
     </section>
 
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-files-heading">
-      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span><h2 id="duckdb-files-heading">Where data is saved</h2></div>
+      <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span><h2 id="duckdb-files-heading" tabindex="-1">Where data is saved</h2></div>
       <figure class="duckdb-storage-map" aria-labelledby="duckdb-files-heading" aria-describedby="duckdb-storage-caption">
         <dl class="duckdb-storage-list">
           <div class="duckdb-storage-row">

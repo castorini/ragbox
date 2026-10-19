@@ -5,6 +5,22 @@
 #duckdb-view h2{font-size:20px;line-height:1.35;margin:0;letter-spacing:-.3px}
 #duckdb-view h3{font-size:14px;line-height:1.4;margin:0;font-weight:650}
 #duckdb-view .duckdb-explainer>p{font-size:13px;line-height:1.7;color:#53665b;margin:12px 0 0}
+#duckdb-view :is(h1,h2){scroll-margin-top:24px}
+.duckdb-contents{padding:18px 20px;margin-bottom:24px;border:1px solid #d1ddca;border-radius:12px;background:#f0f4eb}
+.duckdb-contents-label{margin:0 0 8px;font-size:10px;font-weight:750;letter-spacing:1.3px;text-transform:uppercase;color:#60715b}
+.duckdb-contents-list{list-style:none;margin:0;padding:0}
+#duckdb-view .duckdb-contents-list>li{padding:0;border:0}
+#duckdb-view .duckdb-contents-list>li+li{border-top:1px solid #d7e1d1}
+.duckdb-contents-link{display:grid;grid-template-columns:24px minmax(0,1fr) 18px;align-items:center;gap:10px;padding:11px 4px;text-decoration:none;border-radius:6px}
+.duckdb-contents-link:hover{background:#e6eede}
+.duckdb-contents-number{align-self:start;margin-top:3px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:#74856b}
+.duckdb-contents-link strong{display:block;font-size:15px;line-height:1.5;font-weight:650}
+.duckdb-contents-link small{display:block;margin-top:2px;font-size:12px;line-height:1.5;color:var(--muted)}
+.duckdb-contents-link>svg{color:#7d9373}
+.duckdb-contents-topics{display:flex;flex-wrap:wrap;gap:0 16px;list-style:none;margin:0 0 0 38px;padding:0}
+#duckdb-view .duckdb-contents-topics>li{padding:0;border:0}
+.duckdb-contents-topics a{display:inline-block;padding:4px 0;font-size:12px;line-height:1.6;text-decoration-color:#9aac90}
+.duckdb-contents a:focus-visible{outline:3px solid #76aa96;outline-offset:2px;border-radius:4px}
 #duckdb-view .duckdb-guide{padding:28px}
 #duckdb-view .duckdb-guide h2{font-size:21px;margin:0}
 #duckdb-view .duckdb-guide h3{font-size:16px;line-height:1.5;letter-spacing:-.15px}
@@ -117,6 +133,9 @@
 }
 @media(max-width:650px){
   #duckdb-view{padding-top:24px}
+  .duckdb-contents{padding:14px;margin-bottom:18px}
+  .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr) 16px;gap:8px}
+  .duckdb-contents-topics{margin-left:32px;gap:0 12px}
   #duckdb-view .setup-card{padding:18px}
   #duckdb-view .duckdb-guide{padding:18px}
   #duckdb-view .duckdb-guide h2{font-size:19px}
