@@ -114,19 +114,40 @@
   </section>
 
   <section id="duckdb-view" aria-labelledby="duckdb-heading" hidden>
-    <div class="setup-header settings-header"><h1 id="duckdb-heading" tabindex="-1">How it works</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
-    <section class="setup-card duckdb-intro" aria-labelledby="duckdb-intro-heading">
-      <h2 id="duckdb-intro-heading">Your search engine, inside the browser.</h2>
-      <figure class="duckdb-pipeline" aria-label="From question to answer">
-        <ol class="duckdb-flow">
-          <li><span class="duckdb-node-icon"><i data-lucide="search" aria-hidden="true"></i></span><span class="duckdb-step-label">01 · Ask</span><h3>Your question</h3><p>Keywords from your message become a search query.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
-          <li class="duckdb-engine"><span class="duckdb-node-icon"><i data-lucide="database" aria-hidden="true"></i></span><span class="duckdb-step-label">02 · Retrieve</span><h3>DuckDB search</h3><p>DuckDB-Wasm searches your index with BM25 in a background worker, separate from the chat interface.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
-          <li><span class="duckdb-node-icon"><i data-lucide="files" aria-hidden="true"></i></span><span class="duckdb-step-label">03 · Read</span><h3>Top sources</h3><p>Up to ten matching documents return to your chat.</p><i data-lucide="arrow-right" class="duckdb-flow-arrow" aria-hidden="true"></i></li>
-          <li class="duckdb-optional"><span class="duckdb-node-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span class="duckdb-step-label">04 · Optional</span><h3>Cited answer</h3><p>The model writes an answer from these sources. Search works without this step.</p></li>
+    <section aria-labelledby="duckdb-intro-heading">
+      <div class="setup-header settings-header"><h1 id="duckdb-intro-heading" tabindex="-1">Get started with RAGbox.</h1><a id="duckdb-back" class="setup-back" href="?">← Back to chat</a></div>
+      <div class="setup-card duckdb-guide">
+        <ol class="duckdb-flow" aria-label="Getting started">
+          <li>
+            <span class="duckdb-node-icon"><i data-lucide="database" aria-hidden="true"></i></span>
+            <div class="duckdb-guide-action"><span class="duckdb-step-label">01 · Set up</span><h3>Choose a collection</h3><p>Set up <a id="duckdb-guide-nfcorpus" href="?view=setup#setup-nfcorpus">NFCorpus</a> for nutrition research, or download <a id="duckdb-guide-msmarco" href="?view=setup#setup-msmarco">MS&nbsp;MARCO</a> for general web questions.</p></div>
+            <p class="duckdb-guide-detail">Setup saves the documents and their search index in your browser.</p>
+          </li>
+          <li>
+            <span class="duckdb-node-icon"><i data-lucide="messages-square" aria-hidden="true"></i></span>
+            <div class="duckdb-guide-action"><span class="duckdb-step-label">02 · Ask</span><h3>Ask a question</h3><p>Open <a id="duckdb-guide-chat" href="?">Chat</a>, type your question, and press <kbd>Enter</kbd>.</p></div>
+            <p class="duckdb-guide-detail">Your question becomes search terms; common words such as “the” are ignored.</p>
+          </li>
+          <li class="duckdb-guide-search">
+            <span class="duckdb-node-icon"><i data-lucide="search" aria-hidden="true"></i></span>
+            <div class="duckdb-guide-action"><span class="duckdb-step-label">03 · Retrieve</span><h3>DuckDB search</h3><p>DuckDB-Wasm searches your saved index in a background worker.</p></div>
+            <p class="duckdb-guide-detail">BM25 ranks keyword matches by relevance and returns up to ten documents.</p>
+          </li>
+          <li>
+            <span class="duckdb-node-icon"><i data-lucide="files" aria-hidden="true"></i></span>
+            <div class="duckdb-guide-action"><span class="duckdb-step-label">04 · Check</span><h3>Read the sources</h3><p>Expand <strong>Sources</strong> beneath a reply to read the matching documents.</p></div>
+            <p class="duckdb-guide-detail">AI answer citations jump back to these documents so you can check the evidence.</p>
+          </li>
+          <li class="duckdb-optional">
+            <span class="duckdb-node-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span>
+            <div class="duckdb-guide-action"><span class="duckdb-step-label">05 · Optional</span><h3>Add AI answers</h3><p>Download the model in <a id="duckdb-guide-model" href="?view=setup#model">Model settings</a> (~1.84 GB).</p></div>
+            <p class="duckdb-guide-detail">It writes answers from the retrieved text and uses chat history for follow-ups. Search also works without it.</p>
+          </li>
         </ol>
-      </figure>
+      </div>
     </section>
 
+    <div class="setup-header settings-header"><h1 id="duckdb-heading" tabindex="-1">How it works</h1></div>
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-ranking-heading">
       <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="text-search" aria-hidden="true"></i></span><h2 id="duckdb-ranking-heading">A question becomes keywords.</h2></div>
       <figure class="duckdb-match-demo" aria-labelledby="duckdb-demo-caption">

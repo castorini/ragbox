@@ -115,8 +115,8 @@ it('opens the DuckDB sidebar page and returns to chat without losing the query',
   expect(ui.get('#history-view').hidden).toBe(true);
   expect(ui.get('#nav-duckdb').setAttribute).toHaveBeenCalledWith('aria-current', 'page');
   expect(ui.get('#nav-setup').removeAttribute).toHaveBeenCalledWith('aria-current');
-  expect(ui.get('#duckdb-heading').focus).toHaveBeenCalled();
-  expect(ui.get('.skip-link').href).toBe('#duckdb-heading');
+  expect(ui.get('#duckdb-intro-heading').focus).toHaveBeenCalled();
+  expect(ui.get('.skip-link').href).toBe('#duckdb-intro-heading');
   ui.click('#duckdb-back');
   expect(ui.href).toBe('https://example.com/ragbox/');
   expect(ui.get('#search-view').hidden).toBe(false);
