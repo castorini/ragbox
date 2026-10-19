@@ -57,7 +57,7 @@ it('explains that unsupported AI answers do not prevent document search', () => 
   expect(elements.get('#llm-settings-detail')).toMatchObject({ hidden: false });
   expect(elements.get('#llm-settings-detail').textContent).toContain('Document search remains available');
   expect(elements.get('#fts-settings-search').disabled).toBe(false);
-  states.set('model', 'ready', 'Answers ready');
+  states.set('model', 'ready', '');
   expect(elements.get('#llm-settings-detail').hidden).toBe(true);
 });
 

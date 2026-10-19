@@ -69,9 +69,9 @@ describe('headless model operations', () => {
   });
   it('streams only matching request events and returns the fitted evidence IDs', async () => {
     const h = await harness(); const onDelta = vi.fn(); const onContext = vi.fn();
-    const answer = h.model.generateAnswer({ ...options, history: [{ role: 'user', content: 'Earlier topic' }], searchQuery: 'resolved coffee', thinkingEffort: 'balanced', onDelta, onContext }, h.abort.signal);
+    const answer = h.model.generateAnswer({ ...options, history: [{ role: 'user', content: 'Earlier topic' }], searchQuery: 'resolved coffee', thinkingEffort: 'on', onDelta, onContext }, h.abort.signal);
     const request = h.worker.messages.at(-1)!; if (request.type !== 'generate') throw new Error('Expected answer');
-    expect(request).toMatchObject({ operation, searchQuery: 'resolved coffee', thinkingEffort: 'balanced', history: [{ role: 'user', content: 'Earlier topic' }] });
+    expect(request).toMatchObject({ operation, searchQuery: 'resolved coffee', thinkingEffort: 'on', history: [{ role: 'user', content: 'Earlier topic' }] });
     h.worker.emit({ type: 'answer-delta', requestId: 'old', text: 'stale' });
     h.worker.emit({ type: 'context', requestId: request.requestId, documentIds: ['MED-1'], contextLimited: true });
     h.worker.emit({ type: 'answer-delta', requestId: request.requestId, text: 'Finding' });

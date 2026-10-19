@@ -13,7 +13,7 @@ describe('conversation state and persistence', () => {
     await store.initialize();
     const transcript = vi.fn(); const draft = vi.fn();
     store.watch(currentConversation, transcript); store.watch(currentDraft, draft);
-    store.setDraft('next question'); store.setDraft('next question'); store.setThinkingEffort('balanced');
+    store.setDraft('next question'); store.setDraft('next question'); store.setThinkingEffort('on');
     expect(transcript).not.toHaveBeenCalled(); expect(draft).toHaveBeenCalledOnce();
     const first = store.append('First', [], false); const id = store.current().id;
     const second = store.append('Second', [], false);

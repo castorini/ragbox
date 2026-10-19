@@ -85,7 +85,6 @@ env.fetch = async (...args) => {
 
 const MAX_INPUT_TOKENS = 3500;
 const MAX_ANSWER_TOKENS = 512;
-const MAX_QUERY_THINKING_TOKENS = 512;
 const MAX_QUERY_TOKENS = 128;
 
 class OutputBudgetCriteria extends StoppingCriteria {
@@ -330,7 +329,7 @@ async function generate({ requestId, question, documents, history = [], searchQu
   }
 }
 
-async function resolveQuery({ requestId, question, history, thinkingEffort }: Extract<WorkerRequest, { type: 'resolve-query' }>) {
+async function resolveQuery({ requestId, question, history }: Extract<WorkerRequest, { type: 'resolve-query' }>) {
   if (cancelledRequestIds.delete(requestId)) { report({ type: 'cancelled', requestId }); return; }
   const stoppingCriteria = new InterruptableStoppingCriteria();
   const state = { requestId, stoppingCriteria, cancelled: false };
@@ -339,32 +338,23 @@ async function resolveQuery({ requestId, question, history, thinkingEffort }: Ex
     const model = await loadModel();
     const context = await fitHistory(history, countTokens);
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    // Effort Off rewrites the follow-up directly instead of reasoning first.
-    const thinks = thinkingTokenLimit(thinkingEffort) > 0;
-    const budget = thinks ? outputBudget(model, MAX_QUERY_THINKING_TOKENS, MAX_QUERY_TOKENS) : undefined;
+    // Rewriting a follow-up never reasons, whatever the Thinking switch says: reasoning
+    // adds a long wait and can exhaust its budget before any query appears.
     let streamed = '';
     const streamer = new TextStreamer(model.tokenizer, {
       skip_prompt: true, skip_special_tokens: true,
-      token_callback_function: tokens => { budget?.add(tokens); },
       callback_function: text => { streamed += text; },
     });
-    const messages = buildQueryMessages(question, context.history);
-    const output = await model(messages, {
-      max_new_tokens: (thinks ? MAX_QUERY_THINKING_TOKENS : 0) + MAX_QUERY_TOKENS, do_sample: false,
-      streamer, stopping_criteria: budget ? [stoppingCriteria, new OutputBudgetCriteria(budget)] : [stoppingCriteria],
-      tokenizer_encode_kwargs: thinks ? CHAT_TEMPLATE_OPTIONS : DIRECT_ANSWER_TEMPLATE_OPTIONS,
+    const output = await model(buildQueryMessages(question, context.history), {
+      max_new_tokens: MAX_QUERY_TOKENS, do_sample: false,
+      streamer, stopping_criteria: [stoppingCriteria],
+      tokenizer_encode_kwargs: DIRECT_ANSWER_TEMPLATE_OPTIONS,
     });
     if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-    let parsed = parseGenerationOutput(generatedText(output, streamed), thinks);
-    if (budget?.exhaustedThinking && !parsed.answer.trim()) {
-      const finalOutput = await model(finalAnswerPrefix(model, messages, parsed.thinking), {
-        max_new_tokens: MAX_QUERY_TOKENS, do_sample: false, stopping_criteria: [stoppingCriteria],
-        return_full_text: false, add_special_tokens: false,
-      });
-      if (state.cancelled) { report({ type: 'cancelled', requestId }); return; }
-      parsed = parseGenerationOutput(generatedText(finalOutput, ''), false);
-    }
-    const query = validateResolvedQuery(parsed.answer);
+    const raw = parseGenerationOutput(generatedText(output, streamed), false).answer;
+    let query: string;
+    try { query = validateResolvedQuery(raw); }
+    catch (error) { console.warn('Follow-up rewrite did not produce a usable query. Raw model output:', JSON.stringify(raw)); throw error; }
     report({ type: 'resolved-query', requestId, query, contextLimited: context.limited });
   } catch (error) {
     report(state.cancelled ? { type: 'cancelled', requestId }

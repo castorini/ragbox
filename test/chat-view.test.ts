@@ -88,6 +88,51 @@ describe('focused chat subscriptions', () => {
     expect(h.window.removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
     h.chat.dispose(); await h.store.flush();
   });
+  it('offers starter questions from the search box during a chat and sends a chosen one', async () => {
+    const h = await harness(); const suggestions = h.get('#chat-suggestions'); const query = h.get('#chat-query') as Node & { onfocus?: () => void; oninput?: () => void; onblur?: () => void; onkeydown?: (event: { key: string; preventDefault(): void }) => void };
+    expect(suggestions.children).toHaveLength(3);
+    query.onfocus?.(); expect(suggestions.hidden).toBe(true); // start page lists them already
+    const turn = h.store.append('First', [], false); h.store.update(h.store.current().id, turn.id, { phase: 'complete', answer: 'Done' });
+    query.onfocus?.(); expect(suggestions.hidden).toBe(false);
+    query.value = 'typing'; query.oninput?.(); expect(suggestions.hidden).toBe(true);
+    query.value = ''; query.oninput?.(); expect(suggestions.hidden).toBe(false);
+    query.onblur?.(); expect(suggestions.hidden).toBe(true);
+    query.onfocus?.(); const question = suggestions.children[1].textContent;
+    (suggestions.children[1] as Node & { onclick?: () => void }).onclick?.();
+    expect(suggestions.hidden).toBe(true);
+    await vi.waitFor(() => expect(h.store.current().turns.map(item => item.question)).toEqual(['First', question]));
+    // Focus stays in the box after sending: a click or ArrowDown still reopens the list.
+    expect(suggestions.hidden).toBe(true);
+    (query as Node & { onclick?: () => void }).onclick?.(); expect(suggestions.hidden).toBe(false);
+    query.onkeydown?.({ key: 'Escape', preventDefault() {} }); expect(suggestions.hidden).toBe(true);
+    query.onkeydown?.({ key: 'ArrowDown', preventDefault() {} }); expect(suggestions.hidden).toBe(false);
+    h.view.dispose(); h.chat.dispose(); await h.store.flush();
+  });
+  it('scrolls a newly asked question to the top and leaves scrolling to the reader while it streams', async () => {
+    const h = await harness(); const id = h.store.current().id;
+    const first = h.store.append('First', [], false); h.store.update(id, first.id, { phase: 'complete', answer: 'Done' });
+    h.frame.mock.calls.at(-1)![0](); expect(h.window.scrollTo).toHaveBeenLastCalledWith({ top: 0, behavior: 'smooth' });
+    h.frame.mockClear();
+    const second = h.store.append('Second', [], false);
+    expect(h.frame).toHaveBeenCalledOnce(); h.frame.mock.calls[0][0]();
+    const row = h.get('#chat-transcript').children[1];
+    expect(row.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+    h.frame.mockClear();
+    h.store.update(id, second.id, { phase: 'generating', answer: 'Streaming text' }, true);
+    expect(h.frame).not.toHaveBeenCalled();
+    h.view.dispose(); h.chat.dispose(); await h.store.flush();
+  });
+  it('tags each reply with its current activity for the progress animations', async () => {
+    const h = await harness(); const turn = h.store.append('Question', [], false); const id = h.store.current().id;
+    const activity = () => h.get('#chat-transcript').children[0].dataset.activity;
+    h.store.update(id, turn.id, { phase: 'resolving' }); expect(activity()).toBe('resolving');
+    h.store.update(id, turn.id, { phase: 'retrieving' }); expect(activity()).toBe('searching');
+    h.store.update(id, turn.id, { phase: 'generating', thinkingEffort: 'off' }); expect(activity()).toBe('preparing');
+    h.store.update(id, turn.id, { thinkingEffort: 'on' }); expect(activity()).toBe('thinking');
+    h.store.update(id, turn.id, { answer: 'Partial' }, true); expect(activity()).toBe('writing');
+    h.store.update(id, turn.id, { phase: 'complete', answer: 'Done' }); expect(activity()).toBe('');
+    h.view.dispose(); h.chat.dispose(); await h.store.flush();
+  });
   it('updates changed history cards without rewriting other conversations', async () => {
     const h = await harness(); h.store.append('First', [], false); h.store.newChat();
     const turn = h.store.append('Second', [], false); const id = h.store.current().id;

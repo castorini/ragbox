@@ -26,7 +26,7 @@ Use the collection and model status messages in Chat or Settings to identify the
 | A cancelled MS MARCO download restarts from zero | Partial transfers do not resume across reloads. An older committed index survives a cancelled replacement and can be reopened. |
 | A query returns no sources | Check the selected collection and readiness, then try relevant keywords. Analyzer normalization removes stopwords; an all-stopword query can return no documents. |
 | A follow-up searches the literal words | Confirm the model is ready. Without it, messages perform keyword search and contextual references are not rewritten. |
-| A follow-up shows a resolution error | Retry or restate it as a standalone query. The application rejects invalid model rewrites rather than guessing. |
+| A follow-up shows a resolution error | Retry or restate it as a standalone query. The application rejects invalid model rewrites rather than guessing; the browser console shows the model's raw output as a warning. |
 
 Setup does not provide an arbitrary document-upload interface. For the supported schemas and native MS MARCO build script, see [collections and retrieval](collections.md).
 
@@ -39,7 +39,7 @@ Setup does not provide an arbitrary document-upload interface. For the supported
 | A previously installed model needs files again | Return to the same origin and browser profile. Cache eviction or an interrupted transfer may leave files missing; use **Download missing files** when offered. |
 | Cached files exist but initialization fails | Use **Retry loading**. If metadata is invalid, explicit repair can replace it while keeping valid weights. Check the detailed status and model file listing in Settings. |
 | Cancelling still leaves model files in Settings | Completed cache entries are retained. Unfinished files may need another download. Use **Delete model** if you intend to remove the saved model. |
-| Replies take a long time | Try Thinking effort **Off**. Low and Medium generate additional reasoning, and MS MARCO retrieval can also take longer than NFCorpus. Device-specific timings in the validation notes are not guarantees. |
+| Replies take a long time | Replies already skip reasoning. MS MARCO retrieval can take longer than NFCorpus. Device-specific timings in the validation notes are not guarantees. |
 | Reasoning appears but no final answer is produced | An empty final answer remains retryable; reasoning is not used as an answer. Stop or retry the turn and inspect the current model status. |
 | A reply has a valid citation but an unsupported claim | Read that turn's source snapshot. Citation membership does not verify the claim's meaning. Rephrase the question or inspect retrieval directly; see [recorded quality limitations](chat-validation.md#thinking-mode-actual-model-observations). |
 
@@ -61,7 +61,7 @@ Use the [storage guide](storage.md#remove-saved-data) to choose the smallest app
 
 ## Report a reproducible problem
 
-Include the browser and version, operating system, GPU when relevant, application origin/base path, selected collection, thinking effort, exact status/error text, and the steps that trigger it. Note whether the index/model was newly downloaded or restored from storage. For network failures, include the failing asset URL and HTTP status. For answer-quality issues, include the question, resolved query, final answer, and relevant source IDs/text.
+Include the browser and version, operating system, GPU when relevant, application origin/base path, selected collection, exact status/error text, and the steps that trigger it. Note whether the index/model was newly downloaded or restored from storage. For network failures, include the failing asset URL and HTTP status. For answer-quality issues, include the question, resolved query, final answer, and relevant source IDs/text.
 
 For development failures, include the result of the relevant checks in [the development guide](development.md#validation). A bundle build or mocked test does not establish live browser inference behavior.
 

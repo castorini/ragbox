@@ -51,7 +51,7 @@ For contextual follow-ups, the model receives bounded recent history and produce
 | Model cache | [model-cache.ts](../src/model-cache.ts) defines the model/revision and scoped cache operations. [model-readiness.ts](../src/model-readiness.ts) checks required files and metadata. |
 | Conversation state | [conversations.ts](../src/conversations.ts) owns the Zustand store, versioned IndexedDB repository, migration, and retention. [conversation-persistence.ts](../src/conversation-persistence.ts) serializes saves and streaming checkpoints. |
 | Chat orchestration | [chat-controller.ts](../src/chat-controller.ts) handles turn stages, retries, resource recovery, and cancellation. [types.ts](../src/types.ts) defines conversation, evidence, operation, and worker contracts. |
-| Views and onboarding | [chat-view.ts](../src/chat-view.ts) renders transcripts, sources, composer, and History. [effort-picker.ts](../src/effort-picker.ts), [corpus-dashboard.ts](../src/corpus-dashboard.ts), [example-queries.ts](../src/example-queries.ts), and [tour.ts](../src/tour.ts) provide their corresponding controls. |
+| Views and onboarding | [chat-view.ts](../src/chat-view.ts) renders transcripts, sources, composer, and History. [corpus-dashboard.ts](../src/corpus-dashboard.ts), [example-queries.ts](../src/example-queries.ts), and [tour.ts](../src/tour.ts) provide their corresponding controls. |
 | Resource controls | [resource-state.ts](../src/resource-state.ts) provides shared resource snapshots and the operation gate. [settings-view.ts](../src/settings-view.ts), [storage-dashboard.ts](../src/storage-dashboard.ts), and [reset.ts](../src/reset.ts) manage Settings and scoped deletion. |
 
 ## State and lifecycle contracts
@@ -66,7 +66,7 @@ Prompt evidence is untrusted data. Render document and model output as text, bin
 
 ## Feature configuration
 
-`HISTORY_ENABLED` in [src/features.ts](../src/features.ts) is currently `false`. Enabling it restores the History navigation link, page, and tour step; conversations persist in either mode. When following older validation notes, account for that flag and the current Off/Low/Medium effort controls.
+`HISTORY_ENABLED` in [src/features.ts](../src/features.ts) is currently `false`. Enabling it restores the History navigation link, page, and tour step; conversations persist in either mode. When following older validation notes, account for that flag and for thinking now being always off (the switch was removed).
 
 `VITE_MSMARCO_INDEX_URL` changes the artifact URL at startup/build time. The expected size is a separate code constant. Model identity and revision are also code constants; changing them requires reviewing required cache files and template compatibility. See [deployment](deployment.md#configure-the-ms-marco-download) and [the model guide](local-model.md).
 

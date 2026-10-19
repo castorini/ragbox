@@ -73,7 +73,7 @@ Keep one RAGbox tab open per origin. Use the same browser profile, scheme, host,
 
 On a supported GPU, click **Download model (~1.84 GB)** on the start page or in Settings. Downloading and GPU initialization are separate stages. Once the model is ready, new messages generate cited answers, and follow-up questions can use recent conversation context.
 
-See [chatting with documents](usage-chat.md) for a walkthrough and [the model guide](local-model.md) for thinking effort, context limits, and recovery. The [troubleshooting guide](troubleshooting.md) covers missing datasets, unsupported browsers, and download failures.
+See [chatting with documents](usage-chat.md) for a walkthrough and [the model guide](local-model.md) for thinking, context limits, and recovery. The [troubleshooting guide](troubleshooting.md) covers missing datasets, unsupported browsers, and download failures.
 
 ## Verify a production build
 

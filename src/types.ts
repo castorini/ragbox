@@ -1,5 +1,5 @@
 export type Corpus = 'nfcorpus' | 'msmarco';
-export type ThinkingEffort = 'off' | 'low' | 'balanced';
+export type ThinkingEffort = 'off' | 'on';
 
 export interface EvidenceDocument {
   id: string;

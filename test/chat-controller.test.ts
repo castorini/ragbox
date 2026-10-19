@@ -32,7 +32,7 @@ async function harness() {
 }
 
 describe('chat orchestration', () => {
-  it.each([['off', 'Writing answer…'], ['low', 'Thinking…'], ['balanced', 'Thinking…']] as const)('labels generation with effort %s as %j', async (effort, message) => {
+  it.each([['off', 'Writing answer…'], ['on', 'Thinking…']] as const)('labels generation with effort %s as %j', async (effort, message) => {
     const h = await harness(); h.store.setThinkingEffort(effort);
     let seen = '';
     h.model.generateAnswer.mockImplementationOnce(async options => {
@@ -78,24 +78,24 @@ describe('chat orchestration', () => {
     h.chat.dispose(); await h.store.flush();
   });
   it('keeps submitted effort through retrieval and retry when the preference changes', async () => {
-    const h = await harness(); h.store.setThinkingEffort('balanced');
+    const h = await harness(); h.store.setThinkingEffort('on');
     const retrieval = deferred<RetrievalResult>(); h.resources.retrieve.mockReturnValueOnce(retrieval.promise);
     h.model.generateAnswer.mockRejectedValueOnce(new Error('Generation failed'));
-    const sending = h.chat.send('coffee'); h.store.setThinkingEffort('low');
+    const sending = h.chat.send('coffee'); h.store.setThinkingEffort('off');
     retrieval.resolve({ documents, elapsedMs: 1 }); await sending;
     expect(h.latest().phase).toBe('error');
-    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('balanced');
+    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('on');
     await h.chat.retry();
-    expect(h.model.generateAnswer.mock.calls[1][0].thinkingEffort).toBe('balanced');
+    expect(h.model.generateAnswer.mock.calls[1][0].thinkingEffort).toBe('on');
     expect(h.store.current().turns).toHaveLength(1); expect(h.latest().phase).toBe('complete');
     await h.chat.send('And blood pressure?');
-    expect(h.model.generateAnswer.mock.calls[2][0].thinkingEffort).toBe('low');
+    expect(h.model.generateAnswer.mock.calls[2][0].thinkingEffort).toBe('off');
   });
   it('keeps captured effort when model recovery resumes a keyword-only turn', async () => {
-    const h = await harness(); h.model.setState('idle'); h.store.setThinkingEffort('low');
-    await h.chat.send('coffee'); h.store.setThinkingEffort('balanced'); h.model.setState('ready');
+    const h = await harness(); h.model.setState('idle'); h.store.setThinkingEffort('on');
+    await h.chat.send('coffee'); h.store.setThinkingEffort('off'); h.model.setState('ready');
     await vi.waitFor(() => expect(h.latest().phase).toBe('complete'));
-    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('low');
+    expect(h.model.generateAnswer.mock.calls[0][0].thinkingEffort).toBe('on');
   });
   it('retrieves the first question directly and resolves a follow-up with the completed conversation', async () => {
     const h = await harness();
@@ -227,6 +227,13 @@ describe('chat orchestration', () => {
     await h.store.flush(); const restored = new ConversationStore(h.repository); await restored.initialize();
     const model = new FakeModel(); new ChatController(restored, model, h.resources); expect(model.generateAnswer).not.toHaveBeenCalled();
   });
+  it('stays on the start page when switching collections before asking anything', async () => {
+    const h = await harness(); h.chat.select('msmarco'); await h.chat.send('thunder'); const marco = h.store.current().id;
+    h.chat.select('nfcorpus'); h.chat.newChat(); expect(h.store.current().turns).toHaveLength(0);
+    h.chat.select('msmarco');
+    expect(h.store.selected).toBe('msmarco'); expect(h.store.current().turns).toHaveLength(0); expect(h.store.current().id).not.toBe(marco);
+    expect(h.store.get(marco)!.turns).toHaveLength(1);
+  });
   it('limits the model history to recent turns while retaining the full transcript', async () => {
     const h = await harness(); for (let i = 0; i < 5; i++) await h.chat.send(`question ${i}`);
     expect(h.store.current().turns).toHaveLength(5); expect(h.latest().history.filter(message => message.role === 'user')).toHaveLength(3); expect(h.latest().contextLimited).toBe(true);
@@ -250,7 +257,8 @@ describe('chat orchestration', () => {
     const sending = h.chat.send('What about it?'); h.chat.select('msmarco');
     resolved.resolve({ query: 'coffee effects', contextLimited: false }); await sending;
     expect(h.store.get(id)!.turns.at(-1)!.phase).toBe('stopped'); expect(h.resources.retrieve).toHaveBeenCalledOnce();
-    h.chat.select('nfcorpus'); expect(h.store.current().id).toBe(id);
+    // MS MARCO had no chat yet, so this is a switch from the start page: it stays there.
+    h.chat.select('nfcorpus'); expect(h.store.current().turns).toHaveLength(0); expect(h.store.get(id)!.turns).toHaveLength(2);
   });
   it('reuses the original generation snapshot after model recovery', async () => {
     const h = await harness(); await h.chat.send('coffee'); await h.chat.send('What about it?');

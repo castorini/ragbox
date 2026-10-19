@@ -7,23 +7,26 @@ afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 const legacy = { id: 'h1', time: 1, corpus: 'nfcorpus', query: 'coffee', results: [{ id: 'MED-1', title: 'Sleep evidence', text: 'Text', score: 2 }], answer: 'Finding [MED-1].', citedIds: ['MED-1'], answerStatus: 'stopped' };
 
 describe('conversation persistence', () => {
-  it('saves the effort preference and captures it independently for each submitted turn', async () => {
+  it('starts each page load with thinking Off and captures the setting for each submitted turn', async () => {
     const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize();
     expect(store.thinkingEffort).toBe('off');
-    store.setThinkingEffort('balanced'); const first = store.append('q1', [], false);
-    store.setThinkingEffort('low'); store.append('q2', [], false); await store.flush();
+    store.setThinkingEffort('on'); const first = store.append('q1', [], false);
+    store.setThinkingEffort('off'); store.append('q2', [], false);
+    store.setThinkingEffort('on'); await store.flush();
     const restored = new ConversationStore(repository); await restored.initialize();
-    expect(restored.thinkingEffort).toBe('low');
-    expect(restored.current().turns.map(turn => turn.thinkingEffort)).toEqual(['balanced', 'low']);
-    expect(first.thinkingEffort).toBe('balanced');
+    expect(restored.thinkingEffort).toBe('off');
+    expect(restored.current().turns.map(turn => turn.thinkingEffort)).toEqual(['on', 'off']);
+    expect(first.thinkingEffort).toBe('on');
     store.setThinkingEffort('invalid'); expect(store.thinkingEffort).toBe('off');
     store.setThinkingEffort('high'); expect(store.thinkingEffort).toBe('off');
+    store.setThinkingEffort('low'); expect(store.thinkingEffort).toBe('on');
+    store.setThinkingEffort('balanced'); expect(store.thinkingEffort).toBe('on');
   });
-  it('defaults older and malformed saved effort preferences and turns to Off', async () => {
+  it('ignores a thinking preference saved by older versions and defaults malformed turns to Off', async () => {
     const older = importLegacyHistory(JSON.stringify([legacy]))[0];
     older.turns[0].thinkingEffort = 'unbounded' as never;
     const repository = memoryRepository([older]);
-    vi.mocked(repository.load).mockResolvedValueOnce({ conversations: [older], imported: true, navigation: { selected: 'nfcorpus', active: {}, thinkingEffort: 'unbounded' as never } });
+    vi.mocked(repository.load).mockResolvedValueOnce({ conversations: [older], imported: true, navigation: { selected: 'nfcorpus', active: {}, thinkingEffort: 'on' } as never });
     const restored = new ConversationStore(repository); await restored.initialize();
     expect(restored.thinkingEffort).toBe('off'); expect(restored.current().turns[0].thinkingEffort).toBe('off');
   });
@@ -53,6 +56,13 @@ describe('conversation persistence', () => {
     const repository = memoryRepository(); vi.mocked(repository.load).mockResolvedValueOnce({ conversations: importLegacyHistory(JSON.stringify([legacy])), imported: false });
     const store = new ConversationStore(repository, { getItem: () => { throw new Error('Access denied'); }, removeItem: vi.fn() }); await store.initialize();
     expect(store.current().id).toBe('legacy-h1'); expect(repository.import).not.toHaveBeenCalled(); expect(store.unsaved).toContain('could not be imported');
+  });
+  it('reopens the start page after a reload when the start page was showing', async () => {
+    const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize(); store.select('msmarco');
+    const turn = store.append('thunder', [], false); store.update(store.current().id, turn.id, { phase: 'complete', answer: 'Done' });
+    const chat = store.current().id; store.newChat(); await store.flush();
+    const restored = new ConversationStore(repository); await restored.initialize();
+    expect(restored.selected).toBe('msmarco'); expect(restored.current().turns).toHaveLength(0); expect(restored.get(chat)?.turns).toHaveLength(1);
   });
   it('restores interrupted turns as stopped and keeps the transcript and selection', async () => {
     const repository = memoryRepository(); const store = new ConversationStore(repository); await store.initialize(); store.select('msmarco');

@@ -86,6 +86,8 @@ describe('conversation prompts', () => {
     expect(validateResolvedQuery(' "coffee blood pressure" ')).toBe('coffee blood pressure');
     expect(validateResolvedQuery('{"query":"coffee blood pressure"}')).toBe('coffee blood pressure');
     expect(validateResolvedQuery('```json\n{"query":"broccoli cancer"}\n```')).toBe('broccoli cancer');
+    expect(validateResolvedQuery('Sure! {"query":"telephone inventor"} Hope this helps.')).toBe('telephone inventor');
+    expect(validateResolvedQuery('{"note":"x"} then {"query":"soy breast cancer"}')).toBe('soy breast cancer');
     for (const value of ['', 'Answer\nQuery', 'x'.repeat(501), '<think>reasoning</think>', '{"answer":"not a query"}', '{"query":42}', '{broken}', '{"query":"two\\nlines"}']) expect(() => validateResolvedQuery(value)).toThrow('resolve');
   });
 });

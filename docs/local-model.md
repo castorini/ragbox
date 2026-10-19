@@ -25,23 +25,11 @@ Once required files are cached, later visits automatically load them on supporte
 
 **Cancel download** or **Cancel loading** stops that operation and invalidates queued initialization. Completed cached files remain available; unfinished files may need to download again. See [browser storage](storage.md) for cache inspection and deletion.
 
-## Thinking effort
+## Thinking
 
-Use the lightbulb button in the composer to select a level. The choice is saved in this browser and captured when a message is submitted.
+Replies always answer directly with the model's thinking mode turned off; there is no setting to turn reasoning on. Each answer has up to 512 output tokens, and follow-up rewriting has up to 128 query tokens. Earlier versions offered a Thinking control; its reasoning support remains in [src/llm-worker.ts](../src/llm-worker.ts) and [src/thinking-effort.ts](../src/thinking-effort.ts) but is not reachable from the interface.
 
-| Level | Answer reasoning allowance | Final answer allowance | Follow-up rewrite allowance |
-| --- | --- | --- | --- |
-| Off, the default | Thinking template disabled | Up to 512 tokens | No reasoning; up to 128 query tokens |
-| Low | Up to 256 reasoning tokens | Up to 512 tokens | Up to 512 reasoning tokens plus 128 query tokens |
-| Medium | Up to 1,024 reasoning tokens | Up to 512 tokens | Up to 512 reasoning tokens plus 128 query tokens |
-
-These are application token budgets, not a native model effort parameter. The Medium value is stored internally as `balanced`; an obsolete High preference falls back to Off. See [src/thinking-effort.ts](../src/thinking-effort.ts) and [src/llm-worker.ts](../src/llm-worker.ts).
-
-Reasoning and final-output limits are separate. If reasoning reaches its limit before a final answer or valid query appears, the worker closes the same assistant's reasoning prefix and requests a bounded final output. Empty answers and invalid resolved queries still expose Retry. Reasoning is never substituted for the answer or the search query.
-
-Low and Medium display reasoning in a folded **Reasoning** section. Reasoning does not contribute citations or later conversation context. Changing the preference during a turn does not change that turn or its retries.
-
-More reasoning increases latency and does not guarantee better answers. [Chat validation](chat-validation.md#thinking-mode-browser-smoke-test) records single-device timing observations and remaining quality issues; those observations are not a general performance or quality benchmark.
+Replies saved while thinking was on still show their reasoning in a folded **Reasoning** section. Reasoning never contributes citations or later conversation context, and saved values from older levels (`low`, `balanced`, `on`) are still read correctly.
 
 ## Context and output limits
 
@@ -49,7 +37,7 @@ Both query rewriting and answer generation receive up to three recent turns. The
 
 Answer generation fits instructions, the current question, history, and retrieved evidence into a **3,500-token initial input budget**. Documents are considered in retrieval order. The fitter may truncate the last included document and omit later ones. A finalization request also includes the reasoning produced during that turn, so its input can exceed the initial budget.
 
-The first message searches directly; contextual follow-ups use deterministic query rewriting with a 128-token output limit and a validated query of at most 500 characters. Answer generation uses sampling, so repeated questions can produce different wording and claims.
+The first message searches directly; contextual follow-ups use deterministic query rewriting with a 128-token output limit and a validated query of at most 500 characters. The first `{"query": ...}` object in the output is used even when the model surrounds it with other text; when no usable query is found, the raw output is logged to the browser console as a warning. Answer generation uses sampling, so repeated questions can produce different wording and claims.
 
 Answer instructions request one to three sentences with citations from fitted documents. They ask the model to distinguish measured results from background statements, preserve uncertainty, and use previous answers only to interpret references. These prompts do not establish correctness: inspect the saved sources for each claim. See [chatting with documents](usage-chat.md#read-sources-and-citations).
 

@@ -11,9 +11,9 @@ describe('resource snapshots', () => {
     states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy], collections, false);
     states.watch(state => state.resources.model, model, false);
     const status = { cache: 'installed' as const, stage: 'ready' as const, downloadedBytes: 42 };
-    states.set('model', 'ready', 'Answers ready', status);
+    states.set('model', 'ready', '', status);
     const snapshot = states.state.getState();
-    states.set('model', 'ready', 'Answers ready', { ...status });
+    states.set('model', 'ready', '', { ...status });
     expect(states.state.getState()).toBe(snapshot);
     expect(model).toHaveBeenCalledOnce(); expect(collections).not.toHaveBeenCalled();
     status.downloadedBytes = 100;

@@ -143,11 +143,18 @@ export function buildQueryMessages(question: string, history: ChatMessage[]): Pr
 }
 
 export function validateResolvedQuery(value: unknown): string {
-  let query = stripThinking(value).trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1');
-  if (query.startsWith('{')) {
-    try { const parsed = JSON.parse(query) as { query?: unknown }; query = typeof parsed.query === 'string' ? parsed.query.trim() : ''; }
-    catch { query = ''; }
-  } else query = query.replace(/^(["'])(.*)\1$/, '$2');
+  const text = stripThinking(value).trim().replace(/^```(?:json)?\s*([\s\S]*?)\s*```$/, '$1');
+  let query = '';
+  if (text.includes('{')) {
+    // Small models sometimes wrap the JSON in prose ("Sure! {...}"); use the first
+    // {"query": "..."} object anywhere in the output.
+    for (const candidate of text.match(/\{[^{}]*\}/g) ?? []) {
+      try {
+        const parsed = JSON.parse(candidate) as { query?: unknown };
+        if (typeof parsed.query === 'string') { query = parsed.query.trim(); break; }
+      } catch { /* not JSON; keep looking */ }
+    }
+  } else query = text.replace(/^(["'])(.*)\1$/, '$2');
   if (!query || query.length > 500 || /[\r\n]/.test(query)) {
     throw new Error('Could not resolve this follow-up into a search query. Retry the question.');
   }

@@ -1,4 +1,3 @@
-import { setupEffortPicker } from './effort-picker.ts';
 import { requiredElement } from './boundaries.ts';
 import { renderAnswer } from './llm-controller.ts';
 import { EXAMPLE_QUERIES } from './example-queries.ts';
@@ -22,11 +21,11 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const query = requiredElement<HTMLTextAreaElement>('#chat-query');
   const send = requiredElement<HTMLButtonElement>('#chat-send');
   const lengthWarning = requiredElement<HTMLElement>('#chat-length-warning');
-  const effort = setupEffortPicker({ get: () => store.thinkingEffort, set: value => store.setThinkingEffort(value) });
   const transcript = requiredElement<HTMLElement>('#chat-transcript');
   const title = requiredElement<HTMLElement>('#chat-title');
   const empty = requiredElement<HTMLElement>('#chat-empty');
   const examples = requiredElement<HTMLElement>('#chat-examples');
+  const suggestions = requiredElement<HTMLUListElement>('#chat-suggestions');
   const unsaved = requiredElement<HTMLElement>('#chat-unsaved');
   const dashboard = requiredElement<HTMLElement>('#corpus-dashboard');
   const modelStatus = requiredElement<HTMLElement>('#model-search-status');
@@ -42,17 +41,61 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   };
   const resize = () => {
     query.style.height = 'auto'; query.style.height = `${Math.min(query.scrollHeight, 150)}px`;
-    if (form.offsetHeight) workspace.style.paddingBottom = `${form.offsetHeight + 20}px`;
+    if (form.offsetHeight) {
+      workspace.style.paddingBottom = `${form.offsetHeight + 20}px`;
+      // Lets the latest exchange fill the screen above the composer (see .chat-turn:last-child).
+      workspace.style.setProperty('--composer-space', `${form.offsetHeight + 20}px`);
+    }
   };
   window.addEventListener('resize', resize);
+  // Readiness messages inside the pinned composer change its height without input.
+  const composerObserver = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(resize);
+  composerObserver?.observe(form);
   const submit = () => {
     if (!controller.canSend() || !query.value.trim() || tooLong()) return;
     const question = query.value; query.value = ''; store.setDraft(''); resize();
     void controller.send(question);
   };
   form.onsubmit = event => { event.preventDefault(); if (controller.running) controller.stop(); else submit(); };
-  query.onkeydown = event => handleComposerKey(event, submit);
-  query.oninput = () => { store.setDraft(query.value); resize(); renderControls(); };
+  // Starter questions also drop up from the search box during a chat, so they stay
+  // one click away without going back to the start page.
+  let suggestion = -1;
+  const suggestionItems = () => Array.from(suggestions.children) as HTMLElement[];
+  function highlightSuggestion(index: number) {
+    suggestion = index;
+    suggestionItems().forEach((item, i) => item.setAttribute('aria-selected', String(i === index)));
+    if (index >= 0) query.setAttribute('aria-activedescendant', suggestionItems()[index].id);
+    else query.removeAttribute('aria-activedescendant');
+  }
+  function setSuggestionsOpen(open: boolean) {
+    const show = open && !!store.current().turns.length && !query.value.trim() && suggestionItems().length > 0;
+    suggestions.hidden = !show;
+    query.setAttribute('aria-expanded', String(show));
+    if (!show) highlightSuggestion(-1);
+  }
+  function chooseExample(question: string) {
+    setSuggestionsOpen(false);
+    query.value = question; store.setDraft(question); resize();
+    if (controller.canSend()) submit(); else query.focus();
+  }
+  query.onkeydown = event => {
+    const items = suggestionItems();
+    if (suggestions.hidden && event.key === 'ArrowDown' && !query.value.trim()) setSuggestionsOpen(true);
+    if (!suggestions.hidden && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+      event.preventDefault();
+      const step = event.key === 'ArrowDown' ? 1 : -1;
+      highlightSuggestion(suggestion < 0 ? (step > 0 ? 0 : items.length - 1) : (suggestion + step + items.length) % items.length);
+    } else if (!suggestions.hidden && event.key === 'Escape') {
+      event.preventDefault(); setSuggestionsOpen(false);
+    } else if (!suggestions.hidden && event.key === 'Enter' && suggestion >= 0 && !event.shiftKey) {
+      event.preventDefault(); chooseExample(items[suggestion].textContent ?? '');
+    } else handleComposerKey(event, submit);
+  };
+  // The box keeps focus after sending, so a later click raises no focus event; open on click too.
+  query.onfocus = () => setSuggestionsOpen(true);
+  query.onclick = () => { if (suggestions.hidden) setSuggestionsOpen(true); };
+  query.onblur = () => setSuggestionsOpen(false);
+  query.oninput = () => { store.setDraft(query.value); resize(); renderControls(); setSuggestionsOpen(true); };
   requiredElement<HTMLButtonElement>('#chat-new').onclick = () => { controller.newChat(); query.focus(); };
 
   const tooLong = () => query.value.trim().length > MAX_QUESTION_LENGTH;
@@ -63,8 +106,6 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       ? `Your question is ${length} characters. Shorten it to ${MAX_QUESTION_LENGTH} or fewer to send.`
       : '';
     query.toggleAttribute('aria-invalid', tooLong());
-    effort.render();
-    effort.setDisabled(!store.initialized);
     const mode = controller.running ? 'stop' : 'send';
     if (send.dataset.mode !== mode) {
       send.dataset.mode = mode;
@@ -146,6 +187,12 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const repeatsThinking = !row.thinking.hidden && turn.message === row.thinkingSummary.textContent;
     row.status.hidden = (turn.phase === 'complete' && !turn.keywordOnly) || repeatsThinking;
     row.root.dataset.phase = turn.phase;
+    // Drives the in-progress animations: dots, search sweep, glowing bulb, or typing caret.
+    row.root.dataset.activity = turn.phase === 'resolving' ? 'resolving'
+      : turn.phase === 'retrieving' ? 'searching'
+      : turn.phase !== 'generating' ? ''
+      : turn.answer ? 'writing'
+      : turn.thinkingEffort === 'off' ? 'preparing' : 'thinking';
     row.context.hidden = !turn.contextLimited;
     row.context.textContent = 'Using up to the latest 3 turns, within the model’s context limit. Earlier messages remain saved.';
     row.copy.disabled = !turn.answer.trim(); row.copy.hidden = !turn.answer.trim();
@@ -170,18 +217,21 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   function render() {
     const conversation = store.current();
     const changed = conversationId !== conversation.id;
-    const scrollTop = window.scrollY;
-    const nearBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 160;
+    const latest = conversation.turns.at(-1);
+    const asked = !changed && !!latest && !rows.has(latest.id);
     if (changed) { rows.clear(); transcript.replaceChildren(); conversationId = conversation.id; }
     title.textContent = conversation.turns.length ? conversation.title : 'Ask your documents';
     empty.hidden = !!conversation.turns.length; dashboard.hidden = !!conversation.turns.length;
     for (const [index, turn] of conversation.turns.entries()) renderRow(conversation, turn, index === conversation.turns.length - 1);
-    // Only transcript updates in the visible chat may move the scroll position.
-    if (!changed && nearBottom && !requiredElement<HTMLElement>('#search-view').hidden && conversation.turns.length) {
+    // A newly asked question scrolls to the top of the screen with its reply below. Streaming
+    // never moves the page afterwards, so readers can scroll freely through earlier turns.
+    if (asked && latest && !requiredElement<HTMLElement>('#search-view').hidden) {
+      const row = rows.get(latest.id)!;
       requestAnimationFrame(() => {
-        if (!disposed && store.current().id === conversation.id && !requiredElement<HTMLElement>('#search-view').hidden && window.scrollY === scrollTop) {
-          window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' });
-        }
+        if (disposed || store.current().id !== conversation.id || requiredElement<HTMLElement>('#search-view').hidden) return;
+        const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (conversation.turns.length === 1) window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'instant' });
+        else row.root.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'instant' });
       });
     }
   }
@@ -203,9 +253,18 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       exampleCorpus = selected;
       examples.replaceChildren(...EXAMPLE_QUERIES[selected].map(question => {
         const button = element('button', 'chat-example', question); button.type = 'button';
-        button.onclick = () => { query.value = question; store.setDraft(question); resize(); if (controller.canSend()) submit(); else query.focus(); };
+        button.onclick = () => chooseExample(question);
         return button;
       }));
+      suggestions.replaceChildren(...EXAMPLE_QUERIES[selected].map((question, index) => {
+        const item = element('li', 'example-query', question);
+        item.id = `chat-suggestion-${index}`; item.setAttribute('role', 'option'); item.setAttribute('aria-selected', 'false');
+        // Keep focus in the search box so choosing does not close the list first.
+        item.onmousedown = event => event.preventDefault();
+        item.onclick = () => chooseExample(question);
+        return item;
+      }));
+      setSuggestionsOpen(false);
     }, true),
     states.watch(state => [state.busy, state.shuttingDown, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase === 'unsupported'], renderControls),
   ];
@@ -214,7 +273,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     disposed = true;
     for (const unsubscribe of unsubscribers) unsubscribe();
     window.removeEventListener('resize', resize);
-    form.onsubmit = null; query.oninput = null; query.onkeydown = null; effort.dispose();
+    composerObserver?.disconnect();
+    form.onsubmit = null; query.oninput = null; query.onkeydown = null; query.onfocus = null; query.onclick = null; query.onblur = null;
   } };
 }
 

@@ -183,7 +183,7 @@ export class ModelService {
         ? `Downloaded ${formatBytes(this.model.downloadedBytes)}` : 'Downloading model…';
       return this.model.cache === 'installed' && !this.model.downloadedBytes ? 'Loading saved model…' : 'Initializing model…';
     }
-    if (this.ready) return 'Answers ready';
+    if (this.ready) return '';
     if (this.state === 'error') {
       if (this.model.failure === 'network') return 'Model download failed. Check your connection and retry.';
       if (this.model.failure === 'storage') return 'Model storage is full. Free space and retry.';

@@ -44,6 +44,7 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
       form?.classList.toggle('unavailable', unavailable);
       help.hidden = !unavailable || states.activeSearch === name;
       helpText.textContent = guidance(name, state, states.busy);
+      help.setAttribute('data-phase', state.phase);
     }));
   }
   if (!actions) return { dispose() { for (const unsubscribe of unsubscribers) unsubscribe(); } };

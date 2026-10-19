@@ -31,7 +31,7 @@ Saved data can be cleared or evicted by the browser. Private browsing and restri
 
 Submitted turns, retrieval snapshots, settled answers, reasoning, and valid citation metadata are saved asynchronously. Streaming text is checkpointed at most once per second. Writes are serialized so a delayed earlier save cannot overwrite a later answer. The newest 50 nonempty conversations are retained and titled from their first question.
 
-Reload restores the selected collection and its active chat. In-progress turns become **Stopped** and require an explicit Retry; saved transcripts never restart inference automatically. Drafts and transient operation identities are not persisted. If storage fails, the current chat remains usable in memory and the interface displays an unsaved notice.
+Reload restores the selected collection and its active chat, or the start page if that was showing. In-progress turns become **Stopped** and require an explicit Retry; saved transcripts never restart inference automatically. Drafts and transient operation identities are not persisted. If storage fails, the current chat remains usable in memory and the interface displays an unsaved notice.
 
 Earlier `ragbox-search-history` localStorage entries import as one-turn conversations with deterministic IDs. The migration preserves timestamps, retrieved sources, answers, and stopped status. An import marker commits with the conversations to prevent duplicates. Original legacy data remains until **Clear history**.
 

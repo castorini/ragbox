@@ -89,7 +89,7 @@ async function createHarness({ chunks = ['</think>A useful fact [MED-14].'], fin
   await import('../src/llm-worker.ts');
   const send = (data: WorkerRequest) => worker.onmessage?.({ data });
   const generate = (overrides: Partial<Extract<WorkerRequest, { type: 'generate' }>> = {}) => send({
-    type: 'generate', requestId: 'request-1', corpus: 'nfcorpus', question: 'What is known?', documents, thinkingEffort: 'balanced', ...overrides,
+    type: 'generate', requestId: 'request-1', corpus: 'nfcorpus', question: 'What is known?', documents, thinkingEffort: 'on', ...overrides,
   });
   const terminal = async (requestId = 'request-1') => {
     await vi.waitFor(() => expect(messages.some(message =>
@@ -116,7 +116,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('LLM worker generation', () => {
   it.each([
-    ['low', 256], ['balanced', 1024],
+    ['on', 1024],
   ] as const)('enforces effort %s while preserving the separate final-answer allowance', async (effort, limit) => {
     const harness = await createHarness();
     harness.generator.mockImplementation(async (messages, options) => {
@@ -594,79 +594,34 @@ it('cleans invalid JSON selectively and keeps valid metadata and weights on expl
 
 
 describe('worker query resolution', () => {
-  it('rewrites a follow-up with deterministic decoding and the recent conversation', async () => {
-    const harness = await createHarness({ final: 'Resolve the subject.</think>coffee blood pressure' });
-    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
+  it.each(['on', 'off'] as const)('rewrites a follow-up directly without reasoning when thinking is %s', async thinkingEffort => {
+    const harness = await createHarness({ final: 'coffee blood pressure' });
+    harness.send({ type: 'resolve-query', thinkingEffort, requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }, { role: 'assistant', content: 'Earlier response' }] });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure', contextLimited: false });
     const messages = harness.generator.mock.calls[0][0];
-    if (typeof messages === 'string') throw new Error('The first query call must use conversation messages.');
+    if (typeof messages === 'string') throw new Error('The query call must use conversation messages.');
     expect(messages.at(-1)!.content).toContain('coffee');
     expect(messages.at(-1)!.content).toContain('What about it?');
-    expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 640, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: true } });
-  });
-  it('rewrites a follow-up directly without reasoning when effort is off', async () => {
-    const harness = await createHarness({ final: 'coffee blood pressure' });
-    harness.send({ type: 'resolve-query', thinkingEffort: 'off', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
-    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
     expect(harness.generator.mock.calls[0][1]).toMatchObject({ max_new_tokens: 128, do_sample: false, tokenizer_encode_kwargs: { enable_thinking: false } });
     expect(harness.generator).toHaveBeenCalledOnce();
-  });
-  it('reports invalid rewriting output as a retryable resolution failure', async () => {
-    const harness = await createHarness({ final: '</think>First line\nSecond line' });
-    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
-    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', requestId: 'resolve-1' });
-  });
-  it('caps the resolved query independently of its reasoning and returns only the final JSON query', async () => {
-    const harness = await createHarness();
-    harness.generator.mockImplementation(async (messages, options) => {
-      const tokens = options.streamer!.options.token_callback_function!;
-      const cap = options.stopping_criteria!.at(-1)!;
-      tokens([9n, 1n, 2n, 3n]); tokens(new Array(127).fill(9n)); expect(cap._call([[99]])).toEqual([false]);
-      tokens([9n]); expect(cap._call([[99]])).toEqual([true]);
-      return generatedOutput(messages, 'Reason about coffee.</think>{"query":"coffee blood pressure"}');
-    });
-    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
-    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
     expect(harness.messages.some(message => message.type === 'answer-delta' || message.type === 'thinking-delta')).toBe(false);
   });
-  it('finalizes an exhausted query rewrite into deterministic bounded JSON without exposing reasoning', async () => {
-    const harness = await createHarness();
-    harness.generator.tokenizer.apply_chat_template.mockImplementation(messages => `${JSON.stringify(messages)}<think>`);
-    harness.generator.mockImplementation(async (messages, options) => {
-      if (typeof messages !== 'string') {
-        exhaustThinking(options, 'Resolve coffee as the subject.', 512);
-        return generatedOutput(messages, 'Resolve coffee as the subject.');
-      }
-      expect(messages).toContain('What about it?');
-      expect(messages).toContain('coffee');
-      expect(messages.endsWith('<think>Resolve coffee as the subject.\n</think>\n\n')).toBe(true);
-      expect(options).toMatchObject({ max_new_tokens: 128, do_sample: false, return_full_text: false, add_special_tokens: false });
-      expect(options.stopping_criteria).toHaveLength(1);
-      return generatedOutput(messages, '{"query":"coffee blood pressure"}');
-    });
-    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [{ role: 'user', content: 'coffee' }] });
-    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'coffee blood pressure' });
-    expect(harness.generator).toHaveBeenCalledTimes(2);
-    expect(harness.messages.some(message => ['thinking-delta', 'answer-delta'].includes(message.type))).toBe(false);
+  it('accepts the JSON query when the model wraps it in other text', async () => {
+    const harness = await createHarness({ final: 'Sure! {"query":"telephone inventor"} This finds who invented it.' });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'off', requestId: 'resolve-1', question: 'Who made it?', history: [] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'resolved-query', query: 'telephone inventor' });
   });
-  it.each(['{"query":""}', JSON.stringify({ query: 'x'.repeat(501) })])
-    ('validates finalization query output instead of accepting malformed queries: %j', async final => {
-      const harness = await createHarness();
-      harness.generator.mockImplementation(async (messages, options) => {
-        if (typeof messages !== 'string') {
-          exhaustThinking(options, 'Resolve the subject.', 512);
-          return generatedOutput(messages, 'Resolve the subject.');
-        }
-        return generatedOutput(messages, final);
-      });
-      harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
-      expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', operation: 'resolve-query', requestId: 'resolve-1' });
-      expect(harness.generator).toHaveBeenCalledTimes(2);
-      expect(harness.messages.some(message => message.type === 'resolved-query')).toBe(false);
-    });
+  it('reports invalid rewriting output as a retryable failure and logs the raw output', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const harness = await createHarness({ final: 'Alexander Graham Bell.\nHe patented it in 1876.' });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'off', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'error', operation: 'resolve-query', requestId: 'resolve-1' });
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Raw model output'), JSON.stringify('Alexander Graham Bell.\nHe patented it in 1876.'));
+    expect(harness.messages.some(message => message.type === 'resolved-query')).toBe(false);
+  });
   it('cancels a queued rewrite before invoking the model', async () => {
     const harness = await createHarness();
-    harness.send({ type: 'resolve-query', thinkingEffort: 'balanced', requestId: 'resolve-1', question: 'What about it?', history: [] });
+    harness.send({ type: 'resolve-query', thinkingEffort: 'on', requestId: 'resolve-1', question: 'What about it?', history: [] });
     harness.send({ type: 'cancel', requestId: 'resolve-1' });
     expect(await harness.terminal('resolve-1')).toMatchObject({ type: 'cancelled' });
     expect(harness.generator).not.toHaveBeenCalled();

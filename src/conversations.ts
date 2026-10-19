@@ -7,7 +7,7 @@ import { DEFAULT_THINKING_EFFORT, normalizeThinkingEffort } from './thinking-eff
 
 export const CONVERSATION_LIMIT = 50;
 const LEGACY_KEY = 'ragbox-search-history';
-export interface NavigationSnapshot { selected: Corpus; active: Partial<Record<Corpus, string>>; thinkingEffort?: ThinkingEffort }
+export interface NavigationSnapshot { selected: Corpus; active: Partial<Record<Corpus, string>> }
 export interface ConversationRepository {
   load(): Promise<{ conversations: Conversation[]; navigation?: NavigationSnapshot; imported: boolean }>;
   save(conversation: Conversation): Promise<void>;
@@ -164,11 +164,9 @@ export class ConversationStore {
     const items: Record<string, Conversation> = Object.create(null);
     let selected: Corpus = 'nfcorpus';
     let active: Partial<Record<Corpus, string>> = {};
-    let thinkingEffort = DEFAULT_THINKING_EFFORT;
     let unsaved = '';
     try {
       const loaded = await this.repository.load();
-      thinkingEffort = normalizeThinkingEffort(loaded.navigation?.thinkingEffort);
       let legacy: Conversation[] = [];
       let legacyReadable = true;
       if (!loaded.imported) {
@@ -191,12 +189,15 @@ export class ConversationStore {
     this.persistence.remove(old);
     const existing = recordValue(items, active[selected]);
     if (!existing || existing.corpus !== selected) {
-      const latest = retained.find(item => item.corpus === selected && items[item.id]);
+      // A saved active ID that no longer exists was an empty start-page chat (empty chats
+      // are never stored), so reopen the start page rather than the latest saved chat.
+      const latest = active[selected] ? undefined : retained.find(item => item.corpus === selected && items[item.id]);
       const current = latest ?? emptyConversation(selected, this.now());
       items[current.id] = current; active[selected] = current.id;
     }
     // Publish hydration atomically. Selectors never create a startup placeholder.
-    this.state.setState({ items, active, selected, thinkingEffort, unsaved, initialized: true });
+    // Thinking always starts Off on page load; the switch applies only for this visit.
+    this.state.setState({ items, active, selected, thinkingEffort: DEFAULT_THINKING_EFFORT, unsaved, initialized: true });
   }
   get(conversationId: string) { return recordValue(this.state.getState().items, conversationId); }
   conversations() { return savedConversations(this.state.getState()); }
@@ -213,21 +214,25 @@ export class ConversationStore {
     this.state.setState(state => state.pendingTurn === pendingTurn ? state : { pendingTurn });
   }
   private navigation() {
-    const { selected, active, thinkingEffort } = this.state.getState();
-    this.persistence.navigate({ selected, active: { ...active }, thinkingEffort });
+    const { selected, active } = this.state.getState();
+    this.persistence.navigate({ selected, active: { ...active } });
   }
   select(corpus: Corpus) {
     const state = this.state.getState();
     if (state.selected === corpus) return;
     const existing = recordValue(state.items, state.active[corpus]);
-    const current = existing?.corpus === corpus ? existing : this.conversations().find(item => item.corpus === corpus) ?? emptyConversation(corpus, this.now());
+    // From the start page (no messages yet), stay there: open an empty chat in the new
+    // collection instead of jumping into that collection's earlier chat.
+    const current = !currentConversation(state).turns.length
+      ? (existing?.corpus === corpus && !existing.turns.length ? existing : emptyConversation(corpus, this.now()))
+      : existing?.corpus === corpus ? existing : this.conversations().find(item => item.corpus === corpus) ?? emptyConversation(corpus, this.now());
     this.state.setState({ selected: corpus, items: state.items[current.id] ? state.items : { ...state.items, [current.id]: current }, active: { ...state.active, [corpus]: current.id } });
     this.navigation();
   }
   setThinkingEffort(value: unknown) {
     const thinkingEffort = normalizeThinkingEffort(value);
     if (thinkingEffort === this.thinkingEffort) return;
-    this.state.setState({ thinkingEffort }); this.navigation();
+    this.state.setState({ thinkingEffort });
   }
   open(conversationId: string) {
     const conversation = this.get(conversationId);

@@ -159,7 +159,7 @@ describe('LLMController', () => {
     expect(elements.loadButton.hidden).toBe(false);
     await controller.load();
     currentWorker().emit({ type: 'ready' });
-    expect(elements.status.textContent).toBe('Answers ready');
+    expect(elements.status.textContent).toBe('');
     expect(elements.setup.hidden).toBe(true);
     expect(elements.loadButton.hidden).toBe(true);
     controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });

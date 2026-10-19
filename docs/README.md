@@ -11,7 +11,7 @@ Start with [installation](installation.md), prepare NFCorpus, and follow [chatti
 | [Installation](installation.md) | Set up a checkout, obtain NFCorpus, and run the application locally. |
 | [Chatting with documents](usage-chat.md) | Search, ask follow-up questions, inspect citations, stop a reply, and retry. |
 | [Collections and retrieval](collections.md) | Prepare NFCorpus, download MS MARCO, understand BM25 results, and build a compatible MS MARCO database. |
-| [Local answer model](local-model.md) | Install MiniCPM, choose thinking effort, understand context limits, and recover cached files. |
+| [Local answer model](local-model.md) | Install MiniCPM, understand how replies are generated, understand context limits, and recover cached files. |
 | [Browser storage](storage.md) | Find out what is saved, how origins affect persistence, and what the deletion controls remove. |
 | [Troubleshooting](troubleshooting.md) | Resolve setup, download, GPU, retrieval, and persistence problems. |
 
