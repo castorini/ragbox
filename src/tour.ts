@@ -35,12 +35,12 @@ const ALL_STEPS: TourStep[] = [
   },
   {
     target: () => document.querySelector<HTMLElement>('.model-note'),
-    title: 'Add cited answers (optional)',
+    title: 'Add cited answers',
     body: phase => phase === 'ready' || phase === 'generating'
       ? 'The answer model is already installed. It reads your search results and writes a short answer that cites them.'
       : phase === 'unsupported'
         ? 'This browser can’t run the answer model, so you’ll get search results without an LLM answer. Search itself works normally.'
-        : 'The answer model (about 1.84 GB, downloaded once) is only used to write an LLM answer that cites your search results. You can skip it: search works without it, you just won’t get a written answer.',
+        : 'The answer model (about 1.84 GB, downloaded once) reads your search results and writes an LLM answer that cites them.',
     hint: 'Download it here now, or later in Settings.',
     fitChildren: true,
   },
@@ -56,6 +56,13 @@ const ALL_STEPS: TourStep[] = [
     target: () => document.querySelector<HTMLElement>('#nav-setup'),
     title: 'Details live in Settings',
     body: () => 'Open Settings for the details behind search: each collection’s index (whether it’s ready, its size, and its saved files) and the answer model, an LLM that runs in your browser. You can install, reinstall, or delete either one there.',
+    hint: 'Open it anytime from the sidebar.',
+    placement: 'right',
+  },
+  {
+    target: () => document.querySelector<HTMLElement>('#nav-duckdb'),
+    title: 'Learn more in How it works',
+    body: () => 'How it works walks through a first search step by step, with screenshots, and explains what happens on your device: how questions become keywords, how results are ranked, and where your data is saved.',
     hint: 'Open it anytime from the sidebar.',
     placement: 'right',
   },
@@ -198,10 +205,17 @@ export function setupTour({ modelPhase, onClose }: { modelPhase: () => ResourceP
     next.focus({ preventScroll: true });
   }
 
-  function go(next: number) {
+  function go(next: number, direction = next >= index ? 1 : -1) {
     if (!root || next < 0 || next >= TOUR_STEPS.length) return;
     const target = TOUR_STEPS[next].target();
-    if (!target) { close(); return; }
+    // Skip a step whose target is not on screen (for example the model notice, which is
+    // empty and hidden once the model is ready) instead of ending the tour.
+    if (!target || target.closest('[hidden]') || !holeFor(target, TOUR_STEPS[next].fitChildren)) {
+      const after = next + direction;
+      if (after >= 0 && after < TOUR_STEPS.length) go(after, direction);
+      else if (direction > 0) finish();
+      return;
+    }
     const card = root.querySelector<HTMLElement>('.tour-card')!;
     const swap = () => {
       index = next;

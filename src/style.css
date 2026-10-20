@@ -266,7 +266,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #setup-view .settings-download-button svg,#setup-view .settings-delete-button svg{display:block;width:18px;height:18px;flex:none}
 .settings-resource-actions>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .settings-resource:target,#model:target{outline:3px solid #76aa964d;outline-offset:6px;border-radius:8px}
-.settings-optional{font-size:12px;font-weight:500;color:var(--muted);margin-left:7px}
+
 #llm-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #llm-controls:has(button:not([hidden])){margin-top:14px}
 #llm-controls progress{flex-basis:100%;margin:0}

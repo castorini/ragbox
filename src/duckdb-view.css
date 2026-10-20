@@ -29,7 +29,7 @@
 #duckdb-view .duckdb-guide-intro p{margin-top:8px;max-width:65ch}
 .duckdb-guide-steps{list-style:none;padding:0;margin:0}
 #duckdb-view .duckdb-guide-step{min-width:0;padding:26px 0;border-top:1px solid var(--line)}
-.duckdb-guide-step-heading,.duckdb-guide-optional-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px;color:var(--accent)}
+.duckdb-guide-step-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px;color:var(--accent)}
 .duckdb-guide-step-number{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid #cbdcc3;border-radius:50%;background:#eff5ea;color:var(--accent);font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}
 .duckdb-guide-badge{display:inline-block;padding:3px 8px;border-radius:5px;background:#f2f3ec;color:#60705f;font-size:10px;line-height:1.5;font-weight:600;white-space:nowrap}
 .duckdb-guide-figure{margin:18px 0 0}
@@ -42,11 +42,6 @@
 .duckdb-guide-note a{display:inline-block;padding-block:4px}
 #duckdb-view .duckdb-guide-background{display:flex;align-items:flex-start;gap:9px;background:#f4f7f0;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.7}
 .duckdb-guide-background>svg{margin-top:2px;color:var(--accent)}
-.duckdb-guide-optional{padding:20px;background:#faf8f1;border:1px solid #e9e2ce;border-radius:10px}
-.duckdb-guide-optional-heading{color:#806b3b;gap:8px}
-#duckdb-view .duckdb-guide-optional h3{font-size:14px;color:#655638}
-.duckdb-guide-optional .duckdb-guide-badge{color:#806b3b;background:#f1ead7}
-#duckdb-view .duckdb-guide-optional p{font-size:13px;margin-top:8px}
 .duckdb-guide a:focus-visible{outline:3px solid #76aa96;outline-offset:4px}
 .duckdb-guide kbd{font-family:inherit;font-size:12px;padding:1px 4px;background:#fff;border:1px solid #d1dfcb;border-radius:4px;white-space:nowrap}
 .duckdb-section-heading{display:flex;align-items:center;gap:12px}
@@ -144,7 +139,6 @@
   .duckdb-guide-step-heading{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px}
   .duckdb-guide-step-number{width:30px;height:30px}
   .duckdb-guide-step-heading>.duckdb-guide-badge{grid-column:2;justify-self:start}
-  .duckdb-guide-optional{padding:16px}
   .duckdb-section-heading{align-items:flex-start}
   #duckdb-view h2{font-size:18px}
   .duckdb-match-demo{padding:14px}
@@ -175,3 +169,18 @@
   #duckdb-view .duckdb-worker-route svg{display:none}
 }
 @media(prefers-reduced-motion:reduce){.duckdb-match-fill{transition:none}}
+
+/* Wide windows: "On this page" becomes a sticky sidebar beside the guide instead of a box above it. */
+@media (min-width:1180px){
+  main:has(>#duckdb-view:not([hidden])){max-width:1240px}
+  #duckdb-view:not([hidden]){display:grid;grid-template-columns:minmax(0,900px) 200px;column-gap:40px;max-width:none;align-items:start}
+  #duckdb-view>*{grid-column:1}
+  #duckdb-view>.duckdb-contents{grid-column:2;grid-row:1 / span 12;position:sticky;top:24px;margin:0;padding:14px 14px 12px;background:transparent;border-color:#dfe7da}
+  .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr);gap:6px;padding:7px 4px}
+  .duckdb-contents-link strong{font-size:13px;line-height:1.4}
+  .duckdb-contents-link small,.duckdb-contents-link>svg{display:none}
+  #duckdb-view .duckdb-contents-list>li+li{border-top:0}
+  .duckdb-contents-number{margin-top:1px}
+  .duckdb-contents-topics{flex-direction:column;margin:0 0 4px 30px;gap:0}
+  .duckdb-contents-topics a{padding:3px 0}
+}

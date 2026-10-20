@@ -135,8 +135,7 @@ export function setupCollectionChooser(
   for (const [id, view] of [
     ['#nav-search', 'search'], ['#nav-history', 'history'], ['#nav-setup', 'setup'],
     ['#nav-duckdb', 'duckdb'], ['#duckdb-back', 'search'],
-    ['#duckdb-guide-chat', 'search'], ['#duckdb-guide-nfcorpus', 'setup'],
-    ['#duckdb-guide-msmarco', 'setup'], ['#duckdb-guide-model', 'setup'],
+    ['#duckdb-guide-chat', 'search'], ['#duckdb-guide-model', 'setup'],
     ['#fts-setup-link', 'setup'], ['#marco-setup-link', 'setup'],
     ['#model-setup-link', 'setup'], ['#model-repair-link', 'setup'], ['#setup-back', 'search'],
     ['#model-storage-repair', 'setup'],
@@ -146,8 +145,8 @@ export function setupCollectionChooser(
       event.preventDefault();
       if (id === '#model-setup-link' || id === '#model-storage-repair' || id === '#duckdb-guide-model') openSetupSection('model');
       else if (id === '#model-repair-link') openSetupSection('model-storage');
-      else if (id === '#fts-setup-link' || id === '#duckdb-guide-nfcorpus') openSetupSection('setup-nfcorpus');
-      else if (id === '#marco-setup-link' || id === '#duckdb-guide-msmarco') openSetupSection('setup-msmarco');
+      else if (id === '#fts-setup-link') openSetupSection('setup-nfcorpus');
+      else if (id === '#marco-setup-link') openSetupSection('setup-msmarco');
       else navigate(view);
     };
   }

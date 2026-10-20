@@ -27,12 +27,12 @@ it('cuts a rounded hole out of the full-screen overlay', () => {
   expect(path.match(/A/g)).toHaveLength(4);
 });
 
-it('explains the optional model step according to what this browser can do', () => {
+it('explains the model step according to what this browser can do', () => {
   const model = TOUR_STEPS[1];
-  expect(model.body('idle')).toMatch(/1\.84 GB.*skip it/i);
+  expect(model.body('idle')).toMatch(/1\.84 GB.*cites them/i);
   expect(model.body('ready')).toMatch(/already installed/);
   expect(model.body('unsupported')).toMatch(/can’t run the answer model/);
-  expect(tourSteps(true).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Continue a saved chat', 'Details live in Settings', 'Ask a question']);
+  expect(tourSteps(true).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers', 'Continue a saved chat', 'Details live in Settings', 'Learn more in How it works', 'Ask a question']);
   expect(tourSteps(true)[2].body('idle')).toMatch(/conversations.*sources/);
   expect(tourSteps(true)[3].body('idle')).toMatch(/index.*answer model/);
 });
@@ -54,6 +54,7 @@ it('puts the Settings card beside the sidebar, pointing at the icon', () => {
 });
 
 it('leaves out the History step while History is turned off', () => {
-  expect(tourSteps(false).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers (optional)', 'Details live in Settings', 'Ask a question']);
+  expect(tourSteps(false).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers', 'Details live in Settings', 'Learn more in How it works', 'Ask a question']);
+  expect(tourSteps(false)[3].body('idle')).toMatch(/step by step.*on your device/);
   expect(TOUR_STEPS).toEqual(tourSteps(false));
 });
