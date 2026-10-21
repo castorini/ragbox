@@ -349,6 +349,8 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 16px}
 .chat-heading h2{margin:0;font-size:19px;line-height:1.4;overflow-wrap:anywhere}
 .chat-heading button{flex-shrink:0}
+#chat-new{display:inline-flex;align-items:center;gap:8px}
+#chat-new svg{display:block;flex:none}
 .chat-empty{padding:28px 0 12px;color:var(--muted)}
 .chat-examples{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
 .chat-example{background:#fff;text-align:left;font-size:13px;border-color:#d4dfd5;border-radius:12px;max-width:100%}

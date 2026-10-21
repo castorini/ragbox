@@ -169,18 +169,3 @@
   #duckdb-view .duckdb-worker-route svg{display:none}
 }
 @media(prefers-reduced-motion:reduce){.duckdb-match-fill{transition:none}}
-
-/* Wide windows: "On this page" becomes a sticky sidebar beside the guide instead of a box above it. */
-@media (min-width:1180px){
-  main:has(>#duckdb-view:not([hidden])){max-width:1240px}
-  #duckdb-view:not([hidden]){display:grid;grid-template-columns:minmax(0,900px) 200px;column-gap:40px;max-width:none;align-items:start}
-  #duckdb-view>*{grid-column:1}
-  #duckdb-view>.duckdb-contents{grid-column:2;grid-row:1 / span 12;position:sticky;top:24px;margin:0;padding:14px 14px 12px;background:transparent;border-color:#dfe7da}
-  .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr);gap:6px;padding:7px 4px}
-  .duckdb-contents-link strong{font-size:13px;line-height:1.4}
-  .duckdb-contents-link small,.duckdb-contents-link>svg{display:none}
-  #duckdb-view .duckdb-contents-list>li+li{border-top:0}
-  .duckdb-contents-number{margin-top:1px}
-  .duckdb-contents-topics{flex-direction:column;margin:0 0 4px 30px;gap:0}
-  .duckdb-contents-topics a{padding:3px 0}
-}
