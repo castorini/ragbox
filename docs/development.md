@@ -1,6 +1,6 @@
 # RAGbox: Development Guide
 
-RAGbox is a TypeScript application built with Vite. It uses direct DOM views, Zustand vanilla stores, DuckDB-Wasm for retrieval, and Transformers.js for local inference. Start with [installation](installation.md) to prepare a checkout and NFCorpus.
+RAGbox is a TypeScript application built with Vite. It uses React 19 views, Tailwind CSS and shadcn/ui controls, Zustand vanilla stores, DuckDB-Wasm for retrieval, and Transformers.js for local inference. Start with [installation](installation.md) to prepare a checkout and NFCorpus.
 
 ## Commands
 
@@ -11,13 +11,15 @@ Run commands from the repository root:
 | `npm ci` | Install dependencies from the lockfile. |
 | `npm run prepare:nfcorpus -- /path/to/corpus.jsonl` | Validate and prepare the static NFCorpus input. |
 | `npm run dev` | Start Vite at `http://127.0.0.1:5173/` with a strict port. |
-| `npm test` | Run the Vitest suite once. |
+| `npm test` | Run the Node service/controller tests and React component tests once. |
+| `npm run preview` | Serve the production build at `http://127.0.0.1:4173/ragbox/`. |
+| `npm run test:e2e` | Run Playwright against an existing production build under `/ragbox/`. |
 | `npm run typecheck` | Check application, worker, test, and Node-script TypeScript configurations. |
 | `npm run build` | Run type checks and build `dist/` for the default root path. |
 | `npm run build -- --base=/ragbox/` | Run type checks and build for the Pages subpath. |
 | `npm test -- test/collection-retrieval.test.ts` | Run a focused test file. |
 
-Vitest uses a Node environment and the files under `test/`. Browser APIs and DOM behavior are represented with focused fakes where needed. Runtime versions are pinned in [package.json](../package.json); use the supported Node range there.
+Vitest uses Node for service and controller tests and jsdom with React Testing Library for component tests. Browser APIs are represented with focused fakes where needed. Playwright exercises the actual Chromium OPFS implementation and the production bundle; DuckDB CDN URLs are fulfilled from the installed engine package, and model/GPU support is disabled in those checks to avoid weight downloads. Dependency versions are locked in `package-lock.json`; use the supported Node range in [package.json](../package.json).
 
 ## Request flow
 
@@ -42,19 +44,18 @@ For contextual follow-ups, the model receives bounded recent history and produce
 
 | Area | Files and responsibilities |
 | --- | --- |
-| Startup and navigation | [main.ts](../src/main.ts) initializes DuckDB, collection adapters, model services, stores, and views. [collection-chooser.ts](../src/collection-chooser.ts) coordinates routes and selection. |
-| Retrieval | [collection-retrieval.ts](../src/collection-retrieval.ts) normalizes queries and executes BM25. [nfcorpus.ts](../src/nfcorpus.ts) prepares and reopens NFCorpus. [msmarco.ts](../src/msmarco.ts), [prebuilt-msmarco.ts](../src/prebuilt-msmarco.ts), and [download-prebuilt.ts](../src/download-prebuilt.ts) manage the saved MS MARCO artifact. |
-| Database lifecycle | [open-local-database.ts](../src/open-local-database.ts) registers OPFS handles for the database and WAL before opening DuckDB. [load-coordinator.ts](../src/load-coordinator.ts) serializes resource initialization. |
-| Model lifecycle | [model-service.ts](../src/model-service.ts) owns DOM-independent capability checks, loading, cancellation, and inference requests. [llm-controller.ts](../src/llm-controller.ts) connects model controls and compatibility views. |
-| Worker and prompts | [llm-worker.ts](../src/llm-worker.ts) loads the pinned model and handles rewriting, context fitting, and streaming. [rag.ts](../src/rag.ts) defines prompts, evidence/history fitting, query validation, and citation extraction. |
-| Reasoning and budgets | [generation-output.ts](../src/generation-output.ts) separates reasoning and final output across streamed chunks. [generation-budget.ts](../src/generation-budget.ts) tracks separate limits. [thinking-effort.ts](../src/thinking-effort.ts) defines supported effort values. |
-| Model cache | [model-cache.ts](../src/model-cache.ts) defines the model/revision and scoped cache operations. [model-readiness.ts](../src/model-readiness.ts) checks required files and metadata. |
-| Conversation state | [conversations.ts](../src/conversations.ts) owns the Zustand store, versioned IndexedDB repository, migration, and retention. [conversation-persistence.ts](../src/conversation-persistence.ts) serializes saves and streaming checkpoints. |
-| Chat orchestration | [chat-controller.ts](../src/chat-controller.ts) handles turn stages, retries, resource recovery, and cancellation. [types.ts](../src/types.ts) defines conversation, evidence, operation, and worker contracts. |
-| Views and onboarding | [chat-view.ts](../src/chat-view.ts) renders transcripts, sources, composer, and History. [corpus-dashboard.ts](../src/corpus-dashboard.ts), [example-queries.ts](../src/example-queries.ts), and [tour.ts](../src/tour.ts) provide their corresponding controls. |
-| Resource controls | [resource-state.ts](../src/resource-state.ts) provides shared resource snapshots and the operation gate. [settings-view.ts](../src/settings-view.ts), [storage-dashboard.ts](../src/storage-dashboard.ts), and [reset.ts](../src/reset.ts) manage Settings and scoped deletion. |
+| Startup and navigation | [main.tsx](../src/main.tsx) creates one document-lifetime [AppRuntime](../src/runtime.ts), starts it once outside React effects, and mounts the React root. [navigation.tsx](../src/app/navigation.tsx) preserves query-string routes and Settings deep links. |
+| UI and onboarding | [src/app](../src/app) contains Chat, Settings, History, the guide, confirmation dialogs, and the tour. Screen sections stay mounted during navigation. [src/components/ui](../src/components/ui) contains the used shadcn/ui primitives; `components.json` defines their aliases. |
+| Styling | [style.css](../src/style.css) defines the light theme, Tailwind tokens, shell layout and animations. [duckdb-view.css](../src/duckdb-view.css) contains the guide illustrations and responsive layout. Public assets use the Vite base via `publicAsset`. |
+| Collections and storage | [src/services](../src/services) contains DOM-independent NFCorpus preparation, MS MARCO download/opening, and scoped storage management. [collection-retrieval.ts](../src/collection-retrieval.ts) normalizes queries and executes BM25. |
+| Database lifecycle | [open-local-database.ts](../src/open-local-database.ts) registers the database and WAL handles. [database-lock.ts](../src/database-lock.ts) coordinates tab ownership; [load-coordinator.ts](../src/load-coordinator.ts) serializes resource initialization. |
+| Model and worker | [model-service.ts](../src/model-service.ts) manages capability checks, coordinated loading, cancellation, and inference. [llm-worker.ts](../src/llm-worker.ts) loads the pinned model and handles rewriting and generation. Model cache/readiness modules retain their existing identity and format. |
+| Chat and persistence | [chat-controller.ts](../src/chat-controller.ts) handles attempts, retries, recovery, and stale events. [conversations.ts](../src/conversations.ts) and [conversation-persistence.ts](../src/conversation-persistence.ts) retain the existing Zustand and IndexedDB contracts. |
+| Prompts and budgets | [rag.ts](../src/rag.ts), [generation-budget.ts](../src/generation-budget.ts), and [generation-output.ts](../src/generation-output.ts) preserve evidence fitting, output limits, and reasoning parsing. |
 
 ## State and lifecycle contracts
+
+React consumes the existing Zustand stores with narrow selectors; the runtime reference is stable in context. Components do not create workers or database connections. Strict Mode remounts only UI subscriptions. `AppRuntime.start()` and `shutdown()` are idempotent; shutdown stops work and closes databases before releasing the Web Lock. `pagehide` flushes conversations without releasing a still-active database.
 
 There is one active chat operation across the application. Conversation, turn, and attempt identities associate retrieval and worker events with their request. Late responses must be ignored after Stop, a collection change, New chat, or opening another conversation.
 
@@ -78,7 +79,11 @@ For a normal change, run the checks relevant to the affected code. Before review
 npm test
 npm run typecheck
 npm run build -- --base=/ragbox/
+npx playwright install --with-deps chromium
+npm run test:e2e
 ```
+
+If a system Chromium is already installed, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/absolute/path/to/chromium` instead of installing another browser. Browser screenshots and failure traces are written to the ignored `artifacts/playwright/` directory.
 
 The build already runs type checking; the standalone command is useful for quicker diagnostics. Tests cover retrieval, orchestration, stale events, retries, model/cache recovery, reasoning parsing, token budgets, state subscriptions, persistence, and control behavior. Mocks cannot establish live answer quality or GPU compatibility.
 

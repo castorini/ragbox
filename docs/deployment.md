@@ -28,7 +28,7 @@ The site needs HTTPS outside a loopback development environment so that OPFS and
 After building with `--base=/ragbox/`, run the installed Vite preview server:
 
 ```sh
-npm exec -- vite preview --host 127.0.0.1 --port 4173 --strictPort
+npm run preview
 ```
 
 Open [http://127.0.0.1:4173/ragbox/](http://127.0.0.1:4173/ragbox/) and check Chat, Settings, collection preparation, and the model worker. Preview storage is separate from the development server on port `5173`.
@@ -68,7 +68,7 @@ VITE_MSMARCO_INDEX_URL=https://example.org/msmarco-prebuilt.duckdb \
 
 For the Pages workflow, set a repository Actions variable named **`MSMARCO_INDEX_URL`**. The workflow passes it as `VITE_MSMARCO_INDEX_URL` during the build. An unset or empty value uses the application's default URL. Vite embeds the chosen URL in public client code, so it must not contain credentials or secrets.
 
-The URL override does not change the expected **3,346,542,592-byte** length in [src/msmarco.ts](../src/msmarco.ts). A different artifact requires updating that constant and size labels, plus preserving the table and FTS schema. See [collection compatibility](collections.md#host-a-compatible-artifact).
+The URL override does not change the expected **3,346,542,592-byte** length in [src/services/msmarco.ts](../src/services/msmarco.ts). A different artifact requires updating that constant and size labels, plus preserving the table and FTS schema. See [collection compatibility](collections.md#host-a-compatible-artifact).
 
 The downloader accepts HTTPS and loopback HTTP, rejects HTML responses, and verifies the exact streamed byte count before committing. A cross-origin host must permit browser fetches through CORS, including across redirects. These checks validate transfer completion and basic database compatibility; they are not a cryptographic integrity check.
 
