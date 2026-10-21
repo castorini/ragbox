@@ -4,6 +4,7 @@ import type { ResourceStates } from './resource-state.ts';
 import { deleteModelCacheFiles, listModelCacheFiles, type ModelCacheFile } from './model-cache.ts';
 import { Trash2 } from 'lucide';
 import { appIcon } from './icons.ts';
+import { describeModelFile, describeStoredFile } from './storage-file-descriptions.ts';
 
 export interface StoredFile { path: string; size: number; owned: boolean }
 
@@ -29,6 +30,16 @@ import { formatBytes } from './format.ts';
 function showStatus(element: HTMLElement, message: string) {
   element.textContent = message;
   element.hidden = !message;
+}
+
+function fileCell(path: string, description: string) {
+  const cell = document.createElement('td');
+  cell.textContent = path;
+  const note = document.createElement('span');
+  note.className = 'storage-file-description';
+  note.textContent = description;
+  cell.append(note);
+  return cell;
 }
 
 export function setupStorageDashboard(states: ResourceStates, shutdown: () => Promise<void>, onModelCacheChanged?: () => void) {
@@ -112,7 +123,8 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       modelRows.replaceChildren();
       for (const file of modelFiles) {
         const row = document.createElement('tr');
-        for (const text of [file.path, file.size === null ? 'Unknown' : formatBytes(file.size), file.cache]) {
+        row.append(fileCell(file.path, describeModelFile(file.path)));
+        for (const text of [file.size === null ? 'Unknown' : formatBytes(file.size), file.cache]) {
           const cell = document.createElement('td');
           cell.textContent = text;
           row.append(cell);
@@ -175,11 +187,10 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       deleteButtons.length = 0;
       for (const file of files) {
         const row = document.createElement('tr');
-        for (const text of [file.path, formatBytes(file.size)]) {
-          const cell = document.createElement('td');
-          cell.textContent = text;
-          row.append(cell);
-        }
+        row.append(fileCell(file.path, describeStoredFile(file.path)));
+        const size = document.createElement('td');
+        size.textContent = formatBytes(file.size);
+        row.append(size);
         const action = document.createElement('td');
         if (file.owned) {
           const button = document.createElement('button');
