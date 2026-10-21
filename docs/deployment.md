@@ -41,9 +41,10 @@ The existing [Pages workflow](../.github/workflows/pages.yml) runs on pushes to 
 
 1. Uses Node.js 22 and installs the locked dependencies.
 2. Runs the test suite.
-3. Downloads the BEIR NFCorpus archive and runs the preparation script.
+3. Restores the prepared NFCorpus cache or downloads the BEIR archive and runs the preparation script. If BEIR is unavailable, it uses the previously published input. All paths verify the same pinned SHA-256 checksum before building.
 4. Configures Pages and builds with `npm run build -- --base=/ragbox/`.
-5. Uploads `dist/` and deploys the Pages artifact.
+5. Runs Playwright against the production build, including navigation, narrow layouts, guide assets, and database ownership across tabs. Screenshots and failure traces are retained as the `browser-checks` Actions artifact for seven days.
+6. Uploads `dist/` and deploys the Pages artifact only after the checks pass.
 
 In the repository's **Settings → Pages → Build and deployment**, choose **GitHub Actions** as the source. Push the intended changes to `main`, or run **Deploy demo to GitHub Pages** manually from Actions. The deployment job reports the published URL.
 

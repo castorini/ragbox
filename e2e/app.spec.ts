@@ -124,3 +124,10 @@ test('returns composer focus after selecting a collection from the React selecto
   await page.getByRole('button', { name: 'NFCorpus', exact: true }).click();
   await expect(page.getByRole('combobox', { name: 'Ask your documents' })).toBeFocused();
 });
+test('wraps mobile collection actions when fonts have wider metrics', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 }); await page.goto('./'); await ready(page);
+  await page.addStyleTag({ content: 'button { font-size: 15px !important; letter-spacing: .6px; }' });
+  const overflow = await page.evaluate(() => ({ width: innerWidth, document: document.documentElement.scrollWidth,
+    elements: [...document.querySelectorAll<HTMLElement>('body *')].filter(element => element.getClientRects().length && element.getBoundingClientRect().right > innerWidth + 1).map(element => ({ tag: element.tagName, text: element.textContent?.slice(0, 80), width: element.getBoundingClientRect().width })).slice(-10) }));
+  expect(overflow.document, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.width);
+});

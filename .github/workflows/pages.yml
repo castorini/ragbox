@@ -15,6 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,11 +24,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Cache prepared NFCorpus
+        id: nfcorpus-cache
+        uses: actions/cache@v4
+        with:
+          path: public/data/nfcorpus.jsonl
+          key: nfcorpus-beir-${{ hashFiles('scripts/prepare-nfcorpus.ts') }}
       - name: Download and prepare NFCorpus
+        if: steps.nfcorpus-cache.outputs.cache-hit != 'true'
         run: |
-          curl --fail --location --retry 3 https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip --output "$RUNNER_TEMP/nfcorpus.zip"
-          unzip -q "$RUNNER_TEMP/nfcorpus.zip" -d "$RUNNER_TEMP/nfcorpus-data"
-          npm run prepare:nfcorpus -- "$RUNNER_TEMP/nfcorpus-data/nfcorpus/corpus.jsonl"
+          if curl --fail --location --connect-timeout 15 --max-time 60 --retry 1 https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip --output "$RUNNER_TEMP/nfcorpus.zip"; then
+            unzip -q "$RUNNER_TEMP/nfcorpus.zip" -d "$RUNNER_TEMP/nfcorpus-data"
+            npm run prepare:nfcorpus -- "$RUNNER_TEMP/nfcorpus-data/nfcorpus/corpus.jsonl"
+          else
+            echo '::warning::BEIR is unavailable; using the previously published, checksum-verified NFCorpus input.'
+            mkdir -p public/data
+            curl --fail --location --connect-timeout 20 --max-time 120 --retry 1 https://castorini.github.io/ragbox/data/nfcorpus.jsonl --output public/data/nfcorpus.jsonl
+          fi
+      - name: Verify NFCorpus identity
+        run: echo '7e6c0d721548699807a079bd0342bc1357b03e577791f70a967fb3f00d9b4d80  public/data/nfcorpus.jsonl' | sha256sum --check
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
