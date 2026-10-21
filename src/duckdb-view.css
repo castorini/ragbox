@@ -169,3 +169,18 @@
   #duckdb-view .duckdb-worker-route svg{display:none}
 }
 @media(prefers-reduced-motion:reduce){.duckdb-match-fill{transition:none}}
+
+/* Equal outer columns keep the article centered independently of its sidebar. */
+@media(min-width:1180px){
+  main:has(>#duckdb-view:not([hidden])){max-width:1420px}
+  #duckdb-view:not([hidden]){display:grid;grid-template-columns:minmax(160px,1fr) minmax(0,900px) minmax(160px,1fr);column-gap:24px;max-width:none;align-items:start}
+  #duckdb-view>*{grid-column:2;min-width:0}
+  #duckdb-view>.duckdb-contents{grid-column:3;grid-row:1 / span 12;position:sticky;top:24px;margin:0;padding:14px 12px 12px;background:transparent;border-color:#dfe7da}
+  .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr);gap:6px;padding:7px 4px}
+  .duckdb-contents-link strong{font-size:13px;line-height:1.4}
+  .duckdb-contents-link small,.duckdb-contents-link>svg{display:none}
+  #duckdb-view .duckdb-contents-list>li+li{border-top:0}
+  .duckdb-contents-number{margin-top:1px}
+  .duckdb-contents-topics{flex-direction:column;margin:0 0 4px 30px;gap:0}
+  .duckdb-contents-topics a{padding:3px 0}
+}
