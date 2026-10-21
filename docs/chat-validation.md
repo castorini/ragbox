@@ -4,7 +4,7 @@ The Search route now hosts a local conversational workspace. The implementation 
 
 1. **Services and compatibility:** `collection-retrieval.ts` contains normalized, parameterized BM25 queries, including the old NFCorpus schema. `model-service.ts` owns model lifecycle and cancellable inference without DOM access. Existing collection and model controls remain adapters for Settings and compatibility tests.
 2. **Conversation state and orchestration:** `types.ts`, `conversations.ts`, `chat-controller.ts`, `rag.ts`, and `llm-worker.ts` define snapshots, serialized persistence, stage-sensitive retries, request identities, follow-up resolution, and bounded context. `generation-output.ts` separates streamed reasoning from final text, and `generation-budget.ts` applies independent reasoning and final-output limits.
-3. **Presentation:** React components in `src/app`, query-string navigation, and Tailwind/theme CSS provide chronological replies, folded reasoning, expandable sources, a fixed bottom composer, searchable history, and per-collection chats.
+3. **Presentation:** `chat-view.ts`, `index.html`, collection navigation, and CSS provide chronological replies, folded reasoning, expandable sources, a fixed bottom composer, searchable history, and per-collection chats.
 4. **Validation and documentation:** regression tests, supported-browser checks, README, and tour copy cover startup, recovery, persistence, and deployment paths.
 
 ## Automated checks

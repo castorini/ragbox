@@ -2,9 +2,6 @@
 
 # DuckDB-Wasm OPFS Lab
 
-The implementation paths in these historical experiments predate the React port. Use the [development guide](development.md#source-map) for the current runtime, services, and view structure.
-
-
 A small browser-based lab demonstrating persistent SQL databases and NFCorpus full-text search with DuckDB-Wasm and the Origin Private File System (OPFS). Build an FTS index over 3,633 documents, search with BM25, query saved tables after a page reload, and export data for use with native DuckDB.
 
 Based on DuckDB’s article [Persistent Databases in the Browser with DuckDB-Wasm and OPFS](https://duckdb.org/2026/09/18/opfs-wasm) (September 18, 2026). This repository adapts the article’s examples into an interactive page and adds a separate local-query experiment.

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConversationStore, importLegacyHistory, CONVERSATION_LIMIT } from '../src/conversations.ts';
 import { deferred, memoryRepository } from './conversation-fixtures.ts';
-import { matchesConversation, sourceAnchor, handleComposerKey } from '../src/lib/presentation.ts';
+import { matchesConversation, sourceAnchor, handleComposerKey } from '../src/chat-view.ts';
 
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 const legacy = { id: 'h1', time: 1, corpus: 'nfcorpus', query: 'coffee', results: [{ id: 'MED-1', title: 'Sleep evidence', text: 'Text', score: 2 }], answer: 'Finding [MED-1].', citedIds: ['MED-1'], answerStatus: 'stopped' };
