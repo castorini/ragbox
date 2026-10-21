@@ -101,7 +101,7 @@ export class AppRuntime {
       await this.msmarco.checkSaved();
       await conversationsReady;
       if (this.resources.shuttingDown) return;
-      this.status.setState({ phase: 'ready', message: '' });
+      if (this.status.getState().phase !== 'error') this.status.setState({ phase: 'ready', message: '' });
       if (this.conversations.selected === 'msmarco') void this.msmarco.reopenSaved();
       if ((await capability).supported && this.model.model.cache === 'installed' && !this.resources.shuttingDown) void this.model.loadAndWait(true).catch(console.error);
     } catch (error) {

@@ -13,12 +13,13 @@ export const INDEX_SQL = `PRAGMA create_fts_index(
 
 export function createNFCorpusService(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFile'>, conn: Pick<AsyncDuckDBConnection, 'query' | 'prepare'>, run: RunTask, onState?: (phase: ResourcePhase, message: string) => void, loads?: LoadCoordinator, gate = new ResourceStates()) {
   let ready = false;
+  let disposed = false;
   let searchSQL = SEARCH_SQL;
   let loaded = false;
   let queued = false;
   let checking = true;
   function report(phase: ResourcePhase, message: string) {
-    onState?.(phase, message);
+    if (!disposed) onState?.(phase, message);
   }
   async function readSchema() { searchSQL = await nfcorpusSearchSQL(conn); }
   async function loadExtension() {
@@ -46,7 +47,7 @@ export function createNFCorpusService(db: Pick<AsyncDuckDB, 'registerFileText' |
   }
 
   async function prepare() {
-    if (queued || checking || gate.busy || gate.shuttingDown) return;
+    if (disposed || queued || checking || gate.busy || gate.shuttingDown) return;
     queued = true;
     report('preparing', 'Waiting to prepare index…');
     try {
@@ -90,14 +91,15 @@ export function createNFCorpusService(db: Pick<AsyncDuckDB, 'registerFileText' |
   return {
     prepare,
     async retrieve(query: string) {
-      if (!ready || gate.busy || queued || checking || gate.shuttingDown) throw new Error('NFCorpus is not ready to search.');
+      if (disposed || !ready || gate.busy || queued || checking || gate.shuttingDown) throw new Error('NFCorpus is not ready to search.');
       const result = await action(() => retrieveNFCorpus(conn, query), true);
       if (!result) throw new Error('NFCorpus search could not run.');
       return result;
     },
     setBlocked(value: boolean) { gate.setBusy(value); },
-    dispose() {},
+    dispose() { disposed = true; ready = false; },
     async reopenSaved() {
+      if (disposed || gate.shuttingDown) return;
       checking = true;
       report('checking', 'Checking saved index…');
       try {

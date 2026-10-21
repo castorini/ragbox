@@ -1,5 +1,3 @@
-import { requiredElement } from './boundaries.ts';
-import { renderAnswer } from './llm-controller.ts';
 import type { Corpus } from './types.ts';
 
 export interface HistoryResult {
@@ -91,82 +89,6 @@ export class SearchHistory {
   }
 }
 
-function resultItem(doc: Document, entry: HistoryEntry, result: HistoryResult, anchor: boolean) {
-  const item = doc.createElement('li');
-  if (anchor) {
-    item.id = `${entry.id}-${encodeURIComponent(result.id)}`;
-    item.tabIndex = -1;
-  }
-  const title = doc.createElement('h4');
-  title.textContent = result.title;
-  const metadata = doc.createElement('p');
-  metadata.className = 'history-result-meta';
-  metadata.textContent = `${result.id} · BM25 ${Number(result.score).toFixed(4)}`;
-  const excerpt = doc.createElement('p');
-  excerpt.textContent = result.text.slice(0, 350) + (result.text.length > 350 ? '…' : '');
-  item.append(title, metadata, excerpt);
-  return item;
-}
-
-function entryElement(doc: Document, entry: HistoryEntry) {
-  const item = doc.createElement('li');
-  item.className = 'history-entry';
-  const details = doc.createElement('details');
-  const summary = doc.createElement('summary');
-  const query = doc.createElement('span');
-  query.className = 'history-query';
-  query.textContent = entry.query;
-  const cited = entry.citedIds ?? [];
-  const meta = doc.createElement('span');
-  meta.className = 'history-meta';
-  meta.textContent = [
-    corpusNames[entry.corpus] ?? entry.corpus,
-    new Date(entry.time).toLocaleString(),
-    `${entry.results.length} ${entry.results.length === 1 ? 'result' : 'results'}`,
-    entry.answer ? `${cited.length} cited${entry.answerStatus === 'stopped' ? ' · Stopped' : ''}` : 'No answer',
-  ].join(' · ');
-  summary.append(query, meta);
-  details.append(summary);
-
-  if (entry.answer) {
-    const panel = doc.createElement('div');
-    panel.className = 'llm-answer-panel';
-    const heading = doc.createElement('h3');
-    heading.textContent = entry.answerStatus === 'stopped' ? 'Cited answer · Stopped' : 'Cited answer';
-    const answer = doc.createElement('p');
-    answer.className = 'llm-answer';
-    renderAnswer(answer, entry.answer, new Map(cited.map(id => [id, `#${entry.id}-${encodeURIComponent(id)}`])));
-    panel.append(heading, answer);
-    details.append(panel);
-  }
-  const citedResults = entry.results.filter(result => cited.includes(result.id));
-  if (citedResults.length) {
-    const heading = doc.createElement('h3');
-    heading.textContent = 'Cited results';
-    const list = doc.createElement('ol');
-    list.append(...citedResults.map(result => resultItem(doc, entry, result, true)));
-    details.append(heading, list);
-  }
-  if (entry.results.length) {
-    const all = doc.createElement('details');
-    all.className = 'history-all-results';
-    all.open = !citedResults.length;
-    const label = doc.createElement('summary');
-    label.textContent = `All results (${entry.results.length})`;
-    const list = doc.createElement('ol');
-    list.append(...entry.results.map(result => resultItem(doc, entry, result, false)));
-    all.append(label, list);
-    details.append(all);
-  } else {
-    const none = doc.createElement('p');
-    none.className = 'history-no-results';
-    none.textContent = 'This search returned no results.';
-    details.append(none);
-  }
-  item.append(details);
-  return item;
-}
-
 // Every word of the filter must appear in the query, collection, answer, or a result title.
 export function matchesHistory(entry: HistoryEntry, filter: string) {
   const words = filter.toLowerCase().split(/\s+/).filter(Boolean);
@@ -176,45 +98,4 @@ export function matchesHistory(entry: HistoryEntry, filter: string) {
     ...entry.results.map(result => result.title),
   ].join(' ').toLowerCase();
   return words.every(word => text.includes(word));
-}
-
-export function setupHistoryView(history: SearchHistory) {
-  const list = requiredElement<HTMLOListElement>('#history-list');
-  const empty = requiredElement<HTMLElement>('#history-empty');
-  const clear = requiredElement<HTMLButtonElement>('#history-clear');
-  const tools = requiredElement<HTMLElement>('#history-tools');
-  const filter = requiredElement<HTMLInputElement>('#history-filter');
-  const count = requiredElement<HTMLElement>('#history-count');
-  const noMatch = requiredElement<HTMLElement>('#history-no-match');
-  let items: { entry: HistoryEntry; element: HTMLLIElement }[] = [];
-  // Hide non-matching entries in place so expanded entries stay open while typing.
-  function applyFilter() {
-    const value = filter.value.trim();
-    let shown = 0;
-    for (const { entry, element } of items) {
-      element.hidden = !matchesHistory(entry, value);
-      if (!element.hidden) shown++;
-    }
-    const total = items.length;
-    count.textContent = value ? `${shown} of ${total} ${total === 1 ? 'search' : 'searches'}` : `${total} ${total === 1 ? 'search' : 'searches'}`;
-    noMatch.hidden = !value || shown > 0 || total === 0;
-    noMatch.textContent = `No searches match “${value}”.`;
-  }
-  function render() {
-    const entries = history.entries();
-    empty.hidden = entries.length > 0;
-    clear.hidden = entries.length === 0;
-    tools.hidden = entries.length === 0;
-    if (!entries.length) filter.value = '';
-    items = entries.map(entry => ({ entry, element: entryElement(list.ownerDocument, entry) }));
-    list.replaceChildren(...items.map(item => item.element));
-    applyFilter();
-  }
-  filter.oninput = applyFilter;
-  clear.onclick = () => {
-    if (confirm('Clear all search history in this browser?')) history.clear();
-  };
-  history.subscribe(render);
-  render();
-  return { render };
 }

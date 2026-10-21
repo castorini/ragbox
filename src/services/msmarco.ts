@@ -20,6 +20,8 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
   const downloadBytes = 3346542592;
   let prebuilt: Awaited<ReturnType<typeof openPrebuilt>> | undefined;
   let busy = false;
+  let closed = false;
+  let pendingOpen: Promise<unknown> | undefined;
   let checkingSaved = true;
   let hasSaved: boolean | undefined;
   let openingQueued = false;
@@ -32,7 +34,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
     onState?.(phase, message, percent, hasSaved);
   }
   async function action<T>(task: () => Promise<T>, lockDatabase = true, searching = false): Promise<T | undefined> {
-    if (busy || gate.busy || !supported || gate.shuttingDown) return;
+    if (closed || busy || gate.busy || !supported || gate.shuttingDown) return;
     busy = true;
     try {
       const execute = async () => {
@@ -70,7 +72,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
     report('ready', `Ready to search ${prebuilt.count.toLocaleString()} passages.`);
   }
   function download() {
-    if (busy || gate.busy || gate.shuttingDown) return;
+    if (closed || busy || gate.busy || gate.shuttingDown) return;
     pendingDownload = action(async () => {
       await closePrebuilt();
       const root = await navigator.storage.getDirectory();
@@ -78,6 +80,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
       if (estimate.quota != null && estimate.usage != null && estimate.quota - estimate.usage < downloadBytes) {
         throw new Error('Not enough available browser storage for this download.');
       }
+      if (closed || gate.shuttingDown) return;
       const controller = new AbortController();
       downloadController = controller;
       let lastUpdate = 0;
@@ -94,7 +97,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
           },
         });
         hasSaved = true;
-        if (gate.shuttingDown) return;
+        if (closed || gate.shuttingDown) return;
         report('opening', 'Opening index…');
         await connectPrebuilt(true);
       } catch (error) {
@@ -110,19 +113,20 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
     return pendingDownload;
   }
   async function openSaved() {
-    if (openingQueued || busy || !supported || gate.shuttingDown) return;
+    if (closed || openingQueued || busy || !supported || gate.shuttingDown) return;
     openingQueued = true;
     report('opening', 'Opening index…');
     try {
       const open = async () => {
-        while (gate.busy && !gate.shuttingDown) await new Promise<void>(resolve => unblockWaiters.add(resolve));
-        if (gate.shuttingDown) return;
+        while (gate.busy && !gate.shuttingDown && !closed) await new Promise<void>(resolve => unblockWaiters.add(resolve));
+        if (closed || gate.shuttingDown) return;
         return action(async () => {
           await closePrebuilt();
           await connectPrebuilt();
         });
       };
-      return await (loads ? loads.run(open) : open());
+      pendingOpen = loads ? loads.run(open) : open();
+      return await pendingOpen;
     } finally {
       openingQueued = false;
     }
@@ -130,7 +134,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
   if (!supported) report('unsupported', 'File storage unavailable. Use desktop Chrome on HTTPS or localhost.');
   else onState?.('checking', 'Checking saved index…');
   async function checkSaved() {
-    if (!supported || prebuilt) return;
+    if (closed || !supported || prebuilt) return;
     if (checkingPromise) return checkingPromise;
     checkingPromise = (async () => {
       try {
@@ -159,7 +163,7 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
   return {
     download,
     async retrieve(query: string) {
-      if (!prebuilt || busy || gate.busy || openingQueued || gate.shuttingDown) throw new Error('MS MARCO is not ready to search.');
+      if (closed || !prebuilt || busy || gate.busy || openingQueued || gate.shuttingDown) throw new Error('MS MARCO is not ready to search.');
       const index = prebuilt;
       const result = await action(() => retrieveMSMarco(index.conn, query), true, true);
       if (!result) throw new Error('MS MARCO search failed. Retry the question.');
@@ -169,15 +173,18 @@ export function createMSMarcoService(run: RunTask = task => task(), onState?: (p
     cancelDownload() { downloadController?.abort(); },
     checkSaved,
     async reopenSaved() {
-      if (!supported) return;
+      if (closed || !supported) return;
       if (checkingSaved) await checkSaved();
       if (!hasSaved || prebuilt) return;
       await openSaved();
     },
     setBlocked(value: boolean) { gate.setBusy(value); },
     async close() {
+      closed = true;
+      for (const resolve of unblockWaiters) resolve();
+      unblockWaiters.clear();
       downloadController?.abort();
-      await pendingDownload;
+      await Promise.all([pendingDownload, pendingOpen]);
       unsubscribe();
       await closePrebuilt();
       report('saved', 'Saved index available.');

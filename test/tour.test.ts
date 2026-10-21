@@ -1,5 +1,5 @@
 import { it, expect } from 'vitest';
-import { overlayPath, placeCard, TOUR_STEPS, tourSeen, tourSteps, TOUR_KEY } from '../src/tour.ts';
+import { overlayPath, placeCard, TOUR_STEPS, tourSeen, tourSteps, TOUR_KEY } from '../src/tour-geometry.ts';
 
 const view = { w: 1280, h: 800 };
 const card = { w: 360, h: 200 };

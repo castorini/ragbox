@@ -11,8 +11,6 @@
   "include": [
     "vitest.config.ts",
     "scripts/**/*.ts",
-    "vite.config.ts",
-    "playwright.config.ts",
-    "e2e/**/*.ts"
+    "vite.config.ts"
   ]
 }
