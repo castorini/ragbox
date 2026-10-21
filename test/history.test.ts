@@ -1,6 +1,7 @@
 import { it, expect, vi } from 'vitest';
-import { HISTORY_KEY, HISTORY_LIMIT, SearchHistory, matchesHistory } from '../src/history.ts';
-import { citedIds } from '../src/model-service.ts';
+import { HISTORY_KEY, HISTORY_LIMIT, SearchHistory, matchesHistory, setupHistoryView } from '../src/history.ts';
+import { FakeElements, fakeElement } from './fake-elements.ts';
+import { citedIds } from '../src/llm-controller.ts';
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -77,6 +78,26 @@ it('persists a stopped answer and replaces it on retry within the same search', 
   expect(new SearchHistory(storage).entries()[0]).toMatchObject({ id: entry.id, answerStatus: 'complete', answer: 'Complete [MED-1].' });
 });
 
+it('renders stopped answers and treats older answers without a status as complete', () => {
+  const storage = memoryStorage();
+  storage.values.set(HISTORY_KEY, JSON.stringify([
+    { id: 'old', time: 1, corpus: 'nfcorpus', query: 'old', results: [], answer: 'Old complete answer' },
+    { id: 'stopped', time: 2, corpus: 'msmarco', query: 'new', results: [], answer: 'Partial', answerStatus: 'stopped' },
+  ]));
+  const nodes = new FakeElements();
+  const doc = { querySelector: (selector: string) => nodes.get(selector), createElement: fakeElement };
+  Object.assign(nodes.get('#history-list'), { ownerDocument: doc });
+  vi.stubGlobal('document', doc);
+  try {
+    setupHistoryView(new SearchHistory(storage));
+    const details = nodes.get('#history-list').children.map(item => item.children[0]);
+    expect(details[0].children[1].children[0].textContent).toBe('Cited answer');
+    expect(details[1].children[1].children[0].textContent).toBe('Cited answer · Stopped');
+    expect(details[0].children[0].children[1].textContent).not.toContain('Stopped');
+    expect(details[1].children[0].children[1].textContent).toContain('Stopped');
+  } finally { vi.unstubAllGlobals(); }
+});
+
 it('filters history by query, collection, answer, and result titles, ignoring case and word order', () => {
   const entry = {
     id: 'h1', time: 0, corpus: 'nfcorpus' as const, query: 'Is coffee good for the heart?',
@@ -92,4 +113,32 @@ it('filters history by query, collection, answer, and result titles, ignoring ca
   expect(matchesHistory(entry, 'coffee tea')).toBe(false);
   expect(matchesHistory(entry, 'body')).toBe(false);
   expect(matchesHistory(entry, 'ms marco')).toBe(false);
+});
+
+it('narrows the history list as the user types and reports when nothing matches', () => {
+  const elements = new FakeElements();
+  vi.stubGlobal('document', { querySelector: (id: string) => elements.get(id) });
+  const history = new SearchHistory(undefined);
+  history.record({ corpus: 'nfcorpus', query: 'vitamin d', results: [] });
+  history.record({ corpus: 'msmarco', query: 'what causes thunder', results: [] });
+  const list = elements.get('#history-list') as unknown as { ownerDocument: unknown };
+  list.ownerDocument = {
+    createElement: (tag: string) => Object.assign(fakeElement(tag), {
+      className: '', open: false, setAttribute() {}, append(this: { children: unknown[] }, ...items: unknown[]) { this.children.push(...items); },
+    }),
+  };
+  setupHistoryView(history);
+  const filter = elements.get('#history-filter');
+  const shown = () => elements.get('#history-list').children.filter(item => !item.hidden).length;
+  expect(elements.get('#history-tools').hidden).toBe(false);
+  expect(elements.get('#history-count').textContent).toBe('2 searches');
+  filter.value = 'THUNDER';
+  (filter as unknown as { oninput(): void }).oninput();
+  expect(shown()).toBe(1);
+  expect(elements.get('#history-count').textContent).toBe('1 of 2 searches');
+  filter.value = 'zebra';
+  (filter as unknown as { oninput(): void }).oninput();
+  expect(shown()).toBe(0);
+  expect(elements.get('#history-no-match').hidden).toBe(false);
+  vi.unstubAllGlobals();
 });

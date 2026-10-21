@@ -36,7 +36,7 @@ Click **Prepare NFCorpus** on the start page or **Set up collection** in Setting
 3. Creates `nfcorpus` with `id`, `title`, `text`, and `contents`, combining title and text into `contents`.
 4. Builds the index and checkpoints the database.
 
-The indexing statement in [src/services/nfcorpus.ts](../src/services/nfcorpus.ts) is:
+The indexing statement in [src/nfcorpus.ts](../src/nfcorpus.ts) is:
 
 ```sql
 PRAGMA create_fts_index('nfcorpus', 'id', 'contents', overwrite = 1);
@@ -52,7 +52,7 @@ FTS indexes do not automatically track table edits. The setup path rebuilds the 
 
 Select MS MARCO and click **Download MS MARCO index (3.35 GB)**. Confirm the browser-storage download and keep other RAGbox tabs closed. The application checks the estimated available quota, streams the response into OPFS, then opens the saved database and validates its FTS retrieval macro.
 
-The default artifact is pinned in [src/services/msmarco.ts](../src/services/msmarco.ts) to a revision of the [MS MARCO DuckDB FTS dataset](https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/tree/d8b39bc9edc94a16fb77359243163ed80c609c84). Its expected length is **3,346,542,592 bytes**. Progress first reports transfer bytes and then index opening. Allow additional space for browser storage overhead and the optional model.
+The default artifact is pinned in [src/msmarco.ts](../src/msmarco.ts) to a revision of the [MS MARCO DuckDB FTS dataset](https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/tree/d8b39bc9edc94a16fb77359243163ed80c609c84). Its expected length is **3,346,542,592 bytes**. Progress first reports transfer bytes and then index opening. Allow additional space for browser storage overhead and the optional model.
 
 A saved index opens when MS MARCO is selected. If automatic opening fails, use the offered open/retry action; this can recover a saved file without another download. Settings' **Advanced file management** includes a replacement download action.
 
@@ -62,7 +62,7 @@ A saved index opens when MS MARCO is selected. If automatic opening fails, use t
 
 `VITE_MSMARCO_INDEX_URL` overrides the default URL at development-server startup or build time. The value must point directly to the database bytes and use HTTPS, or HTTP on `localhost`/`127.0.0.1`. Cross-origin hosting must allow the browser's fetch through CORS.
 
-The override changes only the URL. The expected byte count remains fixed in `src/services/msmarco.ts`, and the downloader rejects shorter or longer files. Hosting a different database therefore also requires updating that count and the displayed size. The database must have a `msmarco` table with `id` and `contents`, a compatible `fts_main_msmarco` schema including its analyzer and stopwords, and `match_bm25`.
+The override changes only the URL. The expected byte count remains fixed in `src/msmarco.ts`, and the downloader rejects shorter or longer files. Hosting a different database therefore also requires updating that count and the displayed size. The database must have a `msmarco` table with `id` and `contents`, a compatible `fts_main_msmarco` schema including its analyzer and stopwords, and `match_bm25`.
 
 See [deployment](deployment.md#configure-the-ms-marco-download) for environment-variable examples.
 

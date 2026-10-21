@@ -9,6 +9,3 @@ artifacts/
 
 # Local Netlify folder
 .netlify
-
-playwright-report/
-test-results/

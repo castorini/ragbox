@@ -174,7 +174,7 @@ export class ModelService {
     return this.state === 'error' || this.model.failure ? 'Retry loading' : 'Load saved model';
   }
 
-  statusText() {
+  protected statusText() {
     if (this.state === 'checking') return 'Checking model…';
     if (this.state === 'unsupported') return 'Answers unavailable on this device';
     if (this.state === 'loading') {
