@@ -272,7 +272,6 @@ it('checks a saved MS MARCO index without opening it until selected', async () =
   expect(elements.get('#marco-status').textContent).toBe('Saved index available.');
   expect(elements.get('#marco-reopen').hidden).toBe(true);
   expect(elements.get('#marco-fetch').hidden).toBe(true);
-  expect(elements.get('#marco-replace')).toMatchObject({ hidden: false, disabled: false });
   expect(elements.get('#marco-search').disabled).toBe(true);
   await controller.reopenSaved();
   expect(openPrebuilt).toHaveBeenCalledOnce();

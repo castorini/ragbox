@@ -54,7 +54,7 @@ Select MS MARCO and click **Download MS MARCO index (3.35 GB)**. Confirm the bro
 
 The default artifact is pinned in [src/msmarco.ts](../src/msmarco.ts) to a revision of the [MS MARCO DuckDB FTS dataset](https://huggingface.co/datasets/DavidzzzZZZ/msmarco-duckdb-fts/tree/d8b39bc9edc94a16fb77359243163ed80c609c84). Its expected length is **3,346,542,592 bytes**. Progress first reports transfer bytes and then index opening. Allow additional space for browser storage overhead and the optional model.
 
-A saved index opens when MS MARCO is selected. If automatic opening fails, use the offered open/retry action; this can recover a saved file without another download. Settings' **Advanced file management** includes a replacement download action.
+A saved index opens when MS MARCO is selected. If automatic opening fails, use the offered open/retry action; this can recover a saved file without another download. To download a fresh copy, delete the saved file in Settings' **Advanced file management**, then download again.
 
 **Cancel download** aborts the staged write. Cancelling a replacement preserves the previously committed file, which can be reopened. Partial downloads do not resume after a page reload. A completed transfer followed by an opening failure is different from a failed transfer: try reopening before replacing it.
 

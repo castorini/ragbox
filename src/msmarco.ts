@@ -28,7 +28,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   const output = document.querySelector<HTMLOListElement>('#marco-results');
   const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
   const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
-  const replaceButton = requiredElement<HTMLButtonElement>('#marco-replace');
   const searchButton = document.querySelector<HTMLButtonElement>('#marco-search');
   const progress = requiredElement<HTMLProgressElement>('#marco-progress');
   const cancelDownload = requiredElement<HTMLButtonElement>('#marco-cancel-download');
@@ -61,8 +60,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     fetchButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !!hasSaved || retryOpen;
     reopenButton.hidden = checkingSaved || !!prebuilt || busy || openingQueued || !retryOpen;
     reopenButton.textContent = 'Retry opening collection';
-    replaceButton.hidden = !hasSaved;
-    replaceButton.disabled = !supported || checkingSaved || busy || gate.busy || openingQueued;
     fetchButton.disabled = !supported || busy || gate.busy || openingQueued;
     reopenButton.disabled = !supported || busy || gate.busy || openingQueued;
     if (searchButton) searchButton.disabled = !supported || busy || gate.busy || openingQueued || !prebuilt;
@@ -166,7 +163,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     }, false);
   }
   fetchButton.onclick = () => download();
-  replaceButton.onclick = () => download();
   async function openSaved() {
     if (openingQueued || busy || !supported) return;
     openingQueued = true;

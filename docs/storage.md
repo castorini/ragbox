@@ -41,7 +41,7 @@ The History page is currently disabled by [src/features.ts](../src/features.ts).
 
 Open Settings to manage collections and the answer model. The **How it works** tab in the sidebar explains browser execution, BM25 retrieval, local database files, and network requirements. Link directly to it with `?view=duckdb`.
 
-**Advanced file management** exposes OPFS file listings, model-cache listings, refresh controls, individual owned-file deletion, and MS MARCO replacement.
+**Advanced file management** exposes OPFS file listings, model-cache listings, refresh controls, and individual owned-file deletion.
 
 Some cached responses do not advertise a content length. Model storage totals can therefore be reported as a lower bound with some file sizes unknown. The application does not load weight bodies just to compute their sizes.
 
