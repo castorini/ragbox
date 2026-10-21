@@ -230,17 +230,13 @@ it('blocks deletion during active work and leaves storage alone when confirmatio
   expect(ui.root.removeEntry).not.toHaveBeenCalled();
 });
 
-it('closes databases before deleting a database and its WAL, then reloads', async () => {
+it('lists files without an action column, offering Delete only beside MS MARCO files', async () => {
   const ui = harness();
   await ready(ui);
-  const row = ui.elements.get('#storage-files').children[0];
-  row.children[2].children[0].onclick();
-  await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
-  expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ui.root.removeEntry).mock.invocationCallOrder[0]);
-  expect(vi.mocked(ui.root.removeEntry).mock.calls.map(call => call[0])).toEqual([
-    'analytics.duckdb.wal', 'analytics.duckdb.wal.checkpoint', 'analytics.duckdb.wal.recovery', 'analytics.duckdb',
-  ]);
-  expect(ui.elements.get('#storage-files').children[1].children[2].textContent).toBe('Other origin file');
+  const [analytics, other] = ui.elements.get('#storage-files').children;
+  expect(analytics.children).toHaveLength(2);
+  expect(analytics.children[0].children[0].children.map(item => item.textContent)).toEqual(['analytics.duckdb']);
+  expect(other.children[0].children[0].children[1].textContent).toBe('Other origin file');
 });
 
 it.each([0, 512])('recognizes the MS MARCO WAL as an app file and deletes it with its database (%i bytes)', async walSize => {
@@ -255,10 +251,13 @@ it.each([0, 512])('recognizes the MS MARCO WAL as an app file and deletes it wit
   expect(ui.elements.get('#storage-summary').textContent).toBe(`3 app files · ${formatBytes(3072 + walSize)}`);
   expect(ui.elements.get('#storage-usage').textContent).toBe(formatBytes(3072 + walSize));
   const rows = ui.elements.get('#storage-files').children;
-  const walRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb.wal')!;
-  expect(walRow.children[2].children[0]).toMatchObject({ title: 'Delete msmarco-prebuilt.duckdb.wal' });
-  const databaseRow = rows.find(row => row.children[0].textContent === 'msmarco-prebuilt.duckdb')!;
-  databaseRow.children[2].children[0].onclick();
+  const fileName = (row: typeof rows[number]) => row.children[0].children[0].children[0].textContent;
+  const deleteButton = (row: typeof rows[number]) => row.children[0].children[0].children[1];
+  const walRow = rows.find(row => fileName(row) === 'msmarco-prebuilt.duckdb.wal')!;
+  expect(deleteButton(walRow)).toMatchObject({ title: 'Delete msmarco-prebuilt.duckdb.wal' });
+  const databaseRow = rows.find(row => fileName(row) === 'msmarco-prebuilt.duckdb')!;
+  expect(databaseRow.children).toHaveLength(2);
+  deleteButton(databaseRow).onclick();
   await vi.waitFor(() => expect(ui.reload).toHaveBeenCalledOnce());
   expect(ui.shutdown.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(ui.root.removeEntry).mock.invocationCallOrder[0]);
   expect(vi.mocked(ui.root.removeEntry).mock.calls.map(call => call[0])).toEqual([

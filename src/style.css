@@ -512,3 +512,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 /* The collection cards already offer each setup action on the start page; keep only the message. */
 #search-view:has(#chat-empty:not([hidden])) .search-help .inline-setup-actions>button{display:none}
 #search-view:has(#chat-empty:not([hidden])){gap:14px}
+
+/* Saved index files: the MS MARCO Delete button sits beside its file name (no Action column). */
+.storage-file-line{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px}
+.storage-file-note{font-size:12px;color:var(--muted)}
+#setup-view .storage-file-delete{min-height:32px;padding:4px 10px;font-size:13px}
+#setup-view .storage-file-delete svg{width:16px;height:16px}

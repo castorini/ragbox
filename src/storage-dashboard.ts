@@ -187,25 +187,40 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       deleteButtons.length = 0;
       for (const file of files) {
         const row = document.createElement('tr');
-        row.append(fileCell(file.path, describeStoredFile(file.path)));
-        const size = document.createElement('td');
-        size.textContent = formatBytes(file.size);
-        row.append(size);
-        const action = document.createElement('td');
-        if (file.owned) {
+        // Only MS MARCO files can be deleted here, with the button beside the file name;
+        // NFCorpus data is removed with Delete index data instead.
+        const nameCell = document.createElement('td');
+        const nameLine = document.createElement('div');
+        nameLine.className = 'storage-file-line';
+        const name = document.createElement('span');
+        name.className = 'storage-file-name';
+        name.textContent = file.path;
+        nameLine.append(name);
+        if (file.owned && file.path.startsWith('msmarco-prebuilt.duckdb')) {
           const button = document.createElement('button');
           button.type = 'button';
           const label = document.createElement('span');
           label.textContent = 'Delete';
-          button.append(appIcon(Trash2, 18), label);
-          button.className = 'danger settings-delete-button';
+          button.append(appIcon(Trash2, 16), label);
+          button.className = 'danger settings-delete-button storage-file-delete';
           button.title = `Delete ${file.path}`;
           button.setAttribute('aria-label', `Delete ${file.path}`);
           button.onclick = () => { void remove(file.path); };
           deleteButtons.push(button);
-          action.append(button);
-        } else action.textContent = 'Other origin file';
-        row.append(action);
+          nameLine.append(button);
+        } else if (!file.owned) {
+          const note = document.createElement('span');
+          note.className = 'storage-file-note';
+          note.textContent = 'Other origin file';
+          nameLine.append(note);
+        }
+        const description = document.createElement('span');
+        description.className = 'storage-file-description';
+        description.textContent = describeStoredFile(file.path);
+        nameCell.append(nameLine, description);
+        const size = document.createElement('td');
+        size.textContent = formatBytes(file.size);
+        row.append(nameCell, size);
         rows.append(row);
       }
       const owned = files.filter(file => file.owned);
