@@ -139,11 +139,12 @@
         </header>
         <ol class="duckdb-guide-steps" role="list" aria-label="Steps for your first search">
           <li class="duckdb-guide-step">
-            <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">01</span><h3>Choose and prepare a collection</h3><span class="duckdb-guide-badge">One-time setup</span></div>
+            <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">01</span><h3>Prepare your collection and answer model</h3><span class="duckdb-guide-badge">One-time setup</span></div>
             <p>In Chat, select <strong>NFCorpus</strong> and click <strong>Prepare NFCorpus</strong>. Wait for <strong>Ready to search</strong>. The collection and its index are saved in this browser for next time.</p>
             <figure class="duckdb-guide-figure">
               <a class="duckdb-guide-screenshot" href="./images/how-it-works/01-choose-collection.png" target="_blank" rel="noopener noreferrer" aria-label="Open full-size screenshot of the collection cards"><img src="/images/how-it-works/01-choose-collection.png" width="918" height="205" alt="Collection cards: NFCorpus is selected and ready to search; MS MARCO is downloaded and opens automatically when selected." decoding="async"></a>
             </figure>
+            <p class="duckdb-guide-note"><strong>Optional answer model:</strong> For cited answers, open <a id="duckdb-guide-model" href="?view=setup#model">Model settings</a>, click <strong>Download model (~1.84 GB)</strong>, and wait until the model is ready. This one-time download needs a supported GPU; the model runs on your device. You can search and read sources without it.</p>
           </li>
           <li class="duckdb-guide-step">
             <div class="duckdb-guide-step-heading"><span class="duckdb-guide-step-number" aria-hidden="true">02</span><h3>Enter your search and send</h3></div>
@@ -168,7 +169,6 @@
               <a class="duckdb-guide-screenshot" href="./images/how-it-works/04-cited-answer.png" target="_blank" rel="noopener noreferrer" aria-label="Open full-size screenshot of a cited answer"><img src="/images/how-it-works/04-cited-answer.png" width="927" height="282" alt="RAGbox answers Do nuts lower cholesterol? in a short paragraph with citations to MED-4301, MED-2381, MED-4706 and MED-4289, noting that not all lipid measures show consistent benefits." loading="lazy" decoding="async"></a>
               <figcaption>The answer to <strong>Do nuts lower cholesterol?</strong>, citing the sources from step 3.</figcaption>
             </figure>
-            <p class="duckdb-guide-note">Download the model once in <a id="duckdb-guide-model" href="?view=setup#model">Model settings</a> (~1.84 GB, needs a supported GPU). It runs on your device.</p>
           </li>
         </ol>
       </section>
