@@ -9,7 +9,8 @@ Use the collection and model status messages in Chat or Settings to identify the
 | `npm ci` or the build reports an unsupported Node version | Use the range in [package.json](../package.json): `^22.12.0` or `>=24.0.0`. Reinstall with `npm ci`. |
 | The development server reports port `5173` is in use | Stop the conflicting process or existing server. `npm run dev` intentionally uses a strict port. |
 | OPFS is unavailable | Use a supported browser on HTTPS or a loopback URL. Open the served application, not `index.html` as a file. Browser privacy settings can also restrict storage. |
-| Startup reports a locked database or conversation storage asks you to close other tabs | Close other RAGbox tabs on the same origin and reload. DuckDB OPFS handles are exclusive. |
+| Startup says RAGbox is already open in another tab or window | Continue in the other tab, or close it and reload this page. RAGbox uses an origin-scoped Web Lock to allow one database owner at a time; the browser releases the lock when the tab closes or crashes. |
+| Startup reports the local database is already in use, or conversation storage asks you to close other tabs | Close other RAGbox tabs on the same origin and reload. DuckDB OPFS handles are exclusive. Older tabs and browsers without Web Locks are detected through the database lock error, so the message says another tab may be using it. |
 | The page loads but DuckDB initialization or FTS loading fails | Inspect failed network requests for the DuckDB worker, Wasm module, or matching FTS extension. Check network restrictions and the host's content/security policy. |
 | Assets or workers fail under a hosted subpath | Build with the matching Vite `--base`. The current Pages command explicitly uses `/ragbox/`; see [deployment](deployment.md). |
 

@@ -1,4 +1,5 @@
 import { openLocalDatabase } from './open-local-database.ts';
+import { acquireDatabaseLock } from './database-lock.ts';
 import { setupSearchGuidance } from './search-guidance.ts';
 import { setupCollectionChooser } from './collection-chooser.ts';
 import * as duckdb from '@duckdb/duckdb-wasm';
@@ -38,6 +39,7 @@ if (!tourSeen()) {
   }, 700);
 }
 let db: duckdb.AsyncDuckDB | undefined;
+let releaseDatabaseLock: (() => void) | undefined;
 let marco: ReturnType<typeof setupMSMarco> | undefined;
 let nfcorpus: ReturnType<typeof setupNFCorpus> | undefined;
 const chooser = setupCollectionChooser(value => {
@@ -91,6 +93,13 @@ if (HISTORY_ENABLED) {
 window.addEventListener('pagehide', () => { void conversations.flush(); });
 const capability = llm.initializeCapability();
 let conn: duckdb.AsyncDuckDBConnection | undefined;
+async function terminateDatabase() {
+  await db?.terminate();
+  db = undefined;
+  conn = undefined;
+  releaseDatabaseLock?.();
+  releaseDatabaseLock = undefined;
+}
 const storage = setupStorageDashboard(states, async () => {
   states.beginShutdown();
   requiredElement<HTMLButtonElement>('#llm-load').disabled = true;
@@ -107,8 +116,7 @@ const storage = setupStorageDashboard(states, async () => {
       await conn.close();
       conn = undefined;
     }
-    await db?.terminate();
-    db = undefined;
+    await terminateDatabase();
   });
 }, () => { void llm.refreshCache(); });
 llm.setOnLoadSettled(() => { void storage.refresh(); });
@@ -119,6 +127,7 @@ async function main() {
     states.set('msmarco', 'unsupported', 'OPFS is unavailable in this browser.');
     throw new Error('OPFS requires a supported browser on localhost or HTTPS');
   }
+  releaseDatabaseLock = await acquireDatabaseLock(navigator.locks);
   const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
   const workerUrl = URL.createObjectURL(new Blob([
     `importScripts(${JSON.stringify(bundle.mainWorker)});`
@@ -151,9 +160,7 @@ main().catch(async error => {
   if (states.get('nfcorpus').phase !== 'unsupported') states.set('nfcorpus', 'error', status.textContent);
   if (states.get('msmarco').phase !== 'unsupported') states.set('msmarco', 'error', status.textContent);
   console.error(error);
-  if (db) await db.terminate().catch(console.error);
-  db = undefined;
-  conn = undefined;
+  await terminateDatabase().catch(console.error);
 }).finally(() => {
   storage.initialized();
   void storage.refresh();

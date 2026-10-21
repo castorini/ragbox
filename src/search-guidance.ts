@@ -12,7 +12,7 @@ function guidance(name: ResourceName, state: ResourceState, busy: boolean): stri
     case 'downloading': return state.message;
     case 'missing': return `${label} needs an index before search is available.`;
     case 'error': return state.message.startsWith('Startup failed:')
-      ? 'Startup failed. Reload this page to retry.'
+      ? 'Startup failed. Follow the message above, then reload this page to retry.'
       : `${label} could not be opened. Review the error and retry in Settings.`;
     case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
     default: return state.message;
