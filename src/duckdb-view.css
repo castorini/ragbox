@@ -1,4 +1,4 @@
-/* DuckDB's explanation uses the same palette as chat, with diagrams scoped to this page. */
+/* Technical component documentation and diagrams scoped to How it works. */
 #duckdb-view{max-width:900px;margin-inline:auto;padding:32px 0}
 #duckdb-view svg{width:18px;height:18px;flex-shrink:0}
 #duckdb-view .setup-card{padding:24px;margin-bottom:18px;box-shadow:none}
@@ -15,65 +15,21 @@
 .duckdb-contents-link:hover{background:#e6eede}
 .duckdb-contents-number{align-self:start;margin-top:3px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;color:#74856b}
 .duckdb-contents-link strong{display:block;font-size:15px;line-height:1.5;font-weight:650}
-.duckdb-contents-link small{display:block;margin-top:2px;font-size:12px;line-height:1.5;color:var(--muted)}
 .duckdb-contents-link>svg{color:#7d9373}
-.duckdb-contents-topics{display:flex;flex-wrap:wrap;gap:0 16px;list-style:none;margin:0 0 0 38px;padding:0}
-#duckdb-view .duckdb-contents-topics>li{padding:0;border:0}
-.duckdb-contents-topics a{display:inline-block;padding:4px 0;font-size:12px;line-height:1.6;text-decoration-color:#9aac90}
 .duckdb-contents a:focus-visible{outline:3px solid #76aa96;outline-offset:2px;border-radius:4px}
-#duckdb-view .duckdb-guide{padding:28px}
-#duckdb-view .duckdb-guide h2{font-size:21px;margin:0}
-#duckdb-view .duckdb-guide h3{font-size:16px;line-height:1.5;letter-spacing:-.15px}
-#duckdb-view .duckdb-guide p{font-size:14px;line-height:1.75;color:#53665b;margin:12px 0 0}
-.duckdb-guide-intro{padding-bottom:24px}
-#duckdb-view .duckdb-guide-intro p{margin-top:8px;max-width:65ch}
-.duckdb-guide-steps{list-style:none;padding:0;margin:0}
-#duckdb-view .duckdb-guide-step{min-width:0;padding:26px 0;border-top:1px solid var(--line)}
-.duckdb-guide-step-heading{display:flex;align-items:center;flex-wrap:wrap;gap:10px;color:var(--accent)}
-.duckdb-guide-step-number{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid #cbdcc3;border-radius:50%;background:#eff5ea;color:var(--accent);font-size:12px;font-weight:750;font-variant-numeric:tabular-nums}
-.duckdb-guide-badge{display:inline-block;padding:3px 8px;border-radius:5px;background:#f2f3ec;color:#60705f;font-size:10px;line-height:1.5;font-weight:600;white-space:nowrap}
-.duckdb-guide-figure{margin:18px 0 0}
-.duckdb-guide-screenshot{display:block;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#f5f5ef;cursor:zoom-in}
-.duckdb-guide-screenshot:hover{border-color:#8eae9b}
-.duckdb-guide-screenshot img{display:block;width:100%;height:auto}
-.duckdb-guide-figure figcaption{font-size:11px;line-height:1.7;color:var(--muted);margin-top:8px}
-.duckdb-guide-figure figcaption span{white-space:nowrap}
-#duckdb-view .duckdb-guide .duckdb-guide-note{font-size:12px;color:var(--muted);margin-top:12px}
-.duckdb-guide-note a{display:inline-block;padding-block:4px}
-#duckdb-view .duckdb-guide-background{display:flex;align-items:flex-start;gap:9px;background:#f4f7f0;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.7}
-.duckdb-guide-background>svg{margin-top:2px;color:var(--accent)}
-.duckdb-guide a:focus-visible{outline:3px solid #76aa96;outline-offset:4px}
-.duckdb-guide kbd{font-family:inherit;font-size:12px;padding:1px 4px;background:#fff;border:1px solid #d1dfcb;border-radius:4px;white-space:nowrap}
 .duckdb-section-heading{display:flex;align-items:center;gap:12px}
 .duckdb-heading-icon{display:grid;place-items:center;flex:none;width:38px;height:38px;background:#eff3e9;color:var(--accent);border-radius:10px}
-.duckdb-match-demo{margin:22px 0;background:#f7f8f3;border:1px solid var(--line);border-radius:12px;padding:18px}
-.duckdb-demo-toolbar{display:grid;grid-template-columns:auto minmax(150px,220px) 18px 1fr;align-items:center;gap:12px}
-.duckdb-demo-toolbar label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600}
-.duckdb-demo-toolbar select{width:100%;min-height:44px;font-size:13px}
-.duckdb-token-arrow{color:#8ea18b}
-.duckdb-tokens{display:flex;gap:6px;flex-wrap:wrap}
-.duckdb-tokens span{padding:4px 8px;border-radius:5px;background:#dfebd5;color:#315a3d;font-family:ui-monospace,monospace;font-size:12px;font-weight:600}
-#duckdb-view .duckdb-demo-note{font-size:11px;color:var(--muted);margin:10px 0 0}
-.duckdb-match-labels{display:flex;justify-content:space-between;gap:10px;font-size:10px;font-weight:600;color:var(--muted);margin-top:18px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-.duckdb-match-list{list-style:none;margin:0;padding:0}
-.duckdb-match-row{display:grid;grid-template-columns:18px minmax(0,1fr) 120px 42px;align-items:center;gap:10px;padding:14px 0;border-bottom:1px solid var(--line)}
-.duckdb-match-row>svg{color:#81917d}
-#duckdb-view .duckdb-match-row p{font-size:13px;line-height:1.6;margin:0;color:#44594c}
-.duckdb-match-text mark{background:#dfebd5;color:#244d32;border-radius:3px;padding:1px 2px}
-.duckdb-match-track{height:7px;background:#e4e9df;border-radius:4px;overflow:hidden}
-.duckdb-match-fill{display:block;height:100%;border-radius:inherit;background:var(--accent);transition:width .25s ease}
-.duckdb-match-count{font-size:11px;font-variant-numeric:tabular-nums;text-align:right;color:var(--muted)}
-.duckdb-match-demo figcaption{font-size:11px;line-height:1.6;color:var(--muted);margin-top:12px}
-.duckdb-ranking-factors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;list-style:none;padding:0;margin:18px 0}
-.duckdb-ranking-factors li{display:flex;align-items:flex-start;gap:9px}
-.duckdb-ranking-factors svg{color:var(--accent);margin-top:2px}
-#duckdb-view .duckdb-ranking-factors h3{font-size:12px}
-#duckdb-view .duckdb-ranking-factors p{font-size:11px;line-height:1.6;margin:5px 0 0}
 .duckdb-query{margin-top:16px;border-top:1px solid var(--line);padding-top:8px}
 .duckdb-query summary{font-size:12px;font-weight:600;color:var(--accent);min-height:44px;padding:12px 0}
 .duckdb-query summary:focus-visible{outline:3px solid #76aa96;outline-offset:4px;border-radius:5px}
 .duckdb-query pre{overflow-x:auto;padding:16px;border:1px solid var(--line);border-radius:10px;background:#f5f7f1;font-size:12px;line-height:1.8;margin:8px 0 0}
 #duckdb-view .duckdb-query p{font-size:12px;line-height:1.6;margin:12px 0 0}
+#duckdb-view :is(p,dd) code{font-size:.92em;overflow-wrap:anywhere}
+.duckdb-model-specs{margin:20px 0 0}
+.duckdb-model-specs>div{display:grid;grid-template-columns:140px minmax(0,1fr);gap:20px;padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.7}
+.duckdb-model-specs>div:first-child{border-top:1px solid var(--line)}
+.duckdb-model-specs dt{font-weight:650;color:#2d4939}
+.duckdb-model-specs dd{margin:0;min-width:0;color:#53665b}
 .duckdb-storage-map{margin:24px 0 0}
 .duckdb-storage-list{margin:0}
 .duckdb-storage-row{display:grid;grid-template-columns:160px 140px minmax(0,1fr);align-items:center;gap:20px;padding:18px 0;border-bottom:1px solid var(--line)}
@@ -82,14 +38,11 @@
 .duckdb-storage-row dt>svg{color:var(--accent)}
 .duckdb-storage-row dd{min-width:0;margin:0;font-size:12px;line-height:1.6;color:#53665b}
 .duckdb-storage-location{font-weight:600}
-.duckdb-storage-location small{display:block;font-size:10px;font-weight:400;color:var(--muted);margin-top:2px}
 .duckdb-stored-files{display:grid;gap:14px;list-style:none;margin:0;padding:0}
 .duckdb-stored-files li{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px}
 .duckdb-stored-files li>span{min-width:66px;font-size:11px;font-weight:600}
 .duckdb-stored-files code{font-size:11px;overflow-wrap:anywhere;color:var(--muted)}
 #duckdb-view .duckdb-stored-files p{flex-basis:100%;font-size:11px;line-height:1.6;color:var(--muted);margin:2px 0 0}
-.duckdb-storage-map figcaption{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.6;color:var(--muted);margin-top:16px}
-#duckdb-view .duckdb-storage-map figcaption svg{width:14px;height:14px;margin-top:2px}
 .duckdb-execution{margin:24px 0 0}
 .duckdb-browser-boundary{border:1px solid #cbd9c4;border-radius:12px;background:#f7f9f3;overflow:hidden}
 .duckdb-browser-label{display:flex;align-items:center;gap:7px;border-bottom:1px solid #dce5d6;padding:10px 16px;font-size:11px;font-weight:600;color:var(--accent)}
@@ -114,14 +67,7 @@
 .duckdb-hardware{margin-left:auto;padding:2px 6px;background:#edf3e7;border-radius:4px;font-size:9px;font-weight:600;color:#4f6943;white-space:nowrap}
 .duckdb-model-node .duckdb-hardware{background:#f5eddb;color:#806b3b}
 #duckdb-view .duckdb-worker-node p{font-size:12px;line-height:1.65;color:#53665b;margin:8px 0 0}
-.duckdb-execution figcaption{display:flex;align-items:flex-start;gap:7px;font-size:11px;line-height:1.6;color:var(--muted);margin-top:14px}
-#duckdb-view .duckdb-execution figcaption svg{width:14px;height:14px;margin-top:2px;color:var(--accent)}
-#duckdb-view .duckdb-network-note{font-size:11px;color:var(--muted);margin-top:10px}
 @media(max-width:800px){
-  .duckdb-demo-toolbar{grid-template-columns:auto minmax(0,1fr)}
-  .duckdb-token-arrow{display:none}
-  .duckdb-tokens{grid-column:2}
-  .duckdb-match-row{grid-template-columns:18px minmax(0,1fr) 70px 34px;gap:8px}
   .duckdb-storage-row{grid-template-columns:140px 110px minmax(0,1fr);gap:16px}
   .duckdb-execution-workspace{--duckdb-wire:6px;grid-template-columns:100px minmax(0,1fr);gap:12px;padding:14px}
   .duckdb-worker-lane{grid-template-columns:88px minmax(0,1fr);gap:10px}
@@ -130,26 +76,10 @@
   #duckdb-view{padding-top:24px}
   .duckdb-contents{padding:14px;margin-bottom:18px}
   .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr) 16px;gap:8px}
-  .duckdb-contents-topics{margin-left:32px;gap:0 12px}
   #duckdb-view .setup-card{padding:18px}
-  #duckdb-view .duckdb-guide{padding:18px}
-  #duckdb-view .duckdb-guide h2{font-size:19px}
-  #duckdb-view .duckdb-guide h3{font-size:15px}
-  #duckdb-view .duckdb-guide-step{padding:22px 0}
-  .duckdb-guide-step-heading{display:grid;grid-template-columns:30px minmax(0,1fr);gap:8px}
-  .duckdb-guide-step-number{width:30px;height:30px}
-  .duckdb-guide-step-heading>.duckdb-guide-badge{grid-column:2;justify-self:start}
   .duckdb-section-heading{align-items:flex-start}
   #duckdb-view h2{font-size:18px}
-  .duckdb-match-demo{padding:14px}
-  .duckdb-demo-toolbar{grid-template-columns:minmax(0,1fr);gap:9px}
-  .duckdb-tokens{grid-column:1}
-  .duckdb-match-row{grid-template-columns:18px minmax(0,1fr) 34px;row-gap:6px}
-  .duckdb-match-row .duckdb-match-text{grid-column:2/4}
-  .duckdb-match-track{grid-column:2;grid-row:2}
-  .duckdb-match-count{grid-column:3;grid-row:2}
-  .duckdb-match-labels{flex-wrap:wrap;font-size:9px}
-  .duckdb-ranking-factors{grid-template-columns:1fr;gap:14px}
+  .duckdb-model-specs>div{grid-template-columns:minmax(0,1fr);gap:4px}
   .duckdb-storage-row{grid-template-columns:18px minmax(0,1fr);gap:8px}
   .duckdb-storage-row dt{grid-column:1/-1}
   .duckdb-storage-row dd{grid-column:2}
@@ -168,19 +98,16 @@
   .duckdb-worker-route small{display:inline;font-size:inherit;font-weight:600}
   #duckdb-view .duckdb-worker-route svg{display:none}
 }
-@media(prefers-reduced-motion:reduce){.duckdb-match-fill{transition:none}}
 
-/* Wide windows: "On this page" becomes a sticky sidebar beside the guide instead of a box above it. */
+/* Keep component navigation beside the technical sections on wide screens. */
 @media (min-width:1180px){
   main:has(>#duckdb-view:not([hidden])){max-width:1240px}
   #duckdb-view:not([hidden]){display:grid;grid-template-columns:minmax(0,900px) 200px;column-gap:40px;max-width:none;align-items:start}
   #duckdb-view>*{grid-column:1}
-  #duckdb-view>.duckdb-contents{grid-column:2;grid-row:1 / span 12;position:sticky;top:24px;margin:0;padding:14px 14px 12px;background:transparent;border-color:#dfe7da}
+  #duckdb-view>.duckdb-contents{grid-column:2;grid-row:1 / span 5;position:sticky;top:24px;margin:0;padding:14px 14px 12px;background:transparent;border-color:#dfe7da}
   .duckdb-contents-link{grid-template-columns:20px minmax(0,1fr);gap:6px;padding:7px 4px}
   .duckdb-contents-link strong{font-size:13px;line-height:1.4}
-  .duckdb-contents-link small,.duckdb-contents-link>svg{display:none}
+  .duckdb-contents-link>svg{display:none}
   #duckdb-view .duckdb-contents-list>li+li{border-top:0}
   .duckdb-contents-number{margin-top:1px}
-  .duckdb-contents-topics{flex-direction:column;margin:0 0 4px 30px;gap:0}
-  .duckdb-contents-topics a{padding:3px 0}
 }

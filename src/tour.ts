@@ -62,7 +62,7 @@ const ALL_STEPS: TourStep[] = [
   {
     target: () => document.querySelector<HTMLElement>('#nav-duckdb'),
     title: 'Learn more in How it works',
-    body: () => 'How it works walks through a first search step by step, with screenshots, and explains what happens on your device: how questions become keywords, how results are ranked, and where your data is saved.',
+    body: () => 'How it works documents the technical architecture: DuckDB-Wasm and BM25 retrieval, local model inference with WebGPU, worker communication, and browser storage.',
     hint: 'Open it anytime from the sidebar.',
     placement: 'right',
   },

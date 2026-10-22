@@ -55,6 +55,6 @@ it('puts the Settings card beside the sidebar, pointing at the icon', () => {
 
 it('leaves out the History step while History is turned off', () => {
   expect(tourSteps(false).map(step => step.title)).toEqual(['Choose a collection', 'Add cited answers', 'Details live in Settings', 'Learn more in How it works', 'Ask a question']);
-  expect(tourSteps(false)[3].body('idle')).toMatch(/step by step.*on your device/);
+  expect(tourSteps(false)[3].body('idle')).toMatch(/technical architecture.*DuckDB-Wasm.*WebGPU/);
   expect(TOUR_STEPS).toEqual(tourSteps(false));
 });

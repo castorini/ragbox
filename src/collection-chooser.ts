@@ -69,7 +69,7 @@ export function setupCollectionChooser(
     const hash = new URL(window.location.href).hash;
     const sectionTarget = view === 'setup' && setupSections.includes(hash.slice(1))
       ? (hash === '#storage-management' ? '#collection-management' : hash) : undefined;
-    const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'duckdb' ? '#duckdb-intro-heading' : view === 'history'
+    const target = view === 'setup' ? (sectionTarget ?? '#setup-heading') : view === 'duckdb' ? '#duckdb-heading' : view === 'history'
       ? '#history-heading'
       : composer();
     skipLink.href = target;
@@ -135,7 +135,6 @@ export function setupCollectionChooser(
   for (const [id, view] of [
     ['#nav-search', 'search'], ['#nav-history', 'history'], ['#nav-setup', 'setup'],
     ['#nav-duckdb', 'duckdb'], ['#duckdb-back', 'search'],
-    ['#duckdb-guide-chat', 'search'], ['#duckdb-guide-model', 'setup'],
     ['#fts-setup-link', 'setup'], ['#marco-setup-link', 'setup'],
     ['#model-setup-link', 'setup'], ['#model-repair-link', 'setup'], ['#setup-back', 'search'],
     ['#model-storage-repair', 'setup'],
@@ -143,7 +142,7 @@ export function setupCollectionChooser(
   ] as const) {
     requiredElement<HTMLAnchorElement>(id).onclick = event => {
       event.preventDefault();
-      if (id === '#model-setup-link' || id === '#model-storage-repair' || id === '#duckdb-guide-model') openSetupSection('model');
+      if (id === '#model-setup-link' || id === '#model-storage-repair') openSetupSection('model');
       else if (id === '#model-repair-link') openSetupSection('model-storage');
       else if (id === '#fts-setup-link') openSetupSection('setup-nfcorpus');
       else if (id === '#marco-setup-link') openSetupSection('setup-msmarco');

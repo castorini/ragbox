@@ -18,11 +18,10 @@ import { ChatController } from './chat-controller.ts';
 import { setupChatView, setupConversationHistory } from './chat-view.ts';
 import { HISTORY_ENABLED } from './features.ts';
 import { setupTour, tourSeen } from './tour.ts';
-import { setupDuckDBView } from './duckdb-view.ts';
+import './duckdb-view.css';
 import { setupIcons } from './icons.ts';
 
 setupIcons();
-setupDuckDBView();
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
 const loads = new LoadCoordinator();
