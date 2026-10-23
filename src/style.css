@@ -338,8 +338,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 .tour-card[data-side=below] .tour-arrow{top:-6px}
 .tour-card[data-side=above] .tour-arrow{bottom:-6px}
 .tour-card[data-side=right] .tour-arrow{left:-6px;top:var(--arrow-at,50%);transform:translateY(-50%) rotate(45deg)}
-.tour-replay{display:block;margin:14px auto 0;border:0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:6px 10px;min-width:0}
-.tour-replay:hover:not(:disabled){background:none;color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.tour-replay{display:grid;place-items:center;width:44px;height:44px;min-width:44px;margin:14px auto 0;border:0;background:none;color:var(--muted);padding:10px}
+.tour-replay svg{display:block;width:24px;height:24px}
+.tour-replay:hover:not(:disabled){background:#e8f1eb;color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.tour,.tour-card,.tour-dots i{transition:none}.tour-ring{animation:none}}
 
 /* Conversational workspace. */
@@ -411,7 +412,6 @@ form.examples-open .example-queries{border-color:#76aa96}
 #search-view:has(#chat-empty:not([hidden])) .corpus-cards{order:3}
 #search-view:has(#chat-empty:not([hidden])){position:relative}
 #search-view:has(#chat-empty:not([hidden])) .tour-replay{position:absolute;top:40px;right:0;margin:0}
-.tour-replay-link{text-decoration:underline;text-underline-offset:3px}
 #search-view:has(#chat-empty:not([hidden])) .chat-transcript{display:none}
 #search-view:has(#chat-empty:not([hidden])) .collection-panel,
 #search-view:has(#chat-empty:not([hidden])) .search-toolbar,
