@@ -211,28 +211,31 @@ LIMIT 10;</code></pre>
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-files-heading">
       <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="hard-drive" aria-hidden="true"></i></span><h2 id="duckdb-files-heading" tabindex="-1">Browser storage</h2></div>
       <figure class="duckdb-storage-map" aria-labelledby="duckdb-files-heading">
-        <dl class="duckdb-storage-list">
-          <div class="duckdb-storage-row">
-            <dt><i data-lucide="database" aria-hidden="true"></i>Collection databases</dt>
-            <dd class="duckdb-storage-location">OPFS</dd>
-            <dd>
+        <table class="duckdb-storage-table" role="table" aria-labelledby="duckdb-files-heading">
+          <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Component</th><th scope="col" role="columnheader">Storage API</th><th scope="col" role="columnheader">Stored data</th></tr></thead>
+          <tbody role="rowgroup">
+          <tr role="row">
+            <th scope="row" role="rowheader"><span class="duckdb-storage-label"><i data-lucide="database" aria-hidden="true"></i>Collection databases</span></th>
+            <td class="duckdb-storage-location" role="cell">OPFS</td>
+            <td role="cell">
               <ul class="duckdb-stored-files" aria-label="Index databases">
                 <li><span>NFCorpus</span><code>analytics.duckdb</code><p>3,633 articles imported and indexed in the browser.</p></li>
                 <li><span>MS MARCO</span><code>msmarco-prebuilt.duckdb</code><p>Prebuilt 3.35 GB database, attached read-only.</p></li>
               </ul>
-            </dd>
-          </div>
-          <div class="duckdb-storage-row">
-            <dt><i data-lucide="brain-circuit" aria-hidden="true"></i>Model artifacts</dt>
-            <dd class="duckdb-storage-location">Cache Storage</dd>
-            <dd>Revision-pinned ONNX weights, configuration, and tokenizer files.</dd>
-          </div>
-          <div class="duckdb-storage-row">
-            <dt><i data-lucide="messages-square" aria-hidden="true"></i>Conversations</dt>
-            <dd class="duckdb-storage-location">IndexedDB</dd>
-            <dd>turns, source snapshots, and navigation state.</dd>
-          </div>
-        </dl>
+            </td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader"><span class="duckdb-storage-label"><i data-lucide="brain-circuit" aria-hidden="true"></i>Model artifacts</span></th>
+            <td class="duckdb-storage-location" role="cell">Cache Storage</td>
+            <td role="cell">Revision-pinned ONNX weights, configuration, and tokenizer files.</td>
+          </tr>
+          <tr role="row">
+            <th scope="row" role="rowheader"><span class="duckdb-storage-label"><i data-lucide="messages-square" aria-hidden="true"></i>Conversations</span></th>
+            <td class="duckdb-storage-location" role="cell">IndexedDB</td>
+            <td role="cell">turns, source snapshots, and navigation state.</td>
+          </tr>
+          </tbody>
+        </table>
       </figure>
     </section>
   </section>

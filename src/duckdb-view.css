@@ -46,12 +46,17 @@
 .duckdb-inference-dialog .duckdb-inference-viewport{height:min(65dvh,600px);max-height:calc(100dvh - 190px)}
 .duckdb-inference-dialog #inference-expand{display:none}
 .duckdb-storage-map{margin:24px 0 0}
-.duckdb-storage-list{margin:0}
-.duckdb-storage-row{display:grid;grid-template-columns:160px 140px minmax(0,1fr);align-items:center;gap:20px;padding:18px 0;border-bottom:1px solid var(--line)}
-.duckdb-storage-row:first-child{align-items:start;border-top:1px solid var(--line)}
-.duckdb-storage-row dt{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:650;color:#2d4939}
-.duckdb-storage-row dt>svg{color:var(--accent)}
-.duckdb-storage-row dd{min-width:0;margin:0;font-size:12px;line-height:1.6;color:#53665b}
+.duckdb-storage-table{width:100%;border-collapse:collapse;table-layout:fixed;border-top:1px solid var(--line);text-align:left}
+.duckdb-storage-table th,.duckdb-storage-table td{padding:18px 20px 18px 0;border-bottom:1px solid var(--line);vertical-align:middle;text-align:left;overflow-wrap:anywhere}
+.duckdb-storage-table :is(th,td):last-child{padding-right:0}
+.duckdb-storage-table thead th{padding-block:10px;font-size:11px;font-weight:650;color:var(--muted)}
+.duckdb-storage-table thead th:first-child{width:180px}
+.duckdb-storage-table thead th:nth-child(2){width:160px}
+.duckdb-storage-table tbody th{font-size:13px;font-weight:650;color:#2d4939}
+.duckdb-storage-table tbody td{font-size:12px;line-height:1.6;color:#53665b}
+.duckdb-storage-table tbody tr:first-child>*{vertical-align:top}
+.duckdb-storage-label{display:flex;align-items:center;gap:8px}
+.duckdb-storage-label>svg{color:var(--accent)}
 .duckdb-storage-location{font-weight:600}
 .duckdb-stored-files{display:grid;gap:14px;list-style:none;margin:0;padding:0}
 .duckdb-stored-files li{display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 12px}
@@ -83,7 +88,8 @@
 .duckdb-model-node .duckdb-hardware{background:#f5eddb;color:#806b3b}
 #duckdb-view .duckdb-worker-node p{font-size:12px;line-height:1.65;color:#53665b;margin:8px 0 0}
 @media(max-width:800px){
-  .duckdb-storage-row{grid-template-columns:140px 110px minmax(0,1fr);gap:16px}
+  .duckdb-storage-table thead th:first-child{width:156px}
+  .duckdb-storage-table thead th:nth-child(2){width:126px}
   .duckdb-execution-workspace{--duckdb-wire:6px;grid-template-columns:100px minmax(0,1fr);gap:12px;padding:14px}
   .duckdb-worker-lane{grid-template-columns:88px minmax(0,1fr);gap:10px}
 }
@@ -96,9 +102,12 @@
   #duckdb-view h2{font-size:18px}
   .duckdb-model-specs>div{grid-template-columns:minmax(0,1fr);gap:4px}
   .duckdb-inference-flow{padding:12px}
-  .duckdb-storage-row{grid-template-columns:18px minmax(0,1fr);gap:8px}
-  .duckdb-storage-row dt{grid-column:1/-1}
-  .duckdb-storage-row dd{grid-column:2}
+  .duckdb-storage-table,.duckdb-storage-table tbody{display:block}
+  .duckdb-storage-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+  .duckdb-storage-table tbody tr{display:grid;grid-template-columns:18px minmax(0,1fr);gap:8px;padding:18px 0;border-bottom:1px solid var(--line)}
+  .duckdb-storage-table tbody th{grid-column:1/-1}
+  .duckdb-storage-table tbody td{grid-column:2}
+  .duckdb-storage-table tbody :is(th,td){padding:0;border:0}
   .duckdb-execution-workspace{grid-template-columns:minmax(0,1fr);gap:16px}
   .duckdb-chat-node::after,.duckdb-worker-lanes::before{display:none}
   .duckdb-chat-node{display:grid;grid-template-columns:18px minmax(0,1fr);align-items:center;gap:6px 8px;padding:12px;text-align:left}
