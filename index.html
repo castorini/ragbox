@@ -64,7 +64,7 @@
   </section>
 
   <section id="setup-view" aria-labelledby="setup-heading" hidden>
-    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1><p>Manage search indexes and the answer model saved in this browser.</p></div><a id="setup-back" class="setup-back" href="?">← Back to chat</a></div>
+    <div class="setup-header settings-header"><div><h1 id="setup-heading" tabindex="-1">Settings</h1></div><a id="setup-back" class="setup-back" href="?">← Back to chat</a></div>
     <section class="setup-card settings-collections" aria-labelledby="settings-collections-heading">
       <h2 id="settings-collections-heading">Indexes</h2>
       <section id="setup-nfcorpus" tabindex="-1" class="settings-resource" aria-labelledby="fts-setup-heading">
@@ -80,7 +80,7 @@
         </div><button id="marco-settings-search" type="button" hidden aria-label="Chat with MS MARCO">Chat with this collection</button></div>
       </section>
       <div class="storage-overview">
-        <div class="storage-overview-row"><div><h3>Indexes and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3><p id="storage-delete-description">Deleting removes both indexes and saved app files. The answer model is kept.</p></div><button id="storage-reset" class="danger settings-delete-button" type="button" aria-label="Delete index data" title="Delete index data" aria-describedby="storage-delete-description" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete index data</span></button></div>
+        <div class="storage-overview-row"><div><h3>Indexes and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3></div><button id="storage-reset" class="danger settings-delete-button" type="button" aria-label="Delete index data" title="Delete index data" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete index data</span></button></div>
       </div>
       <p id="storage-status" role="status">Checking browser files…</p>
       <details id="collection-management" tabindex="-1" class="storage-management"><summary>Advanced file management</summary>
@@ -98,7 +98,7 @@
         <progress id="llm-progress" max="100" hidden aria-label="Model loading progress"></progress>
       </div>
       <div class="storage-overview">
-        <div class="storage-overview-row"><div><h3>Model files <span id="model-storage-usage" class="storage-usage">Checking…</span></h3><p id="model-delete-description">Deleting stops AI answers. Search indexes are kept.</p></div><button id="model-cache-delete" class="danger settings-delete-button" type="button" aria-label="Delete model" title="Delete model" aria-describedby="model-delete-description" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete model</span></button></div>
+        <div class="storage-overview-row"><div><h3>Model files <span id="model-storage-usage" class="storage-usage">Checking…</span></h3></div><button id="model-cache-delete" class="danger settings-delete-button" type="button" aria-label="Delete model" title="Delete model" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete model</span></button></div>
       </div>
       <p id="model-cache-status" role="status">Checking saved model files…</p>
       <details id="model-management" tabindex="-1" class="model-cache-details storage-management"><summary>Advanced file management</summary><div id="model-storage" tabindex="-1">
@@ -108,7 +108,7 @@
           <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
       </div></details>
     </section>
-    <section class="storage-overview-row storage-reset-all" aria-labelledby="settings-reset-heading"><div><h2 id="settings-reset-heading">Start over</h2><p id="storage-delete-all-description">Remove index files and the answer model. Conversations are kept.</p></div><button id="storage-reset-all" class="danger settings-delete-button" type="button" aria-label="Delete indexes and model" title="Delete indexes and model" aria-describedby="storage-delete-all-description" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete indexes and model</span></button></section>
+    <section class="storage-overview-row storage-reset-all" aria-labelledby="settings-reset-heading"><div><h2 id="settings-reset-heading">Start over</h2></div><button id="storage-reset-all" class="danger settings-delete-button" type="button" aria-label="Delete indexes and model" title="Delete indexes and model" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete indexes and model</span></button></section>
     <div id="storage-recovery" class="storage-actions" hidden><button id="storage-reload" type="button">Reload to recover</button></div>
   </section>
 
