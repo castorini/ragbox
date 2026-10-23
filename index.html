@@ -176,16 +176,37 @@ LIMIT 10;</code></pre>
 
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-model-heading">
       <div class="duckdb-section-heading"><span class="duckdb-heading-icon"><i data-lucide="brain-circuit" aria-hidden="true"></i></span><h2 id="duckdb-model-heading" tabindex="-1">Local inference</h2></div>
-      <dl class="duckdb-model-specs">
-        <div><dt>Model</dt><dd><a href="https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX" target="_blank" rel="noopener noreferrer">MiniCPM5-2B-ONNX</a></dd></div>
-        <div><dt>Execution</dt><dd>WebGPU · <code>q4f16</code> weights · <code>shader-f16</code></dd></div>
-        <div><dt>Input budget</dt><dd>3,500 tokens for instructions, question, history, and evidence</dd></div>
-        <div><dt>Output limits</dt><dd>512 answer tokens · 128 query-rewrite tokens</dd></div>
-        <div><dt>History window</dt><dd>Up to 3 recent turns within 750 tokens</dd></div>
-      </dl>
-      <p>The first message goes directly to retrieval. Follow-ups use deterministic query rewriting with recent conversation context to resolve references before retrieval.</p>
-      <p>Evidence is fitted in BM25 order to the input budget (the final included document may be truncated). The prompt carries the fitted document IDs for citations, and citation links resolve to those source snapshots. Answers stream back to the main thread with thinking disabled.</p>
-      <p>Model files are pinned to a revision and cached locally. Cached loads use <code>local_files_only</code>. Inference requires a WebGPU adapter with <code>shader-f16</code>; retrieval remains available without the model.</p>
+      <div class="duckdb-inference-details">
+        <figure class="duckdb-inference-flow" aria-label="Local inference request flow">
+          <p id="inference-diagram-status" role="status">Rendering diagram…</p>
+          <div id="inference-diagram-inline">
+            <div id="inference-diagram-interactive" hidden>
+              <div class="duckdb-inference-toolbar" role="group" aria-label="Diagram controls">
+                <button id="inference-zoom-out" type="button" aria-label="Zoom out" disabled>−</button>
+                <output id="inference-zoom-level" aria-live="polite" aria-label="Diagram zoom">100%</output>
+                <button id="inference-zoom-in" type="button" aria-label="Zoom in" disabled>+</button>
+                <button id="inference-zoom-reset" type="button" disabled>Reset</button>
+                <button id="inference-expand" type="button" disabled>Expand</button>
+              </div>
+              <div id="inference-diagram-viewport" class="duckdb-inference-viewport" role="region" tabindex="0" aria-label="Local inference diagram. Drag or use arrow keys to pan, and use the controls to zoom.">
+                <div id="inference-diagram-canvas" class="duckdb-inference-canvas"></div>
+              </div>
+            </div>
+          </div>
+        </figure>
+        <dialog id="inference-diagram-dialog" class="duckdb-inference-dialog" aria-labelledby="inference-dialog-title">
+          <div class="duckdb-inference-dialog-header"><h2 id="inference-dialog-title">Local inference diagram</h2><button id="inference-dialog-close" type="button" autofocus>Close</button></div>
+          <div id="inference-diagram-expanded"></div>
+        </dialog>
+        <dl class="duckdb-model-specs">
+          <div><dt>Model</dt><dd><a href="https://huggingface.co/Mike0021/MiniCPM5-2B-ONNX" target="_blank" rel="noopener noreferrer">MiniCPM5-2B-ONNX</a></dd></div>
+          <div><dt>Execution</dt><dd>WebGPU · <code>q4f16</code> weights · <code>shader-f16</code></dd></div>
+          <div><dt>Input budget</dt><dd>3,500 tokens for instructions, question, history, and evidence</dd></div>
+          <div><dt>Output limits</dt><dd>512 answer tokens · 128 query-rewrite tokens</dd></div>
+          <div><dt>History window</dt><dd>Up to 3 recent turns within 750 tokens</dd></div>
+        </dl>
+      </div>
+      <p>Revision-pinned model files use <code>local_files_only</code> for cached loads. Retrieval remains available without the model.</p>
     </section>
 
     <section class="setup-card duckdb-explainer" aria-labelledby="duckdb-files-heading">

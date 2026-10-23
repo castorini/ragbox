@@ -16,7 +16,9 @@
   "dependencies": {
     "@duckdb/duckdb-wasm": "1.32.0",
     "@huggingface/transformers": "4.2.0",
+    "@panzoom/panzoom": "4.6.2",
     "lucide": "1.59.0",
+    "mermaid": "12.2.0",
     "zustand": "5.0.15"
   },
   "devDependencies": {

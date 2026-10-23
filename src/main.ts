@@ -20,8 +20,10 @@ import { HISTORY_ENABLED } from './features.ts';
 import { setupTour, tourSeen } from './tour.ts';
 import './duckdb-view.css';
 import { setupIcons } from './icons.ts';
+import { setupInferenceDiagram } from './inference-diagram.ts';
 
 setupIcons();
+setupInferenceDiagram();
 const status = requiredElement<HTMLElement>('#status');
 const states = new ResourceStates();
 const loads = new LoadCoordinator();

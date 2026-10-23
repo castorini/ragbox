@@ -1,0 +1,33 @@
+---
+config:
+  theme: base
+  look: classic
+  htmlLabels: false
+  themeCSS: 'text, tspan { font-family: system-ui, sans-serif !important; }'
+  themeVariables:
+    fontFamily: 'system-ui, sans-serif'
+    fontSize: '15px'
+    primaryColor: '#eff3e9'
+    primaryTextColor: '#243733'
+    primaryBorderColor: '#b8c9bf'
+    lineColor: '#60736c'
+    edgeLabelBackground: '#f7f9f3'
+  flowchart:
+    curve: linear
+    nodeSpacing: 16
+    rankSpacing: 16
+    padding: 8
+    minNodeWidth: 0
+    wrappingWidth: 110
+---
+%% Rendered at runtime by src/inference-diagram.ts.
+flowchart LR
+  accTitle: Local inference request flow
+  accDescr: First messages go directly to BM25 retrieval. Follow-ups are rewritten with recent history. Evidence is fitted in BM25 order and truncated to the input budget. The model generates with fitted citation IDs and thinking disabled, then streams the answer with source links.
+
+  question["Question"] -->|"Follow-up"| rewrite["`Deterministic rewrite with recent history`"]
+  question -->|"First message"| retrieval["BM25 retrieval"]
+  rewrite --> retrieval
+  retrieval --> evidence["`Fit / truncate evidence to budget in BM25 order`"]
+  evidence --> generation["`Generate with fitted citation IDs (thinking off)`"]
+  generation --> answer["`Stream answer + source links`"]
