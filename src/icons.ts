@@ -1,6 +1,6 @@
 import {
   AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
-  Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole,
+  Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole, Maximize2,
   MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
   ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2, createElement, createIcons,
   type IconNode, type SVGProps,
@@ -17,7 +17,7 @@ export function setupIcons() {
   createIcons({
     icons: {
       AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, Cpu,
-      Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole,
+      Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole, Maximize2,
       MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
       ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2,
     },
