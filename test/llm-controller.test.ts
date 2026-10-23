@@ -146,7 +146,7 @@ describe('LLMController', () => {
     const { controller, elements, worker, currentWorker } = createHarness();
     await controller.initializeCapability();
     expect(elements.setup.hidden).toBe(false);
-    expect(elements.status.textContent).toBe('Model not installed');
+    expect(elements.status.textContent).toBe('Not installed');
     expect(elements.loadButton.hidden).toBe(false);
     expect(elements.stopButton.hidden).toBe(true);
     await controller.load(true);
@@ -595,7 +595,7 @@ it('cancels an active load, rejects old worker events, and retries with a new ca
 });
 
 it.each([
-  ['missing', 'Model not installed', 'Download model (~1.84 GB)'],
+  ['missing', 'Not installed', 'Download model (~1.84 GB)'],
   ['incomplete', 'Model install incomplete', 'Download missing files'],
   ['installed', 'Model installed · Not loaded', 'Load saved model'],
   ['corrupt', 'Some saved model files are invalid.', 'Download missing files'],

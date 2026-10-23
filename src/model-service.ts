@@ -190,7 +190,7 @@ export class ModelService {
       if (this.model.failure === 'corrupt') return 'Some saved model files are invalid.';
       return 'Model could not load. Retry loading.';
     }
-    if (this.model.cache === 'missing') return 'Model not installed';
+    if (this.model.cache === 'missing') return 'Not installed';
     if (this.model.cache === 'incomplete') return 'Model install incomplete';
     if (this.model.cache === 'corrupt') return 'Some saved model files are invalid.';
     if (this.model.cache === 'unknown') return 'Could not check model files';
