@@ -25,7 +25,7 @@ flowchart LR
   accTitle: Local inference request flow
   accDescr: First messages go directly to BM25 retrieval. Follow-ups are rewritten with recent history. Evidence is fitted in BM25 order and truncated to the input budget. The model generates with fitted citation IDs and thinking disabled, then streams the answer with source links.
 
-  question["Question"] -->|"Follow-up"| rewrite["`Deterministic rewrite with recent history`"]
+  question["Question"] -->|"Follow-up"| rewrite["`Rewrite the question based on chat history`"]
   question -->|"First message"| retrieval["BM25 retrieval"]
   rewrite --> retrieval
   retrieval --> evidence["`Fit / truncate evidence to budget in BM25 order`"]
