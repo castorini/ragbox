@@ -7,7 +7,7 @@ export function settingsCollectionStatus(corpus: Corpus, state: ResourceState) {
     case 'ready': return { label: 'Ready to search', detail: '' };
     case 'saved': return { label: 'Downloaded', detail: 'Opens when selected.' };
     case 'missing': return {
-      label: corpus === 'nfcorpus' ? 'Not set up' : 'Not downloaded',
+      label: 'Not set up',
       detail: corpus === 'nfcorpus' ? 'Set up this small collection once in this browser.' : 'One-time download saved in this browser.',
     };
     case 'checking': return { label: 'Checking…', detail: '' };
