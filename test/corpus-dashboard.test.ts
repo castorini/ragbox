@@ -40,7 +40,7 @@ it('maps each resource phase to a green, red, or pending light', () => {
   expect(cardStatus('nfcorpus', 'ready', '').light).toBe('available');
   expect(cardStatus('msmarco', 'saved', '').light).toBe('available');
   expect(cardStatus('msmarco', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not downloaded' });
-  expect(cardStatus('nfcorpus', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not prepared' });
+  expect(cardStatus('nfcorpus', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not downloaded' });
   expect(cardStatus('msmarco', 'downloading', 'Downloading index: 1.00 / 3.35 GB'))
     .toMatchObject({ light: 'pending', detail: 'Downloading index: 1.00 / 3.35 GB' });
   expect(cardStatus('nfcorpus', 'error', 'Boom')).toMatchObject({ light: 'unavailable', setup: 'Fix in Settings' });
@@ -91,7 +91,7 @@ it('shows live progress while downloading and restores the default description a
 it('prepares and downloads directly from Search through shared actions', () => {
   const actions = { prepare: vi.fn(), download: vi.fn(), openSaved: vi.fn(), cancelDownload: vi.fn() };
   const ui = harness(actions);
-  ui.states.set('nfcorpus', 'missing', 'Not prepared');
+  ui.states.set('nfcorpus', 'missing', 'Not downloaded');
   ui.states.set('msmarco', 'missing', 'Not downloaded');
   ui.get('#nfcorpus-dashboard-setup').onclick?.({ preventDefault() {} });
   ui.get('#msmarco-dashboard-setup').onclick?.({ preventDefault() {} });

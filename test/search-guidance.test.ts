@@ -74,7 +74,7 @@ it('runs shared setup actions, keeps queries, and displays the same download pro
   setupSearchGuidance(states, actions);
   get('#fts-query').value = 'nutrition';
   get('#marco-query').value = 'broccoli';
-  states.set('nfcorpus', 'missing', 'Not prepared');
+  states.set('nfcorpus', 'missing', 'Not downloaded');
   states.set('msmarco', 'missing', 'Not downloaded');
   get('#fts-prepare').onclick?.();
   get('#marco-download').onclick?.();

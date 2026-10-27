@@ -20,7 +20,7 @@ interface DashboardChooser {
 }
 
 const corpora = {
-  nfcorpus: { name: 'NFCorpus', missing: 'Not prepared', setup: 'Prepare NFCorpus' },
+  nfcorpus: { name: 'NFCorpus', missing: 'Not downloaded', setup: 'Download NFCorpus' },
   msmarco: { name: 'MS MARCO', missing: 'Not downloaded', setup: 'Download MS MARCO index (3.35 GB)' },
 } as const;
 

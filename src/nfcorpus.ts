@@ -135,7 +135,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
       if (!await exists() || Number(rowsAs<{ n: number | bigint }>(index)[0].n) === 0) {
         ready = false;
         updateControls();
-        report('missing', 'Not prepared. Prepare NFCorpus to search.');
+        report('missing', 'Not downloaded. Download NFCorpus to search.');
         return null;
       }
       await readSchema();
@@ -230,7 +230,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
             report('ready', 'Ready to search.');
           } else {
             ready = false;
-            report('missing', 'Not prepared.');
+            report('missing', 'Not downloaded.');
           }
           updateControls();
         });

@@ -115,7 +115,7 @@ describe('NFCorpus shared LLM integration', () => {
     expect(elements.get('#fts-setup').hidden).toBe(false);
     expect(elements.get('#fts-index').disabled).toBe(false);
     expect(elements.get('#fts-search').disabled).toBe(true);
-    expect(elements.get('#fts-status').textContent).toBe('Not prepared.');
+    expect(elements.get('#fts-status').textContent).toBe('Not downloaded.');
   });
 
   it('hides the entire setup after validating a saved index and keeps search blocked during other work', async () => {
