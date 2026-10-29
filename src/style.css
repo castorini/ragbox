@@ -210,7 +210,9 @@ a.corpus-action{text-decoration:none}a.corpus-action:hover{text-decoration:under
 .inline-setup-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .inline-setup-actions:has(button:not([hidden])){margin-top:10px}
 .inline-setup-actions:not(:has(button:not([hidden]))){display:none}
-.inline-setup-actions progress{width:100%;accent-color:var(--accent)}
+/* Every model and index download uses the same bar. */
+#llm-progress,#marco-progress,#marco-search-progress,#model-search-progress{width:100%;height:8px;margin:0;accent-color:var(--accent)}
+.model-note progress{flex-basis:100%}
 .unavailable input{background:#fff;color:#243733}
 .answer-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .answer-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
@@ -254,7 +256,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #setup-view h3{font-size:15px;margin:0;font-weight:650}
 .settings-state{display:inline-block;width:fit-content;border-radius:6px;background:#f0f1eb;color:#59695f;padding:3px 8px;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
 .settings-resource[data-phase=ready] .settings-state,.settings-resource[data-phase=saved] .settings-state,#model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}
-.settings-resource:is([data-phase=preparing],[data-phase=opening],[data-phase=downloading]) .settings-state,#model[data-phase=loading] .settings-state{background:#fff3d9;color:#856316}
+.settings-resource:is([data-phase=checking],[data-phase=preparing],[data-phase=opening],[data-phase=downloading]) .settings-state,#model:is([data-phase=checking],[data-phase=loading]) .settings-state{background:#fff3d9;color:#856316}
 .settings-resource[data-phase=error] .settings-state,#model[data-phase=error] .settings-state{background:#fff0ec;color:#913e33}
 #llm-status:empty,#model-search-status:empty{display:none}
 #setup-view .settings-description{font-size:13px;line-height:1.5;margin:7px 0 0;color:#53665b}
@@ -459,11 +461,15 @@ form.examples-open .example-queries{border-color:#76aa96}
 /* In a chat, model and collection warnings form one banner tucked behind the top of the search box. */
 .chat-notices{display:contents}
 .model-note-label{display:none}
+.model-note:not(:has(#model-search-status:is([data-phase=checking],[data-phase=loading]))) .model-note-label{display:inline;font-weight:600}
+/* On the start page the model note uses the same amber callout as collection notices. */
+#search-view:has(#chat-empty:not([hidden])) .search-toolbar{background:#fff7e7;border:1px solid #ead4a4;border-left:4px solid #b68936;border-radius:8px;padding:11px 14px;color:#695022}
+#search-view:has(#chat-empty:not([hidden])) #collections .model-note{color:inherit;font-size:13px}
+#search-view:has(#chat-empty:not([hidden])) #model-search-status{color:inherit;font-weight:400}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices{display:flex;flex-direction:column;gap:6px;margin:0 0 -16px;padding:10px 16px 26px;background:#fff7e7;border:1px solid #ead4a4;border-bottom:0;border-radius:16px 16px 0 0;color:#695022;font-size:13px;line-height:1.5}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices:not(:has(#model-search-status:not(:empty), .model-note > :is(button,a):not([hidden]), .collection-panel:not([hidden]) > .search-help:not([hidden]))){display:none}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-toolbar,#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-help{margin:0;padding:0;border:0;background:none;color:inherit}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .model-note{gap:4px 10px;color:inherit;font-size:13px}
-#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .model-note:not(:has(#model-search-status:is([data-phase=checking],[data-phase=loading]))) .model-note-label{display:inline;font-weight:600}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices #model-search-status{color:inherit;font-weight:400}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.search-help) a{color:inherit;text-decoration:underline}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.inline-setup-actions) button{min-height:32px;padding:4px 12px;background:#fff;border-color:#d9c08c;color:#5a431a}

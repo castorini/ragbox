@@ -62,9 +62,9 @@ it('explains that unsupported AI answers do not prevent document search', () => 
 });
 
 it('uses plain-language labels for opening, setup, and unavailable collections', () => {
-  expect(settingsCollectionStatus('nfcorpus', { phase: 'preparing', message: 'Building index…' }))
-    .toEqual({ label: 'Setting up…', detail: 'Building index…' });
-  expect(settingsCollectionStatus('msmarco', { phase: 'opening', message: 'Opening index…' }).label).toBe('Opening…');
+  expect(settingsCollectionStatus('nfcorpus', { phase: 'preparing', message: 'Building NFCorpus index…' }))
+    .toEqual({ label: 'Setting up…', detail: 'Building NFCorpus index…' });
+  expect(settingsCollectionStatus('msmarco', { phase: 'opening', message: 'Opening MS MARCO index…' }).label).toBe('Opening…');
   expect(settingsCollectionStatus('msmarco', { phase: 'missing', message: '' }).label).toBe('Not set up');
   expect(settingsCollectionStatus('nfcorpus', { phase: 'unsupported', message: '' }).label).toBe('Unavailable');
 });

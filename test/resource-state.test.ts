@@ -5,7 +5,7 @@ describe('resource snapshots', () => {
   it('deduplicates copied model status without notifying unrelated resources', () => {
     const states = new ResourceStates();
     const initial = states.state.getState();
-    states.set('nfcorpus', 'checking', 'Checking NFCorpus…');
+    states.set('nfcorpus', 'checking', 'Checking NFCorpus index…');
     expect(states.state.getState()).toBe(initial);
     const collections = vi.fn(); const model = vi.fn();
     states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy], collections, false);

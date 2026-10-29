@@ -23,7 +23,9 @@ interface ControllerElements {
   repairLink?: HTMLElement;
   answerControls?: Partial<Record<Corpus, AnswerControls>>;
   status: HTMLElement;
+  statusDetail?: HTMLElement;
   progress: HTMLProgressElement;
+  searchProgress?: HTMLProgressElement;
   answers?: Partial<Record<Corpus, HTMLElement>>;
   answer?: HTMLElement;
   generating?: Partial<Record<Corpus, HTMLElement>>;
@@ -94,8 +96,12 @@ export class LLMController extends ModelService {
   updateControls(restoreFocus = true) {
     const focused = this.elements.loadButton.ownerDocument?.activeElement;
     const message = this.statusText();
-    setText(this.elements.status, message);
+    setText(this.elements.status, this.statusLabel());
     setText(this.elements.searchStatus, message);
+    if (this.elements.statusDetail) {
+      setText(this.elements.statusDetail, this.state === 'loading' ? message : '');
+      this.elements.statusDetail.hidden = this.state !== 'loading';
+    }
     const cacheLabels: Record<ModelCacheAvailability, string> = {
       checking: 'Checking installed files…', missing: 'Not installed', incomplete: 'Incomplete install',
       installed: 'Installed · MiniCPM5-2B', corrupt: 'Invalid model files', unknown: 'Installed files unavailable',
@@ -121,8 +127,13 @@ export class LLMController extends ModelService {
       button.disabled = this.state !== 'loading';
       button.textContent = this.model.stage === 'downloading' ? 'Cancel download' : 'Cancel loading';
     }
-    this.elements.progress.hidden = this.state !== 'loading';
-    this.elements.progress.removeAttribute?.('value');
+    const percent = this.downloadPercent();
+    for (const progress of [this.elements.progress, this.elements.searchProgress]) {
+      if (!progress) continue;
+      progress.hidden = this.state !== 'loading';
+      if (percent === undefined) progress.removeAttribute?.('value');
+      else progress.value = percent;
+    }
     if (this.elements.setup) this.elements.setup.hidden = !canLoad;
     if (this.elements.settingsLink) this.elements.settingsLink.hidden = this.ready || this.state === 'loading' || this.state === 'checking';
     if (this.elements.repairLink) this.elements.repairLink.hidden = !this.repairNeeded;
@@ -209,7 +220,9 @@ export function setupLLM(onState?: (state: ControllerState, message: string, mod
     repairLink: requiredElement<HTMLElement>('#model-repair-link'),
     modelCard: requiredElement<HTMLElement>('#model'),
     status: requiredElement<HTMLElement>('#llm-status'),
+    statusDetail: requiredElement<HTMLElement>('#llm-status-detail'),
     progress: requiredElement<HTMLProgressElement>('#llm-progress'),
+    searchProgress: requiredElement<HTMLProgressElement>('#model-search-progress'),
     generating: { nfcorpus: document.querySelector<HTMLElement>('#fts-generating') ?? undefined, msmarco: document.querySelector<HTMLElement>('#marco-generating') ?? undefined },
     answers: { nfcorpus: document.querySelector<HTMLElement>('#fts-answer') ?? undefined, msmarco: document.querySelector<HTMLElement>('#marco-answer') ?? undefined },
     answerControls,

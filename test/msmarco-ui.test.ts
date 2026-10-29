@@ -350,7 +350,7 @@ it('shares confirmed downloads and cancellation, retaining a saved index and ann
   await vi.waitFor(() => expect(mockedDownload).toHaveBeenCalledOnce());
   const options = mockedDownload.mock.calls[0][0];
   options.onProgress?.(options.bytes / 2, options.bytes);
-  expect(onState).toHaveBeenLastCalledWith('downloading', expect.stringContaining('50.0%'), 50, true);
+  expect(onState).toHaveBeenLastCalledWith('downloading', expect.stringContaining('(50%)'), 50, true);
   expect(elements.get('#marco-announcement').textContent).toBe('Downloading MS MARCO index…');
   controller.cancelDownload();
   await downloading;
@@ -374,7 +374,7 @@ it('opens a completed shared download without submitting the preserved query', a
   await controller.checkSaved();
   elements.get('#marco-query').value = 'query after setup';
   await controller.download();
-  expect(onState).toHaveBeenCalledWith('opening', 'Opening index…', undefined, true);
+  expect(onState).toHaveBeenCalledWith('opening', 'Opening MS MARCO index…', undefined, true);
   expect(elements.get('#marco-query').value).toBe('query after setup');
   expect(elements.get('#marco-search').disabled).toBe(false);
   expect(statement.query).not.toHaveBeenCalled();

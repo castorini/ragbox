@@ -5,9 +5,9 @@ function guidance(name: ResourceName, state: ResourceState, busy: boolean): stri
   const label = name === 'nfcorpus' ? 'NFCorpus' : 'MS MARCO';
   if (busy && state.phase === 'ready') return 'Search is temporarily paused while another database operation finishes.';
   switch (state.phase) {
-    case 'checking': return `Checking ${label} in this browser…`;
     case 'saved': return `Opening the saved ${label} index when you select this collection.`;
-    case 'opening': return `Opening the saved ${label} index…`;
+    case 'checking':
+    case 'opening':
     case 'preparing':
     case 'downloading': return state.message;
     case 'missing': return `${label} needs an index before search is available.`;

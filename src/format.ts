@@ -6,3 +6,9 @@ export function formatBytes(bytes: number): string {
   while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit++; }
   return `${size.toFixed(1)} ${units[unit]}`;
 }
+
+// One wording for every download in the app: "Downloading <name>: 1.00 / 3.35 GB (30%)".
+export function downloadProgressText(name: string, received: number, total: number): string {
+  const percent = total > 0 ? Math.min(100, received / total * 100) : 0;
+  return `Downloading ${name}: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${percent.toFixed(0)}%)`;
+}

@@ -24,9 +24,9 @@ export interface ResourceSnapshot {
 export function createResourceStore() {
   return createStore(subscribeWithSelector<ResourceSnapshot>(() => ({
     resources: {
-      nfcorpus: { phase: 'checking', message: 'Checking NFCorpus…' },
-      msmarco: { phase: 'checking', message: 'Checking for a saved MS MARCO index…' },
-      model: { phase: 'checking', message: 'Checking WebGPU support…' },
+      nfcorpus: { phase: 'checking', message: 'Checking NFCorpus index…' },
+      msmarco: { phase: 'checking', message: 'Checking MS MARCO index…' },
+      model: { phase: 'checking', message: 'Checking model…' },
     },
     busy: false,
     shuttingDown: false,

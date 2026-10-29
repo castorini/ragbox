@@ -80,11 +80,11 @@ it('runs shared setup actions, keeps queries, and displays the same download pro
   get('#marco-download').onclick?.();
   expect(actions.prepare).toHaveBeenCalledOnce();
   expect(actions.download).toHaveBeenCalledOnce();
-  states.set('nfcorpus', 'preparing', 'Building index…');
-  expect(get('#fts-help-text').textContent).toBe('Building index…');
+  states.set('nfcorpus', 'preparing', 'Building NFCorpus index…');
+  expect(get('#fts-help-text').textContent).toBe('Building NFCorpus index…');
   expect(get('#fts-query').disabled).toBe(false);
-  states.set('msmarco', 'downloading', 'Downloaded 1 GB (30%)', undefined, 30);
-  expect(get('#marco-help-text').textContent).toBe('Downloaded 1 GB (30%)');
+  states.set('msmarco', 'downloading', 'Downloading MS MARCO index: 1.00 / 3.35 GB (30%)', undefined, 30);
+  expect(get('#marco-help-text').textContent).toBe('Downloading MS MARCO index: 1.00 / 3.35 GB (30%)');
   expect(get('#marco-search-progress')).toMatchObject({ hidden: false, value: 30 });
   expect(get('#marco-search-cancel').hidden).toBe(false);
   get('#marco-search-cancel').onclick?.();

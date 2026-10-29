@@ -7,6 +7,7 @@ import { ResourceStates, type ResourcePhase } from './resource-state.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import type { SearchHistory } from './history.ts';
 import { MSMARCO_SEARCH_SQL, queryBM25, retrieveMSMarco } from './collection-retrieval.ts';
+import { downloadProgressText } from './format.ts';
 
 type MarcoRow = { id: string | number | bigint; contents: string; score: number };
 type SearchLLM = Pick<LLMController, 'beginRetrieval' | 'generate' | 'showRetrievalMessage'> & Partial<Pick<LLMController, 'isCurrentSearch'>>;
@@ -131,7 +132,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       progress.value = 0;
       let lastUpdate = 0;
       try {
-        report('downloading', 'Starting index download…');
+        report('downloading', 'Downloading MS MARCO index…');
         await downloadPrebuilt({ url: downloadUrl, bytes: downloadBytes,
           root, name: PREBUILT_NAME, signal: controller.signal,
           onProgress(received, total) {
@@ -139,12 +140,12 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
             if (now - lastUpdate < 200 && received !== total) return;
             lastUpdate = now;
             progress.value = received / total * 100;
-            report('downloading', `Downloading index: ${(received / 1e9).toFixed(2)} / ${(total / 1e9).toFixed(2)} GB (${progress.value.toFixed(1)}%).`, progress.value);
+            report('downloading', downloadProgressText('MS MARCO index', received, total), progress.value);
           },
         });
         hasSaved = true;
         cancelDownload.disabled = true;
-        report('opening', 'Opening index…');
+        report('opening', 'Opening MS MARCO index…');
         await connectPrebuilt(true);
       } catch (error) {
         if (errorName(error) === 'AbortError') {
@@ -165,7 +166,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   async function openSaved() {
     if (openingQueued || busy || !supported) return;
     openingQueued = true;
-    report('opening', 'Opening index…');
+    report('opening', 'Opening MS MARCO index…');
     updateButtons();
     try {
       const open = async () => {
@@ -252,7 +253,7 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
     });
   };
   if (!supported) report('unsupported', 'File storage unavailable. Use desktop Chrome on HTTPS or localhost.');
-  else onState?.('checking', 'Checking saved index…');
+  else onState?.('checking', 'Checking MS MARCO index…');
   updateButtons();
   async function checkSaved() {
     if (!supported || prebuilt) return;

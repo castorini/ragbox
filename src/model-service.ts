@@ -1,8 +1,10 @@
 import { errorMessage } from './errors.ts';
 import type { ChatMessage, ChatOperation, Corpus, EvidenceDocument, ModelCacheAvailability, ModelStatus, ThinkingEffort, WorkerRequest, WorkerResponse } from './types.ts';
 import { inspectModelCache } from './model-readiness.ts';
-import { formatBytes } from './format.ts';
+import { downloadProgressText } from './format.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
+// Approximate download size, matching the ~1.84 GB on the download button.
+export const MODEL_DOWNLOAD_BYTES = 1.84e9;
 export type Capability = { supported: true } | { supported: false; reason: string };
 export type CitationTargets = Map<string, string> | Record<string, string>;
 interface AnswerSession {
@@ -174,14 +176,28 @@ export class ModelService {
     return this.state === 'error' || this.model.failure ? 'Retry loading' : 'Load saved model';
   }
 
+  // Short badge text while busy, matching the collection badges in Settings.
+  protected statusLabel() {
+    if (this.state === 'checking') return 'Checking…';
+    if (this.state !== 'loading') return this.statusText();
+    if (this.model.stage === 'queued') return 'Waiting…';
+    return this.model.stage === 'downloading' ? 'Downloading…' : 'Loading…';
+  }
+
+  protected downloadPercent() {
+    const bytes = this.model.downloadedBytes;
+    if (this.state !== 'loading' || this.model.stage !== 'downloading' || !bytes) return undefined;
+    return bytes / Math.max(bytes, MODEL_DOWNLOAD_BYTES) * 100;
+  }
+
   protected statusText() {
     if (this.state === 'checking') return 'Checking model…';
     if (this.state === 'unsupported') return 'Answers unavailable on this device';
     if (this.state === 'loading') {
       if (this.model.stage === 'queued') return 'Waiting to load model…';
       if (this.model.stage === 'downloading') return this.model.downloadedBytes
-        ? `Downloaded ${formatBytes(this.model.downloadedBytes)}` : 'Downloading model…';
-      return this.model.cache === 'installed' && !this.model.downloadedBytes ? 'Loading saved model…' : 'Initializing model…';
+        ? downloadProgressText('model', this.model.downloadedBytes, Math.max(this.model.downloadedBytes, MODEL_DOWNLOAD_BYTES)) : 'Downloading model…';
+      return 'Loading model…';
     }
     if (this.ready) return '';
     if (this.state === 'error') {

@@ -32,7 +32,7 @@ export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string
     case 'missing': return { light: 'unavailable', label: info.missing, setup: info.setup };
     case 'checking': return { light: 'pending', label: 'Checking…' };
     case 'opening': return { light: 'pending', label: 'Opening…', detail: message };
-    case 'preparing': return { light: 'pending', label: 'Preparing…', detail: message };
+    case 'preparing': return { light: 'pending', label: 'Setting up…', detail: message };
     case 'downloading': return { light: 'pending', label: 'Downloading…', detail: message };
     case 'unsupported': return { light: 'unavailable', label: 'Not supported', detail: 'Use desktop Chrome on localhost or HTTPS.' };
     default: return { light: 'unavailable', label: 'Needs attention', detail: message, setup: 'Fix in Settings' };

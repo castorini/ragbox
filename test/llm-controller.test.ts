@@ -212,7 +212,8 @@ describe('LLMController', () => {
     await controller.load();
     expect(worker.messages).toContainEqual(expect.objectContaining({ type: 'load', loadId: 1 }));
     worker.emit({ type: 'progress', progress: { progress: 50, total: 100, file: 'model.onnx' } });
-    expect(elements.status.textContent).toContain('Downloading model');
+    expect(elements.status.textContent).toBe('Downloading…');
+    expect(elements.searchStatus.textContent).toContain('Downloading model');
     worker.emit({ type: 'ready' });
 
     controller.generate({
@@ -608,20 +609,21 @@ it.each([
   expect(controller.ready).toBe(false);
 });
 
-it('keeps download bytes indeterminate and announces stages rather than byte updates', async () => {
+it('shows model download progress in the shared format and announces stages rather than byte updates', async () => {
   const { controller, worker, elements } = createHarness();
   await controller.initializeCapability();
   await controller.load();
   const loadId = worker.messages[0].loadId;
-  worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 2048 } });
-  expect(elements.searchStatus.textContent).toBe('Downloaded 2.0 KB');
+  worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 0.46e9 } });
+  expect(elements.searchStatus.textContent).toBe('Downloading model: 0.46 / 1.84 GB (25%)');
+  expect(elements.progress.value).toBe(25);
+  expect(elements.announcement.textContent).toBe('Downloading model…');
+  worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 0.92e9 } });
+  expect(elements.searchStatus.textContent).toBe('Downloading model: 0.92 / 1.84 GB (50%)');
+  expect(elements.announcement.textContent).toBe('Downloading model…');
+  worker.emit({ type: 'progress', loadId, progress: { stage: 'initializing', downloadedBytes: 0.92e9 } });
+  expect(elements.searchStatus.textContent).toBe('Loading model…');
   expect(elements.progress.value).toBeUndefined();
-  expect(elements.announcement.textContent).toBe('Downloading model…');
-  worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 4096 } });
-  expect(elements.searchStatus.textContent).toBe('Downloaded 4.0 KB');
-  expect(elements.announcement.textContent).toBe('Downloading model…');
-  worker.emit({ type: 'progress', loadId, progress: { stage: 'initializing', downloadedBytes: 4096 } });
-  expect(elements.searchStatus.textContent).toBe('Initializing model…');
 });
 
 it('blocks a waiting answer after cache failure without downloading automatically', async () => {

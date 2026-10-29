@@ -44,7 +44,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   async function readSchema() { searchSQL = await nfcorpusSearchSQL(conn); }
   async function loadExtension() {
     if (loaded) return;
-    report('preparing', 'Preparing index…');
+    report('preparing', 'Loading NFCorpus index…');
     await conn.query('INSTALL fts');
     await conn.query('LOAD fts');
     loaded = true;
@@ -73,7 +73,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     if (queued || checking || gate.busy) return;
     queued = true;
     updateControls();
-    report('preparing', 'Waiting to prepare index…');
+    report('preparing', 'Waiting to download NFCorpus…');
     try {
       const prepare = () => action(async () => {
         ready = false;
@@ -81,7 +81,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         llm.showRetrievalMessage('nfcorpus', '');
         await loadExtension();
         if (!await exists()) {
-          report('preparing', 'Loading documents…');
+          report('preparing', 'Downloading NFCorpus documents…');
           const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`);
           if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
             throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
@@ -101,7 +101,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
           }
         }
         await readSchema();
-        report('preparing', 'Building index…');
+        report('preparing', 'Building NFCorpus index…');
         await conn.query(INDEX_SQL);
         await conn.query('CHECKPOINT');
         const count = rowsAs<{ n: number | bigint }>(await conn.query('SELECT count(*) AS n FROM nfcorpus'))[0].n;
@@ -201,7 +201,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     });
   };
   const unsubscribe = gate.watch(state => state.busy, updateControls);
-  onState?.('checking', 'Checking saved index…');
+  onState?.('checking', 'Checking NFCorpus index…');
   return {
     prepare,
     async retrieve(query: string) {
@@ -215,7 +215,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     async reopenSaved() {
       checking = true;
       updateControls();
-      report('checking', 'Checking saved index…');
+      report('checking', 'Checking NFCorpus index…');
       try {
         return await action(async () => {
           const indexed = Number(rowsAs<{ n: number | bigint }>(await conn.query(`SELECT count(*) AS n FROM information_schema.schemata

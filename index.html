@@ -23,12 +23,12 @@
       <form id="chat-form" class="chat-composer" novalidate>
         <label class="sr-only" for="chat-query">Message your document collection</label>
         <div class="chat-notices">
-          <div class="search-toolbar"><div class="model-note" aria-label="Local answer model"><span class="model-note-label">Answer model:</span><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel loading</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a></div></div>
+          <div class="search-toolbar"><div class="model-note" aria-label="Local answer model"><span class="model-note-label">Answer model:</span><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel loading</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a><progress id="model-search-progress" max="100" hidden aria-label="Model download progress"></progress></div></div>
           <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus readiness">
-            <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus in this browser…</span> <a id="fts-setup-link" href="?view=setup#setup-nfcorpus">Settings</a><span class="inline-setup-actions"><button id="fts-prepare" type="button" hidden>Download NFCorpus</button></span></p>
+            <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus index…</span> <a id="fts-setup-link" href="?view=setup#setup-nfcorpus">Settings</a><span class="inline-setup-actions"><button id="fts-prepare" type="button" hidden>Download NFCorpus</button></span></p>
           </div>
           <div id="msmarco-collection" class="collection-panel" role="region" aria-label="MS MARCO readiness" hidden>
-            <p id="marco-help" class="search-help" aria-live="off"><span id="marco-help-text">Checking for a saved MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup#setup-msmarco">Settings</a><span class="inline-setup-actions"><button id="marco-download" type="button" hidden>Download MS MARCO index (3.35 GB)</button><button id="marco-open" type="button" hidden>Open saved index</button><button id="marco-search-cancel" type="button" hidden>Cancel download</button><progress id="marco-search-progress" max="100" hidden aria-label="Index download progress"></progress></span></p>
+            <p id="marco-help" class="search-help" aria-live="off"><span id="marco-help-text">Checking MS MARCO index…</span> <a id="marco-setup-link" href="?view=setup#setup-msmarco">Settings</a><span class="inline-setup-actions"><button id="marco-download" type="button" hidden>Download MS MARCO index (3.35 GB)</button><button id="marco-open" type="button" hidden>Open saved index</button><button id="marco-search-cancel" type="button" hidden>Cancel download</button><progress id="marco-search-progress" max="100" hidden aria-label="Index download progress"></progress></span></p>
           </div>
         </div>
         <ul id="chat-suggestions" class="chat-suggestions" role="listbox" aria-label="Example questions" hidden></ul>
@@ -70,11 +70,11 @@
     <section class="setup-card settings-collections" aria-labelledby="settings-collections-heading">
       <h2 id="settings-collections-heading">Indexes</h2>
       <section id="setup-nfcorpus" tabindex="-1" class="settings-resource" aria-labelledby="fts-setup-heading">
-        <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="fts-setup-heading">NFCorpus</h3><span id="fts-settings-state" class="settings-state" role="status">Checking…</span></div><p class="settings-description">Nutrition and medical research · 3,633 articles</p><p id="fts-status" class="settings-detail" role="status">Checking saved collection…</p></div>
+        <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="fts-setup-heading">NFCorpus</h3><span id="fts-settings-state" class="settings-state" role="status">Checking…</span></div><p class="settings-description">Nutrition and medical research · 3,633 articles</p><p id="fts-status" class="settings-detail" role="status">Checking NFCorpus index…</p></div>
         <div class="settings-resource-actions"><div id="fts-setup"><button id="fts-index" class="primary settings-download-button" type="button" aria-describedby="fts-setup-heading" disabled><i data-lucide="download" aria-hidden="true"></i><span>Download &amp; set up</span></button></div><button id="fts-settings-search" type="button" hidden aria-label="Chat with NFCorpus">Chat with this collection</button></div>
       </section>
       <section id="setup-msmarco" tabindex="-1" class="settings-resource" aria-labelledby="marco-setup-heading">
-        <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="marco-setup-heading">MS MARCO</h3><span id="marco-settings-state" class="settings-state">Checking…</span></div><p class="settings-description">General web passages · 8.8 million passages · 3.35 GB download</p><p id="marco-status" class="settings-detail" aria-live="off">Checking saved collection…</p><progress id="marco-progress" max="100" value="0" hidden aria-label="Collection download progress"></progress></div>
+        <div class="settings-resource-info"><div class="settings-resource-heading"><h3 id="marco-setup-heading">MS MARCO</h3><span id="marco-settings-state" class="settings-state">Checking…</span></div><p class="settings-description">General web passages · 8.8 million passages · 3.35 GB download</p><p id="marco-status" class="settings-detail" aria-live="off">Checking MS MARCO index…</p><progress id="marco-progress" max="100" value="0" hidden aria-label="Collection download progress"></progress></div>
         <div class="settings-resource-actions"><div id="marco-setup" hidden>
           <button id="marco-fetch" class="primary settings-download-button" type="button" aria-describedby="marco-setup-heading" hidden disabled><i data-lucide="download" aria-hidden="true"></i><span>Download &amp; set up</span></button>
           <button id="marco-reopen" class="primary" type="button" hidden disabled>Retry opening collection</button>
@@ -94,6 +94,7 @@
       <div class="settings-resource-heading"><h2 id="llm-heading">Model</h2><span id="llm-status" class="settings-state" aria-live="off">Checking model…</span></div>
       <p class="settings-description">Generate answers with citations from your search results. Runs on your device.</p>
       <p id="llm-settings-detail" class="settings-detail" hidden></p>
+      <p id="llm-status-detail" class="settings-detail" hidden></p>
       <div id="llm-controls">
         <div id="llm-setup" hidden><button id="llm-load" class="primary settings-download-button" hidden type="button" aria-label="Download model (~1.84 GB)" title="Download model (~1.84 GB)" disabled><span id="llm-load-icon"><i data-lucide="download" aria-hidden="true"></i></span><span id="llm-load-label">~1.84 GB</span></button></div>
         <button id="llm-cancel-load" hidden type="button">Cancel loading</button>
