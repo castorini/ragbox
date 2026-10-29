@@ -16,6 +16,8 @@ export type TurnStage = 'resolve' | 'retrieve' | 'generate';
 export interface ChatTurn {
   id: string;
   question: string;
+  // The collection this turn searched; a chat can switch collections between turns.
+  corpus?: Corpus;
   searchQuery?: string;
   results: SearchResult[];
   answer: string;

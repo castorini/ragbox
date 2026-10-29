@@ -3,7 +3,7 @@ import { renderAnswer } from './llm-controller.ts';
 import { EXAMPLE_QUERIES } from './example-queries.ts';
 import { MAX_QUESTION_LENGTH, type ChatController } from './chat-controller.ts';
 import type { ResourceStates } from './resource-state.ts';
-import type { ChatTurn, Conversation } from './types.ts';
+import type { ChatTurn, Conversation, Corpus } from './types.ts';
 import { currentConversation, currentDraft } from './conversations.ts';
 import { ArrowUp, Check, Copy, Square } from 'lucide';
 import { appIcon } from './icons.ts';
@@ -13,6 +13,12 @@ export function sourceAnchor(conversationId: string, turnId: string, documentId:
 }
 export function handleComposerKey(event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'isComposing' | 'preventDefault'>, send: () => void) {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); send(); }
+}
+
+const corpusName = (corpus: Corpus) => corpus === 'msmarco' ? 'MS MARCO' : 'NFCorpus';
+function showNote(note: HTMLElement, text: string) {
+  if (note.textContent !== text) note.textContent = text;
+  if (note.hidden !== !text) note.hidden = !text;
 }
 
 export function setupChatView(controller: ChatController, states: ResourceStates) {
@@ -29,6 +35,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const unsaved = requiredElement<HTMLElement>('#chat-unsaved');
   const dashboard = requiredElement<HTMLElement>('#corpus-dashboard');
   const notices = requiredElement<HTMLElement>('.chat-notices');
+  const pendingSwitch = document.createElement('p'); pendingSwitch.className = 'chat-switch-note'; pendingSwitch.hidden = true; pendingSwitch.setAttribute('role', 'status');
   const noticesClose = requiredElement<HTMLButtonElement>('#chat-notices-close');
   const modelStatus = requiredElement<HTMLElement>('#model-search-status');
   const workspace = requiredElement<HTMLElement>('#search-view');
@@ -36,7 +43,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   let draftConversationId = '';
   let disposed = false;
   let exampleCorpus = '';
-  type Row = { root: HTMLElement; answer: HTMLElement; thinking: HTMLDetailsElement; thinkingSummary: HTMLElement; thinkingText: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string; turn?: ChatTurn; latest?: boolean };
+  type Row = { root: HTMLElement; switchNote: HTMLElement; answer: HTMLElement; thinking: HTMLDetailsElement; thinkingSummary: HTMLElement; thinkingText: HTMLElement; status: HTMLElement; context: HTMLElement; sources: HTMLDetailsElement; copy: HTMLButtonElement; retry: HTMLButtonElement; feedback: HTMLElement; metadata?: HTMLElement; results?: ChatTurn['results']; answerKey?: string; turn?: ChatTurn; latest?: boolean };
   const rows = new Map<string, Row>();
   const element = <T extends keyof HTMLElementTagNameMap>(tag: T, className = '', text = '') => {
     const node = document.createElement(tag); node.className = className; node.textContent = text; return node;
@@ -130,10 +137,11 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const conversation = store.current();
     const latest = conversation.turns.at(-1);
     const row = latest && rows.get(latest.id);
-    if (row) row.retry.disabled = controller.running || states.busy || states.get(conversation.corpus).phase !== 'ready' || (states.get('model').phase === 'unsupported' && latest.stage === 'generate' && !latest.keywordOnly);
+    if (row) row.retry.disabled = controller.running || states.busy || states.get(latest.corpus ?? conversation.corpus).phase !== 'ready' || (states.get('model').phase === 'unsupported' && latest.stage === 'generate' && !latest.keywordOnly);
   }
   function createRow(conversation: Conversation, turn: ChatTurn): Row {
     const root = element('article', 'chat-turn'); root.setAttribute('aria-label', 'Question and reply');
+    const switchNote = element('p', 'chat-switch-note'); switchNote.hidden = true;
     const user = element('div', 'chat-user'); user.append(element('span', 'chat-speaker', 'You'), element('p', '', turn.question));
     const assistant = element('div', 'chat-assistant');
     const thinking = element('details', 'chat-thinking');
@@ -174,8 +182,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const answerBlock = element('div', 'chat-answer-block'); answerBlock.append(answer, copy, feedback);
     const actions = element('div', 'chat-answer-actions'); actions.append(retry);
     assistant.append(element('span', 'chat-speaker', 'RAGbox'), thinking, answerBlock, status, context, sources, actions);
-    root.append(user, assistant); transcript.append(root);
-    return { root, answer, thinking, thinkingSummary, thinkingText, status, context, sources, copy, retry, feedback };
+    root.append(switchNote, user, assistant); transcript.append(root);
+    return { root, switchNote, answer, thinking, thinkingSummary, thinkingText, status, context, sources, copy, retry, feedback };
   }
   function renderRow(conversation: Conversation, turn: ChatTurn, latest: boolean) {
     let row = rows.get(turn.id);
@@ -208,7 +216,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     row.context.textContent = 'Using up to the latest 3 turns, within the model’s context limit. Earlier messages remain saved.';
     row.copy.disabled = !turn.answer.trim(); row.copy.hidden = !turn.answer.trim();
     row.retry.hidden = !latest || !['error', 'stopped', 'blocked'].includes(turn.phase);
-    row.retry.disabled = controller.running || states.busy || states.get(conversation.corpus).phase !== 'ready' || (states.get('model').phase === 'unsupported' && turn.stage === 'generate' && !turn.keywordOnly);
+    row.retry.disabled = controller.running || states.busy || states.get(turn.corpus ?? conversation.corpus).phase !== 'ready' || (states.get('model').phase === 'unsupported' && turn.stage === 'generate' && !turn.keywordOnly);
     row.retry.textContent = turn.phase === 'blocked' ? 'Retry answer' : 'Retry';
     row.sources.hidden = !turn.results.length;
     if (row.results !== turn.results) {
@@ -241,7 +249,14 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     if (changed) { rows.clear(); transcript.replaceChildren(); conversationId = conversation.id; }
     title.textContent = conversation.turns.length ? conversation.title : 'Ask your documents';
     empty.hidden = !!conversation.turns.length; dashboard.hidden = !!conversation.turns.length;
-    for (const [index, turn] of conversation.turns.entries()) renderRow(conversation, turn, index === conversation.turns.length - 1);
+    for (const [index, turn] of conversation.turns.entries()) {
+      renderRow(conversation, turn, index === conversation.turns.length - 1);
+      const previous = conversation.turns[index - 1];
+      showNote(rows.get(turn.id)!.switchNote, previous && previous.corpus !== turn.corpus && turn.corpus ? `Searching through ${corpusName(turn.corpus)}` : '');
+    }
+    // After a mid-chat switch, say which collection the next question will search.
+    showNote(pendingSwitch, latest && latest.corpus && latest.corpus !== conversation.corpus ? `Searching through ${corpusName(conversation.corpus)} now` : '');
+    if (transcript.lastChild !== pendingSwitch) transcript.append(pendingSwitch);
     // A newly asked question scrolls to the top of the screen with its reply below. Streaming
     // never moves the page afterwards, so readers can scroll freely through earlier turns.
     if (asked && latest && !requiredElement<HTMLElement>('#search-view').hidden) {

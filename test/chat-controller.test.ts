@@ -220,11 +220,13 @@ describe('chat orchestration', () => {
     expect(h.latest()).toMatchObject({ phase: 'complete', question: 'New subject', thinking: '', answer: 'A finding [MED-1].' });
     expect(h.store.current().turns).toHaveLength(1);
   });
-  it('restores separate chats per collection and does not resume saved unanswered turns automatically', async () => {
-    const h = await harness(); await h.chat.send('coffee'); const nf = h.store.current().id;
-    h.chat.select('msmarco'); await h.chat.send('thunder'); expect(h.resources.retrieve).toHaveBeenLastCalledWith('msmarco', 'thunder', operation);
-    h.chat.select('nfcorpus'); expect(h.store.current().id).toBe(nf);
+  it('switches collections within a chat and does not resume saved unanswered turns automatically', async () => {
+    const h = await harness(); await h.chat.send('coffee'); const chat = h.store.current().id;
+    h.chat.select('msmarco'); expect(h.store.current().id).toBe(chat);
+    await h.chat.send('thunder'); expect(h.resources.retrieve).toHaveBeenLastCalledWith('msmarco', expect.any(String), operation);
+    expect(h.store.current().turns.map(turn => turn.corpus)).toEqual(['nfcorpus', 'msmarco']);
     await h.store.flush(); const restored = new ConversationStore(h.repository); await restored.initialize();
+    expect(restored.get(chat)!.turns.map(turn => turn.corpus)).toEqual(['nfcorpus', 'msmarco']);
     const model = new FakeModel(); new ChatController(restored, model, h.resources); expect(model.generateAnswer).not.toHaveBeenCalled();
   });
   it('stays on the start page when switching collections before asking anything', async () => {
@@ -257,8 +259,8 @@ describe('chat orchestration', () => {
     const sending = h.chat.send('What about it?'); h.chat.select('msmarco');
     resolved.resolve({ query: 'coffee effects', contextLimited: false }); await sending;
     expect(h.store.get(id)!.turns.at(-1)!.phase).toBe('stopped'); expect(h.resources.retrieve).toHaveBeenCalledOnce();
-    // MS MARCO had no chat yet, so this is a switch from the start page: it stays there.
-    h.chat.select('nfcorpus'); expect(h.store.current().turns).toHaveLength(0); expect(h.store.get(id)!.turns).toHaveLength(2);
+    // Mid-chat switches keep the same conversation.
+    h.chat.select('nfcorpus'); expect(h.store.current().id).toBe(id); expect(h.store.get(id)!.turns).toHaveLength(2);
   });
   it('reuses the original generation snapshot after model recovery', async () => {
     const h = await harness(); await h.chat.send('coffee'); await h.chat.send('What about it?');

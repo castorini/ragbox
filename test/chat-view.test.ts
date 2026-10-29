@@ -15,7 +15,8 @@ class Node {
   private text = '';
   get textContent() { return this.text; }
   set textContent(value: string) { this.text = value; this.writes++; }
-  append(...items: Node[]) { for (const item of items) item.parent = this; this.children.push(...items); }
+  get lastChild(): Node | null { return this.children.at(-1) ?? null; }
+  append(...items: Node[]) { for (const item of items) { item.remove(); item.parent = this; } this.children.push(...items); }
   appendChild(item: Node) { this.append(item); return item; }
   replaceChildren(...items: Node[]) { this.writes++; this.children = []; this.append(...items); }
   insertBefore(item: Node, before: Node | null) {
@@ -61,7 +62,7 @@ describe('focused chat subscriptions', () => {
     const turn = h.store.append('Second', [], false);
     h.store.update(id, turn.id, { phase: 'generating', thinking: 'Reasoning', results: [{ id: 'MED-1', title: 'Study', text: 'Evidence', score: 1 }] });
     const transcript = h.get('#chat-transcript'); const earlier = transcript.children[0]; const latest = transcript.children[1];
-    const thinking = latest.children[1].children[1]; const sources = latest.children[1].children[5];
+    const thinking = latest.children[2].children[1]; const sources = latest.children[2].children[5];
     thinking.open = true; sources.open = true;
     const sourceNodes = sources.children; const previousWrites = mutations(earlier);
     h.get('#chat-query').value = 'Unsent draft'; h.store.setDraft('Unsent draft');

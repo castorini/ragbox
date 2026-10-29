@@ -372,6 +372,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-context{border-left:2px solid #bfcdb9;padding-left:10px}
 .chat-turn[data-phase=error] .chat-turn-status,.chat-unsaved{color:#934322}
 .chat-turn[data-phase=generating] .chat-turn-status,.chat-turn[data-phase=resolving] .chat-turn-status{color:var(--accent)}
+.chat-switch-note{display:flex;align-items:center;gap:12px;margin:8px 0 20px;font-size:12px;font-weight:600;color:var(--muted)}
+.chat-switch-note::before,.chat-switch-note::after{content:'';flex:1;border-top:1px solid var(--line)}
+.chat-switch-note[hidden]{display:none}
 .chat-sources{border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-top:14px;background:#fff}
 .chat-sources>summary{font-size:13px;font-weight:600;cursor:pointer}
 .chat-sources ol{padding-left:22px;margin:16px 0 0}

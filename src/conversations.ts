@@ -99,7 +99,7 @@ function restoreConversation(value: Conversation): Conversation | undefined {
   if (!value || typeof value.id !== 'string' || !isCorpus(value.corpus) || typeof value.title !== 'string' || !Array.isArray(value.turns)) return;
   const phases = new Set(['complete', 'stopped', 'error', 'blocked']);
   const turns = value.turns.filter(turn => turn && typeof turn.id === 'string' && typeof turn.question === 'string' && validResults(turn.results)).map(turn => ({
-    ...turn, history: Array.isArray(turn.history) ? turn.history.filter(message => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string') : [],
+    ...turn, corpus: isCorpus(turn.corpus) ? turn.corpus : value.corpus, history: Array.isArray(turn.history) ? turn.history.filter(message => message && (message.role === 'user' || message.role === 'assistant') && typeof message.content === 'string') : [],
     answer: typeof turn.answer === 'string' ? turn.answer : '', thinking: typeof turn.thinking === 'string' ? turn.thinking : '', thinkingEffort: normalizeThinkingEffort(turn.thinkingEffort), includedIds: Array.isArray(turn.includedIds) ? turn.includedIds : [], citedIds: Array.isArray(turn.citedIds) ? turn.citedIds : [],
     phase: phases.has(turn.phase) ? turn.phase : 'stopped' as const,
     message: phases.has(turn.phase) ? turn.message : 'Interrupted by a page reload. Retry to continue.',
@@ -220,12 +220,18 @@ export class ConversationStore {
   select(corpus: Corpus) {
     const state = this.state.getState();
     if (state.selected === corpus) return;
+    const conversation = currentConversation(state);
+    // Mid-chat, keep the conversation and search the new collection from the next question on.
+    if (conversation.turns.length) {
+      const updated = { ...conversation, corpus, turns: conversation.turns.map(turn => turn.corpus ? turn : { ...turn, corpus: conversation.corpus }) };
+      this.persistence.save(updated);
+      this.state.setState({ selected: corpus, items: { ...state.items, [updated.id]: updated }, active: { ...state.active, [corpus]: updated.id } });
+      this.navigation(); return;
+    }
     const existing = recordValue(state.items, state.active[corpus]);
     // From the start page (no messages yet), stay there: open an empty chat in the new
     // collection instead of jumping into that collection's earlier chat.
-    const current = !currentConversation(state).turns.length
-      ? (existing?.corpus === corpus && !existing.turns.length ? existing : emptyConversation(corpus, this.now()))
-      : existing?.corpus === corpus ? existing : this.conversations().find(item => item.corpus === corpus) ?? emptyConversation(corpus, this.now());
+    const current = existing?.corpus === corpus && !existing.turns.length ? existing : emptyConversation(corpus, this.now());
     this.state.setState({ selected: corpus, items: state.items[current.id] ? state.items : { ...state.items, [current.id]: current }, active: { ...state.active, [corpus]: current.id } });
     this.navigation();
   }
@@ -251,7 +257,7 @@ export class ConversationStore {
   }
   append(question: string, history: ChatTurn['history'], contextLimited: boolean) {
     const state = this.state.getState(); const conversation = this.current();
-    const turn: ChatTurn = { id: id('turn'), question, history, contextLimited, thinkingEffort: state.thinkingEffort, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
+    const turn: ChatTurn = { id: id('turn'), question, corpus: conversation.corpus, history, contextLimited, thinkingEffort: state.thinkingEffort, results: [], answer: '', includedIds: [], citedIds: [], phase: 'retrieving', stage: history.length ? 'resolve' : 'retrieve', message: 'Searching documents…' };
     const updated = { ...conversation, title: conversation.turns.length ? conversation.title : question, updatedAt: this.now(), turns: [...conversation.turns, turn] };
     const items = { ...state.items, [updated.id]: updated }; const drafts = { ...state.drafts, [updated.id]: '' };
     const old = Object.values(items).filter(item => item.turns.length).sort((a, b) => b.updatedAt - a.updatedAt).slice(CONVERSATION_LIMIT).map(item => item.id);

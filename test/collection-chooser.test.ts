@@ -54,7 +54,7 @@ afterEach(() => vi.unstubAllGlobals());
 it('renders collection selection from the store when restoring and opening chats', async () => {
   const ui = harness(); const store = new ConversationStore(memoryRepository()); await store.initialize();
   store.select('msmarco'); store.append('Saved MARCO question', [], false); const saved = store.current().id;
-  store.select('nfcorpus');
+  store.newChat(); store.select('nfcorpus');
   const choose = vi.fn((corpus: 'nfcorpus' | 'msmarco') => store.select(corpus));
   const chooser = setupCollectionChooser(choose, undefined, true, true, store);
   store.open(saved);

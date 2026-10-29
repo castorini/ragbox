@@ -67,7 +67,8 @@ export class ChatController {
   private async process(conversationId: string, turnId: string, stage: TurnStage) {
     if (this.disposed || this.active || this.resources.busy()) return;
     const conversation = this.store.get(conversationId);
-    if (!conversation || !this.resources.ready(conversation.corpus)) return;
+    const corpus = conversation?.turns.find(item => item.id === turnId)?.corpus ?? conversation?.corpus;
+    if (!conversation || !corpus || !this.resources.ready(corpus)) return;
     const operation: ChatOperation = { conversationId, turnId, attemptId: `attempt-${++this.sequence}` };
     const attempt: Attempt = { ...operation, abort: new AbortController() };
     this.setActive(attempt); this.pending = undefined;
@@ -86,7 +87,7 @@ export class ChatController {
       };
       const retrieve = async () => {
         this.update(attempt, { phase: 'retrieving', stage: 'retrieve', searchQuery: query, keywordOnly, message: keywordOnly ? 'Searching literal keywords…' : 'Searching documents…', answer: '', includedIds: [], citedIds: [] });
-        const result = await this.resources.retrieve(conversation.corpus, query, operation);
+        const result = await this.resources.retrieve(corpus, query, operation);
         this.update(attempt, { results: result.documents, elapsedMs: result.elapsedMs });
       };
       if (stage !== 'generate') {
@@ -118,7 +119,7 @@ export class ChatController {
       }
       this.update(attempt, { phase: 'generating', stage: 'generate', keywordOnly: false, answer: '', thinking: '', includedIds: [], citedIds: [], message: turn.thinkingEffort === 'off' ? 'Writing answer…' : 'Thinking…' });
       const answer = await this.model.generateAnswer({
-        corpus: conversation.corpus, question: turn.question, searchQuery: query, documents: retrieved.results, history, thinkingEffort: turn.thinkingEffort, operation,
+        corpus, question: turn.question, searchQuery: query, documents: retrieved.results, history, thinkingEffort: turn.thinkingEffort, operation,
         citationTargets: new Map(retrieved.results.map(document => [document.id, document.id])),
         onContext: (ids, limited) => this.update(attempt, { includedIds: ids, contextLimited: turn.contextLimited || limited }),
         onThinkingDelta: text => {
@@ -153,7 +154,7 @@ export class ChatController {
     if (!pending || this.active || !this.model.ready || this.resources.busy() || this.store.current().id !== pending.conversationId) return;
     const conversation = this.store.current();
     const turn = conversation.turns.at(-1);
-    if (!turn || turn.id !== pending.turnId || !this.resources.ready(conversation.corpus)) return;
+    if (!turn || turn.id !== pending.turnId || !this.resources.ready(turn.corpus ?? conversation.corpus)) return;
     this.pending = undefined;
     void this.process(conversation.id, turn.id, turn.history.length && turn.keywordOnly ? 'resolve' : 'generate');
   }
@@ -171,7 +172,7 @@ export class ChatController {
     if (this.running || this.resources.busy()) return;
     const conversation = this.store.current();
     const turn = conversation.turns.at(-1);
-    if (!turn || !this.resources.ready(conversation.corpus)) return;
+    if (!turn || !this.resources.ready(turn.corpus ?? conversation.corpus)) return;
     await this.process(conversation.id, turn.id, turn.keywordOnly && turn.history.length ? 'resolve' : turn.stage === 'generate' && !turn.results.length ? 'retrieve' : turn.stage);
   }
   select(corpus: Corpus) { if (this.store.selected !== corpus) this.stop(); this.store.select(corpus); }
