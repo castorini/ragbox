@@ -526,7 +526,10 @@ form.examples-open .example-queries{border-color:#76aa96}
 /* A new question scrolls to the top of the screen: the latest exchange is at least one
    screen tall above the composer, and keeps a little room under the top edge. */
 #collections .chat-turn{scroll-margin-top:24px}
-#collections .chat-transcript>.chat-turn:last-child{min-height:calc(100svh - var(--composer-space, 140px) - 48px)}
+#collections .chat-transcript>.chat-turn:last-of-type{min-height:calc(100svh - var(--composer-space, 140px) - 48px)}
+/* After a mid-chat collection switch, the note takes that room so it can scroll to the top. */
+#collections .chat-transcript:has(>.chat-switch-note:not([hidden])) .chat-turn:last-of-type{min-height:0}
+#collections .chat-transcript>.chat-switch-note{scroll-margin-top:24px;padding-bottom:calc(100svh - var(--composer-space, 140px) - 96px)}
 
 /* Start page fits a laptop window without scrolling: no fixed top gap or composer padding
    (the composer is not pinned here), content centered vertically, slightly tighter spacing. */

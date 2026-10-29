@@ -124,6 +124,17 @@ describe('focused chat subscriptions', () => {
     expect(h.frame).not.toHaveBeenCalled();
     h.view.dispose(); h.chat.dispose(); await h.store.flush();
   });
+  it('scrolls the collection switch note to the top when switching mid-chat', async () => {
+    const h = await harness(); const turn = h.store.append('First', [], false);
+    h.store.update(h.store.current().id, turn.id, { phase: 'complete', answer: 'Done' });
+    h.frame.mockClear();
+    h.store.select('msmarco');
+    const note = h.get('#chat-transcript').children.at(-1)!;
+    expect(note.textContent).toBe('Searching through MS MARCO now'); expect(note.hidden).toBe(false);
+    expect(h.frame).toHaveBeenCalledOnce(); h.frame.mock.calls[0][0]();
+    expect(note.scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+    h.view.dispose(); h.chat.dispose(); await h.store.flush();
+  });
   it('tags each reply with its current activity for the progress animations', async () => {
     const h = await harness(); const turn = h.store.append('Question', [], false); const id = h.store.current().id;
     const activity = () => h.get('#chat-transcript').children[0].dataset.activity;

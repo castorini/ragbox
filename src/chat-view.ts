@@ -254,9 +254,19 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       const previous = conversation.turns[index - 1];
       showNote(rows.get(turn.id)!.switchNote, previous && previous.corpus !== turn.corpus && turn.corpus ? `Searching through ${corpusName(turn.corpus)}` : '');
     }
-    // After a mid-chat switch, say which collection the next question will search.
-    showNote(pendingSwitch, latest && latest.corpus && latest.corpus !== conversation.corpus ? `Searching through ${corpusName(conversation.corpus)} now` : '');
+    // After a mid-chat switch, say which collection the next question will search and
+    // scroll that note to the top, like a newly asked question.
+    const switched = latest && latest.corpus && latest.corpus !== conversation.corpus ? `Searching through ${corpusName(conversation.corpus)} now` : '';
+    const announce = !changed && !!switched && switched !== pendingSwitch.textContent;
+    showNote(pendingSwitch, switched);
     if (transcript.lastChild !== pendingSwitch) transcript.append(pendingSwitch);
+    if (announce && !requiredElement<HTMLElement>('#search-view').hidden) {
+      requestAnimationFrame(() => {
+        if (disposed || store.current().id !== conversation.id || pendingSwitch.hidden) return;
+        const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        pendingSwitch.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'instant' });
+      });
+    }
     // A newly asked question scrolls to the top of the screen with its reply below. Streaming
     // never moves the page afterwards, so readers can scroll freely through earlier turns.
     if (asked && latest && !requiredElement<HTMLElement>('#search-view').hidden) {
