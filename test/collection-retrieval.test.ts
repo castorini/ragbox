@@ -65,7 +65,7 @@ describe('shared collection retrieval', () => {
     expect(nf.prepare.mock.calls[1][0]).toContain("'Document ' || CAST(id AS VARCHAR) AS title");
     expect(nf.prepare.mock.calls[1][0]).toContain('match_bm25(id, ?)');
     const marco = connection([{ id: 123n, contents: 'A passage', score: 3 }]);
-    await expect(retrieveMSMarco(marco.conn, 'query')).resolves.toMatchObject({ documents: [{ id: 'MARCO-123', title: 'Passage 123', text: 'A passage', score: 3 }] });
+    await expect(retrieveMSMarco(marco.conn, 'query')).resolves.toMatchObject({ documents: [{ id: 'MARCO-123', title: 'MARCO-123', text: 'A passage', score: 3 }] });
   });
 
   it.each(['nfcorpus', 'msmarco'] as const)('keeps both %s statements parameter-bound for SQL-looking input', async corpus => {

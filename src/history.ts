@@ -101,7 +101,7 @@ function resultItem(doc: Document, entry: HistoryEntry, result: HistoryResult, a
   title.textContent = result.title;
   const metadata = doc.createElement('p');
   metadata.className = 'history-result-meta';
-  metadata.textContent = `${result.id} · BM25 ${Number(result.score).toFixed(4)}`;
+  metadata.textContent = `${result.title === result.id ? '' : `${result.id} · `}BM25 ${Number(result.score).toFixed(4)}`;
   const excerpt = doc.createElement('p');
   excerpt.textContent = result.text.slice(0, 350) + (result.text.length > 350 ? '…' : '');
   item.append(title, metadata, excerpt);

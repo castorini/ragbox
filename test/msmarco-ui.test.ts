@@ -84,8 +84,8 @@ describe('MS MARCO result conversion', () => {
       { id: 12, contents: 'First passage', score: 9 },
       { id: '7', contents: null, score: 8 },
     ])).toEqual([
-      { id: 'MARCO-12', title: 'Passage 12', text: 'First passage' },
-      { id: 'MARCO-7', title: 'Passage 7', text: '' },
+      { id: 'MARCO-12', title: 'MARCO-12', text: 'First passage' },
+      { id: 'MARCO-7', title: 'MARCO-7', text: '' },
     ]);
   });
 });
@@ -121,8 +121,8 @@ describe('MS MARCO search UI', () => {
       question: "what's a corporation",
       evidenceLabel: 'passages',
       documents: [
-        { id: 'MARCO-12', title: 'Passage 12', text: '<script>text</script>' },
-        { id: 'MARCO-8/9', title: 'Passage 8/9', text: 'Second passage' },
+        { id: 'MARCO-12', title: 'MARCO-12', text: '<script>text</script>' },
+        { id: 'MARCO-8/9', title: 'MARCO-8/9', text: 'Second passage' },
       ],
     });
     expect([...request.citationTargets]).toEqual([

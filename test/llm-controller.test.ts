@@ -188,7 +188,7 @@ describe('LLMController', () => {
     const generated = harness.controller.generate({
       corpus: 'msmarco',
       question: 'query',
-      documents: [{ id: 'MARCO-12', title: 'Passage 12', text: 'Evidence' }],
+      documents: [{ id: 'MARCO-12', title: 'MARCO-12', text: 'Evidence' }],
       citationTargets: new Map([['MARCO-12', '#marco-result-12']]),
       evidenceLabel: 'passages',
     });
@@ -224,7 +224,7 @@ describe('LLMController', () => {
     controller.generate({
       corpus: 'msmarco',
       question: 'second',
-      documents: [{ id: 'MARCO-12', title: 'Passage 12', text: 'Second' }],
+      documents: [{ id: 'MARCO-12', title: 'MARCO-12', text: 'Second' }],
       citationTargets: new Map([['MARCO-12', '#marco-result-12']]),
       evidenceLabel: 'passages',
     });
@@ -253,8 +253,8 @@ describe('LLMController', () => {
       corpus: 'msmarco',
       question: 'second',
       documents: [
-        { id: 'MARCO-12', title: 'Passage 12', text: 'Second' },
-        { id: 'MARCO-99', title: 'Passage 99', text: 'Lower ranked' },
+        { id: 'MARCO-12', title: 'MARCO-12', text: 'Second' },
+        { id: 'MARCO-99', title: 'MARCO-99', text: 'Lower ranked' },
       ],
       citationTargets: new Map([
         ['MARCO-12', '#marco-result-12'],

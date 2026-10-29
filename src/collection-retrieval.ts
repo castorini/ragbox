@@ -64,5 +64,5 @@ export async function retrieveMSMarco(conn: Pick<Connection, 'prepare'>, query: 
   const normalized = await normalizeQuery(conn, 'fts_main_msmarco', query);
   if (!normalized) return { documents: [], elapsedMs: performance.now() - start };
   const rows = await queryBM25<{ id: string | number | bigint; contents: string; score: number }>(conn, MSMARCO_SEARCH_SQL, normalized);
-  return { documents: rows.map(row => ({ id: `MARCO-${String(row.id)}`, title: `Passage ${String(row.id)}`, text: String(row.contents ?? ''), score: Number(row.score) })), elapsedMs: performance.now() - start };
+  return { documents: rows.map(row => ({ id: `MARCO-${String(row.id)}`, title: `MARCO-${String(row.id)}`, text: String(row.contents ?? ''), score: Number(row.score) })), elapsedMs: performance.now() - start };
 }

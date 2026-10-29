@@ -48,8 +48,8 @@ describe('buildMessages', () => {
 
   it('describes evidence generically and preserves MS MARCO citation IDs', () => {
     const passages = [
-      { id: 'MARCO-123', title: 'Passage 123', text: 'A corporation is a legal entity.' },
-      { id: 'MARCO-456', title: 'Passage 456', text: 'Corporations can own property.' },
+      { id: 'MARCO-123', title: 'MARCO-123', text: 'A corporation is a legal entity.' },
+      { id: 'MARCO-456', title: 'MARCO-456', text: 'Corporations can own property.' },
     ];
 
     const messages = buildMessages('corporation definition', passages);
@@ -144,9 +144,9 @@ describe('fitDocumentsToTokenBudget', () => {
 
   it('enforces the budget for ranked MS MARCO passages without changing their order', async () => {
     const passages = [
-      { id: 'MARCO-11', title: 'Passage 11', text: 'A'.repeat(500) },
-      { id: 'MARCO-22', title: 'Passage 22', text: 'B'.repeat(500) },
-      { id: 'MARCO-33', title: 'Passage 33', text: 'C'.repeat(500) },
+      { id: 'MARCO-11', title: 'MARCO-11', text: 'A'.repeat(500) },
+      { id: 'MARCO-22', title: 'MARCO-22', text: 'B'.repeat(500) },
+      { id: 'MARCO-33', title: 'MARCO-33', text: 'C'.repeat(500) },
     ];
     const countTokens = async (messages: ReturnType<typeof buildMessages>) => messages
       .map(message => message.content)

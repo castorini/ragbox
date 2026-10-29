@@ -182,8 +182,8 @@ describe('LLM worker generation', () => {
 
   it('reports fitted context IDs before the first answer delta and repeats them on completion', async () => {
     const fittedDocuments = [
-      { id: 'MARCO-1', title: 'Passage 1', text: 'The highest-ranked evidence.' },
-      { id: 'MARCO-2', title: 'Passage 2', text: 'Evidence that does not fit.' },
+      { id: 'MARCO-1', title: 'MARCO-1', text: 'The highest-ranked evidence.' },
+      { id: 'MARCO-2', title: 'MARCO-2', text: 'Evidence that does not fit.' },
     ];
     const harness = await createHarness({
       chunks: ['</think>Supported answer [MARCO-1].'],

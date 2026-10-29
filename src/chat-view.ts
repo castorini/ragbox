@@ -220,7 +220,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
           const expanded = item.toggleAttribute('data-expanded');
           more.textContent = expanded ? 'Show less' : 'Display full text'; more.setAttribute('aria-expanded', String(expanded));
         };
-        item.append(element('h3', '', result.title), element('p', 'chat-source-meta', `${result.id} · BM25 ${result.score.toFixed(4)}`), element('p', 'chat-source-text', result.text), more);
+        item.append(element('h3', '', result.title), element('p', 'chat-source-meta', `${result.title === result.id ? '' : `${result.id} · `}BM25 ${result.score.toFixed(4)}`), element('p', 'chat-source-text', result.text), more);
         list.append(item);
       }
       row.sources.replaceChildren(summary, metadata, list); row.results = turn.results;

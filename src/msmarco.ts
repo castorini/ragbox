@@ -15,7 +15,7 @@ type History = Pick<SearchHistory, 'record' | 'attachAnswer'>;
 export function normalizeMSMarcoResults<T extends { id: string | number | bigint; contents?: string | null }>(rows: T[]): EvidenceDocument[] {
   return rows.map(row => ({
     id: `MARCO-${String(row.id)}`,
-    title: `Passage ${String(row.id)}`,
+    title: `MARCO-${String(row.id)}`,
     text: String(row.contents ?? ''),
   }));
 }
