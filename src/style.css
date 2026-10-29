@@ -379,7 +379,9 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-sources h3{font-size:14px;margin:0 0 6px;line-height:1.5}
 .chat-sources p{font-size:13px;line-height:1.65;margin:6px 0}
 .chat-source-meta{color:var(--muted);font-size:11px!important}
-.chat-source-text{white-space:pre-wrap}
+.chat-source-text{white-space:pre-wrap;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;line-clamp:3;overflow:hidden}
+.chat-sources li[data-expanded] .chat-source-text{display:block;-webkit-line-clamp:none;line-clamp:none;overflow:visible}
+.chat-source-more{min-height:32px;padding:4px 10px;font-size:12px}
 .chat-answer-actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
 .chat-answer-actions button{font-size:12px;padding:6px 12px;min-height:36px}
 #collections .chat-composer{position:fixed;bottom:0;left:116px;right:36px;max-width:900px;z-index:4;background:#f5f5ef;padding:16px 0 12px;margin:0 auto;border-top:1px solid var(--line)}
@@ -456,6 +458,20 @@ form.examples-open .example-queries{border-color:#76aa96}
 #collections .chat-composer .search-toolbar{margin:0 0 10px}
 #search-view:has(#chat-empty:not([hidden])) #collections .chat-composer .search-toolbar{margin:0}
 #collections .chat-composer .model-note{justify-content:flex-start}
+
+/* In a chat, model and collection warnings form one banner tucked behind the top of the search box. */
+.chat-notices{display:contents}
+.model-note-label{display:none}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices{display:flex;flex-direction:column;gap:6px;margin:0 0 -16px;padding:10px 16px 26px;background:#fff7e7;border:1px solid #ead4a4;border-bottom:0;border-radius:16px 16px 0 0;color:#695022;font-size:13px;line-height:1.5}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices:not(:has(#model-search-status:not(:empty), .model-note > :is(button,a):not([hidden]), .collection-panel:not([hidden]) > .search-help:not([hidden]))){display:none}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-toolbar,#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-help{margin:0;padding:0;border:0;background:none;color:inherit}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .model-note{gap:4px 10px;color:inherit;font-size:13px}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .model-note-label{display:inline;font-weight:600}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices #model-search-status{color:inherit;font-weight:400}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.search-help) a{color:inherit;text-decoration:underline}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.inline-setup-actions) button{min-height:32px;padding:4px 12px;background:#fff;border-color:#d9c08c;color:#5a431a}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .inline-setup-actions:has(button:not([hidden])){margin-top:6px}
+#search-view:not(:has(#chat-empty:not([hidden]))) #chat-form>.chat-input-row{position:relative;z-index:1}
 
 /* In-progress animations. Chat replies set data-activity; resources expose data-phase. */
 .chat-turn:not([data-activity=""]) .chat-turn-status:not([hidden]){display:flex;align-items:center;gap:10px}

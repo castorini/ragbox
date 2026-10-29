@@ -48,6 +48,14 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     }
   };
   window.addEventListener('resize', resize);
+  // Offer the full-text toggle only for sources whose text runs past the three-line clamp.
+  const fitSources = (root: ParentNode) => {
+    for (const text of root.querySelectorAll<HTMLElement>('.chat-sources[open] li:not([data-expanded]) .chat-source-text')) {
+      (text.nextElementSibling as HTMLElement).hidden = text.scrollHeight <= text.clientHeight + 1;
+    }
+  };
+  const refitSources = () => fitSources(transcript);
+  window.addEventListener('resize', refitSources);
   // Readiness messages inside the pinned composer change its height without input.
   const composerObserver = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(resize);
   composerObserver?.observe(form);
@@ -134,6 +142,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     const status = element('p', 'chat-turn-status'); status.setAttribute('role', 'status');
     const context = element('p', 'chat-context');
     const sources = element('details', 'chat-sources');
+    sources.ontoggle = () => fitSources(sources);
     // Icon-only copy button beside the answer it copies.
     const copy = element('button', 'chat-copy'); copy.type = 'button';
     const showCopyIcon = (copied: boolean) => {
@@ -206,11 +215,16 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       const list = element('ol');
       for (const result of turn.results) {
         const item = element('li'); item.id = sourceAnchor(conversation.id, turn.id, result.id); item.tabIndex = -1;
-        const full = element('details'); full.append(element('summary', '', 'Full document text'), element('p', 'chat-source-text', result.text));
-        item.append(element('h3', '', result.title), element('p', 'chat-source-meta', `${result.id} · BM25 ${result.score.toFixed(4)}`), element('p', '', result.text.slice(0, 350) + (result.text.length > 350 ? '…' : '')), full);
+        const more = element('button', 'chat-source-more', 'Display full text'); more.type = 'button'; more.hidden = true; more.setAttribute('aria-expanded', 'false');
+        more.onclick = () => {
+          const expanded = item.toggleAttribute('data-expanded');
+          more.textContent = expanded ? 'Show less' : 'Display full text'; more.setAttribute('aria-expanded', String(expanded));
+        };
+        item.append(element('h3', '', result.title), element('p', 'chat-source-meta', `${result.id} · BM25 ${result.score.toFixed(4)}`), element('p', 'chat-source-text', result.text), more);
         list.append(item);
       }
       row.sources.replaceChildren(summary, metadata, list); row.results = turn.results;
+      fitSources(row.sources);
     }
     if (row.metadata) row.metadata.textContent = `${turn.keywordOnly ? 'Keyword search' : 'Search'}: ${turn.searchQuery ?? turn.question}${turn.elapsedMs == null ? '' : ` · ${turn.elapsedMs.toFixed(0)} ms`}`;
   }
@@ -273,6 +287,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     disposed = true;
     for (const unsubscribe of unsubscribers) unsubscribe();
     window.removeEventListener('resize', resize);
+    window.removeEventListener('resize', refitSources);
     composerObserver?.disconnect();
     form.onsubmit = null; query.oninput = null; query.onkeydown = null; query.onfocus = null; query.onclick = null; query.onblur = null;
   } };

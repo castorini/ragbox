@@ -26,6 +26,7 @@ class Node {
   setAttribute() { this.writes++; }
   removeAttribute() { this.writes++; }
   toggleAttribute() { this.writes++; }
+  querySelectorAll() { return []; }
   focus = vi.fn();
   scrollIntoView = vi.fn();
 }
