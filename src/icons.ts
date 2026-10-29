@@ -2,7 +2,7 @@ import {
   AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, CircleQuestionMark, Cpu,
   Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole, Maximize2,
   MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
-  ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2, createElement, createIcons,
+  ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2, X, createElement, createIcons,
   type IconNode, type SVGProps,
 } from 'lucide';
 
@@ -19,7 +19,7 @@ export function setupIcons() {
       AppWindow, ArrowDown, ArrowRight, ArrowUp, BookOpen, BrainCircuit, ChevronDown, CircleQuestionMark, Cpu,
       Database, Download, Files, FileText, HardDrive, History, Lightbulb, LockKeyhole, Maximize2,
       MessagesSquare, MessageSquareText, RefreshCw, Repeat2, Ruler, Search,
-      ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2,
+      ShieldCheck, SlidersHorizontal, Sparkles, SquarePen, Tag, TextSearch, Trash2, X,
     },
     attrs: { 'aria-hidden': 'true', focusable: 'false', 'stroke-width': 1.7 },
   });

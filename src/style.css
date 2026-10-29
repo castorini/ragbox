@@ -468,7 +468,11 @@ form.examples-open .example-queries{border-color:#76aa96}
 #search-view:has(#chat-empty:not([hidden])) .search-toolbar{background:#fff7e7;border:1px solid #ead4a4;border-left:4px solid #b68936;border-radius:8px;padding:11px 14px;color:#695022}
 #search-view:has(#chat-empty:not([hidden])) #collections .model-note{color:inherit;font-size:13px}
 #search-view:has(#chat-empty:not([hidden])) #model-search-status{color:inherit;font-weight:400}
-#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices{display:flex;flex-direction:column;gap:6px;margin:0 0 -16px;padding:10px 16px 26px;background:#fff7e7;border:1px solid #ead4a4;border-bottom:0;border-radius:16px 16px 0 0;color:#695022;font-size:13px;line-height:1.5}
+.chat-notices-close{display:none}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices[data-dismissed]{display:none}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices-close{position:absolute;top:8px;right:10px;display:inline-flex;align-items:center;justify-content:center;width:32px;min-width:32px;height:32px;min-height:32px;padding:0;border:0;border-radius:8px;background:none;color:inherit;cursor:pointer}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices-close:hover{background:#f5e6c4}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices{position:relative;display:flex;flex-direction:column;gap:6px;margin:0 0 -16px;padding:10px 52px 26px 16px;background:#fff7e7;border:1px solid #ead4a4;border-bottom:0;border-radius:16px 16px 0 0;color:#695022;font-size:13px;line-height:1.5}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices:not(:has(#model-search-status:not(:empty), .model-note > :is(button,a):not([hidden]), .collection-panel:not([hidden]) > .search-help:not([hidden]))){display:none}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-toolbar,#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .search-help{margin:0;padding:0;border:0;background:none;color:inherit}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .model-note{gap:4px 10px;color:inherit;font-size:13px}

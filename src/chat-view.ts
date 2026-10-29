@@ -28,6 +28,8 @@ export function setupChatView(controller: ChatController, states: ResourceStates
   const suggestions = requiredElement<HTMLUListElement>('#chat-suggestions');
   const unsaved = requiredElement<HTMLElement>('#chat-unsaved');
   const dashboard = requiredElement<HTMLElement>('#corpus-dashboard');
+  const notices = requiredElement<HTMLElement>('.chat-notices');
+  const noticesClose = requiredElement<HTMLButtonElement>('#chat-notices-close');
   const modelStatus = requiredElement<HTMLElement>('#model-search-status');
   const workspace = requiredElement<HTMLElement>('#search-view');
   let conversationId = '';
@@ -257,6 +259,11 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     }
     renderControls();
   }
+  // A dismissed warning stays closed until the model or selected collection changes state.
+  let dismissedNotice = '';
+  const noticeKey = () => `${states.get('model').phase}:${store.selected}:${states.get(store.selected).phase}`;
+  const renderNotices = () => notices.toggleAttribute('data-dismissed', dismissedNotice === noticeKey());
+  noticesClose.onclick = () => { dismissedNotice = noticeKey(); renderNotices(); query.focus(); };
   modelStatus.setAttribute('aria-live', 'off');
   const unsubscribers = [
     store.watch(currentConversation, render, true),
@@ -279,8 +286,10 @@ export function setupChatView(controller: ChatController, states: ResourceStates
         return item;
       }));
       setSuggestionsOpen(false);
+      renderNotices();
     }, true),
     states.watch(state => [state.busy, state.shuttingDown, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase === 'unsupported'], renderControls),
+    states.watch(state => [state.resources.model.phase, state.resources.nfcorpus.phase, state.resources.msmarco.phase], renderNotices),
   ];
   resize();
   return { render, dispose() {
