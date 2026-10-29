@@ -169,7 +169,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
       const link = (event.target as Element).closest('a');
       if (!link) return;
       const target = document.getElementById(link.hash.slice(1));
-      if (target) { event.preventDefault(); sources.open = true; target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'nearest' }); }
+      if (target) { event.preventDefault(); sources.open = true; target.focus({ preventScroll: true }); target.scrollIntoView({ block: 'center' }); }
     };
     const answerBlock = element('div', 'chat-answer-block'); answerBlock.append(answer, copy, feedback);
     const actions = element('div', 'chat-answer-actions'); actions.append(retry);
