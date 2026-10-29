@@ -680,11 +680,14 @@ it('does not display Copy feedback for an answer replaced while copying', async 
 });
 
 it('moves keyboard focus to available controls before the current control disappears', async () => {
-  const { controller, elements, worker } = createHarness({ supported: true }, 'installed');
+  const { controller, elements, worker } = createHarness({ supported: true }, 'missing');
   await controller.initializeCapability();
   elements.loadButton.focus();
   await controller.load(true);
-  expect(elements.loadButton.ownerDocument!.activeElement).toBe(elements.cancelLoadButton);
+  expect(elements.cancelLoadButton.hidden).toBe(true);
+  worker.emit({ type: 'progress', loadId: worker.messages[0].loadId, progress: { stage: 'downloading', downloadedBytes: 1e8 } });
+  expect(elements.cancelLoadButton.hidden).toBe(false);
+  elements.cancelLoadButton.focus();
   controller.cancelLoad();
   expect(elements.loadButton.ownerDocument!.activeElement).toBe(elements.loadButton);
   await controller.load(true);

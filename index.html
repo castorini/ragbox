@@ -23,7 +23,7 @@
       <form id="chat-form" class="chat-composer" novalidate>
         <label class="sr-only" for="chat-query">Message your document collection</label>
         <div class="chat-notices">
-          <div class="search-toolbar"><div class="model-note" aria-label="Local answer model"><span class="model-note-label">Answer model:</span><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel loading</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a><progress id="model-search-progress" max="100" hidden aria-label="Model download progress"></progress></div></div>
+          <div class="search-toolbar"><div class="model-note" aria-label="Local answer model"><span class="model-note-label">Answer model:</span><span id="model-search-status">Checking model…</span><button id="model-search-load" type="button" hidden></button><button id="model-search-cancel" type="button" hidden>Cancel download</button><a id="model-setup-link" href="?view=setup#model" hidden>Model settings</a><a id="model-repair-link" href="?view=setup#model-storage" hidden>Reinstall model</a><progress id="model-search-progress" max="100" hidden aria-label="Model download progress"></progress></div></div>
           <div id="nfcorpus-collection" class="collection-panel" role="region" aria-label="NFCorpus readiness">
             <p id="fts-help" class="search-help" role="status"><span id="fts-help-text">Checking NFCorpus index…</span> <a id="fts-setup-link" href="?view=setup#setup-nfcorpus">Settings</a><span class="inline-setup-actions"><button id="fts-prepare" type="button" hidden>Download NFCorpus</button></span></p>
           </div>
@@ -97,7 +97,7 @@
       <p id="llm-status-detail" class="settings-detail" hidden></p>
       <div id="llm-controls">
         <div id="llm-setup" hidden><button id="llm-load" class="primary settings-download-button" hidden type="button" aria-label="Download model (~1.84 GB)" title="Download model (~1.84 GB)" disabled><span id="llm-load-icon"><i data-lucide="download" aria-hidden="true"></i></span><span id="llm-load-label">~1.84 GB</span></button></div>
-        <button id="llm-cancel-load" hidden type="button">Cancel loading</button>
+        <button id="llm-cancel-load" hidden type="button">Cancel download</button>
         <progress id="llm-progress" max="100" hidden aria-label="Model loading progress"></progress>
       </div>
       <div class="storage-overview">

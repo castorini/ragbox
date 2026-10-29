@@ -121,14 +121,13 @@ export class LLMController extends ModelService {
         button.title = action;
       } else button.textContent = action;
     }
+    // Like index downloads, cancel and the bar show only while bytes are downloading, never while loading.
+    const downloading = this.state === 'loading' && this.model.stage === 'downloading';
     for (const button of [this.elements.cancelLoadButton, this.elements.searchCancelButton]) {
       if (!button) continue;
-      button.hidden = this.state !== 'loading';
-      button.disabled = this.state !== 'loading';
-      button.textContent = this.model.stage === 'downloading' ? 'Cancel download' : 'Cancel loading';
+      button.hidden = !downloading;
+      button.disabled = !downloading;
     }
-    // Like index downloads, the bar shows only while bytes are downloading, never while loading.
-    const downloading = this.state === 'loading' && this.model.stage === 'downloading';
     for (const progress of [this.elements.progress, this.elements.searchProgress]) {
       if (!progress) continue;
       progress.hidden = !downloading;
