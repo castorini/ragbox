@@ -617,13 +617,14 @@ it('shows model download progress in the shared format and announces stages rath
   worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 0.46e9 } });
   expect(elements.searchStatus.textContent).toBe('Downloading model: 0.46 / 1.84 GB (25%)');
   expect(elements.progress.value).toBe(25);
+  expect(elements.progress.hidden).toBe(false);
   expect(elements.announcement.textContent).toBe('Downloading model…');
   worker.emit({ type: 'progress', loadId, progress: { stage: 'downloading', downloadedBytes: 0.92e9 } });
   expect(elements.searchStatus.textContent).toBe('Downloading model: 0.92 / 1.84 GB (50%)');
   expect(elements.announcement.textContent).toBe('Downloading model…');
   worker.emit({ type: 'progress', loadId, progress: { stage: 'initializing', downloadedBytes: 0.92e9 } });
   expect(elements.searchStatus.textContent).toBe('Loading model…');
-  expect(elements.progress.value).toBeUndefined();
+  expect(elements.progress.hidden).toBe(true);
 });
 
 it('blocks a waiting answer after cache failure without downloading automatically', async () => {

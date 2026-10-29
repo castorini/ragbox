@@ -127,12 +127,12 @@ export class LLMController extends ModelService {
       button.disabled = this.state !== 'loading';
       button.textContent = this.model.stage === 'downloading' ? 'Cancel download' : 'Cancel loading';
     }
-    const percent = this.downloadPercent();
+    // Like index downloads, the bar shows only while bytes are downloading, never while loading.
+    const downloading = this.state === 'loading' && this.model.stage === 'downloading';
     for (const progress of [this.elements.progress, this.elements.searchProgress]) {
       if (!progress) continue;
-      progress.hidden = this.state !== 'loading';
-      if (percent === undefined) progress.removeAttribute?.('value');
-      else progress.value = percent;
+      progress.hidden = !downloading;
+      progress.value = this.downloadPercent() ?? 0;
     }
     if (this.elements.setup) this.elements.setup.hidden = !canLoad;
     if (this.elements.settingsLink) this.elements.settingsLink.hidden = this.ready || this.state === 'loading' || this.state === 'checking';
