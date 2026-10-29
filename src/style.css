@@ -342,8 +342,8 @@ form.examples-open .example-queries{border-color:#76aa96}
 .tour-card[data-side=below] .tour-arrow{top:-6px}
 .tour-card[data-side=above] .tour-arrow{bottom:-6px}
 .tour-card[data-side=right] .tour-arrow{left:-6px;top:var(--arrow-at,50%);transform:translateY(-50%) rotate(45deg)}
-.tour-replay{display:grid;place-items:center;width:44px;height:44px;min-width:44px;margin:14px auto 0;border:0;background:none;color:var(--muted);padding:10px}
-.tour-replay svg{display:block;width:24px;height:24px}
+.tour-replay{display:inline-flex;align-items:center;gap:7px;min-height:40px;margin:14px auto 0;border:0;border-radius:999px;background:none;color:var(--muted);padding:8px 14px;font-size:13px;font-weight:600;white-space:nowrap}
+.tour-replay svg{display:block;flex:none;width:18px;height:18px}
 .tour-replay:hover:not(:disabled){background:#e8f1eb;color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.tour,.tour-card,.tour-dots i{transition:none}.tour-ring{animation:none}}
 
