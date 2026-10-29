@@ -213,7 +213,7 @@ export function setupChatView(controller: ChatController, states: ResourceStates
     row.sources.hidden = !turn.results.length;
     if (row.results !== turn.results) {
       const summary = element('summary', '', `Sources (${turn.results.length})`);
-      const metadata = element('p', 'chat-source-query'); row.metadata = metadata;
+      const metadata = element('p', 'chat-source-time'); row.metadata = metadata;
       const list = element('ol');
       for (const result of turn.results) {
         const item = element('li'); item.id = sourceAnchor(conversation.id, turn.id, result.id); item.tabIndex = -1;
@@ -225,10 +225,13 @@ export function setupChatView(controller: ChatController, states: ResourceStates
         item.append(element('h3', '', result.title), element('p', 'chat-source-meta', `${result.title === result.id ? '' : `${result.id} · `}BM25 ${result.score.toFixed(4)}`), element('p', 'chat-source-text', result.text), more);
         list.append(item);
       }
-      row.sources.replaceChildren(summary, metadata, list); row.results = turn.results;
+      row.sources.replaceChildren(summary, list, metadata); row.results = turn.results;
       fitSources(row.sources);
     }
-    if (row.metadata) row.metadata.textContent = `${turn.keywordOnly ? 'Keyword search' : 'Search'}: ${turn.searchQuery ?? turn.question}${turn.elapsedMs == null ? '' : ` · ${turn.elapsedMs.toFixed(0)} ms`}`;
+    if (row.metadata) {
+      row.metadata.textContent = turn.elapsedMs == null ? '' : `Retrieved in ${turn.elapsedMs.toFixed(0)} ms`;
+      row.metadata.hidden = turn.elapsedMs == null;
+    }
   }
   function render() {
     const conversation = store.current();
