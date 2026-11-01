@@ -516,11 +516,11 @@ form.examples-open .example-queries{border-color:#76aa96}
 /* Spinning ring around Stop while a reply runs. */
 .chat-input-row .chat-send{position:relative}
 .chat-input-row .chat-send[data-mode=stop]::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);border-right-color:#21635466;animation:answer-spin .9s linear infinite;pointer-events:none}
-/* Small spinner beside model and collection work in progress. */
-#model-search-status:is([data-phase=checking],[data-phase=loading])::before,
-#model:is([data-phase=checking],[data-phase=loading]) #llm-status::before,
-.search-help:is([data-phase=checking],[data-phase=opening],[data-phase=preparing],[data-phase=downloading])>span:first-child::before,
-.settings-resource:is([data-phase=checking],[data-phase=opening],[data-phase=preparing],[data-phase=downloading]) .settings-detail::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.8;animation:answer-spin .8s linear infinite}
+/* Small spinner only while checking; loading steps show the long bar instead. */
+#model-search-status[data-phase=checking]::before,
+#model[data-phase=checking] #llm-status::before,
+.search-help[data-phase=checking]>span:first-child::before,
+.settings-resource[data-phase=checking] .settings-detail::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.8;animation:answer-spin .8s linear infinite}
 @media(prefers-reduced-motion:reduce){
   .chat-turn[data-activity] .chat-turn-status,.chat-turn[data-activity] .chat-turn-status::before,.chat-turn[data-activity=thinking] .chat-thinking,.chat-turn[data-activity=thinking] .chat-thinking summary::after,.chat-turn[data-activity=writing] .llm-answer::after,.chat-input-row .chat-send[data-mode=stop]::after,#model-search-status::before,#llm-status::before,.search-help>span:first-child::before,.settings-state::before{animation:none}
   .chat-turn:not([data-activity=""]) .chat-turn-status{color:var(--accent);background:none}
