@@ -212,7 +212,7 @@ describe('LLMController', () => {
     await controller.load();
     expect(worker.messages).toContainEqual(expect.objectContaining({ type: 'load', loadId: 1 }));
     worker.emit({ type: 'progress', progress: { progress: 50, total: 100, file: 'model.onnx' } });
-    expect(elements.status.textContent).toBe('Downloading…');
+    expect(elements.status.textContent).toBe('');
     expect(elements.searchStatus.textContent).toContain('Downloading model');
     worker.emit({ type: 'ready' });
 
