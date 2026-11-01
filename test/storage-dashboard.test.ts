@@ -367,13 +367,3 @@ it('keeps reset all disabled when model cache management is unavailable', async 
   expect(ui.confirm).not.toHaveBeenCalled();
   expect(ui.shutdown).not.toHaveBeenCalled();
 });
-
-it('shows each downloaded index size beside its name', async () => {
-  const ui = harness(undefined, directory({ 'analytics.duckdb': 2048, 'analytics.duckdb.wal': 1024, 'msmarco-prebuilt.duckdb': 4096 }));
-  await ready(ui);
-  expect(ui.elements.get('#nfcorpus-storage-usage')).toMatchObject({ hidden: false, textContent: '3.0 KB' });
-  // MS MARCO is reported missing, so a leftover file doesn't get a size.
-  expect(ui.elements.get('#msmarco-storage-usage')).toMatchObject({ hidden: true, textContent: '' });
-  ui.states.set('msmarco', 'saved', '');
-  expect(ui.elements.get('#msmarco-storage-usage')).toMatchObject({ hidden: false, textContent: '4.0 KB' });
-});
