@@ -132,9 +132,10 @@ it('shows concise empty states for both file listings', async () => {
   expect(ui.elements.get('#storage-summary').textContent).toBe('0 app files · 0 B');
   expect(ui.elements.get('#model-cache-summary').textContent).toBe('0 cached files · 0 B');
   expect(ui.elements.get('#storage-status').textContent).toBe('No files saved.');
-  expect(ui.elements.get('#model-cache-status').textContent).toBe('No model files saved.');
+  expect(ui.elements.get('#model-cache-status').textContent).toBe('');
   expect(ui.elements.get('#storage-status').hidden).toBe(false);
-  expect(ui.elements.get('#model-cache-status').hidden).toBe(false);
+  expect(ui.elements.get('#model-cache-status').hidden).toBe(true);
+  expect(ui.elements.get('#model-cache-delete').hidden).toBe(true);
   expect(ui.elements.get('#storage-files').children).toHaveLength(0);
   expect(ui.elements.get('#model-cache-files').children).toHaveLength(0);
 });

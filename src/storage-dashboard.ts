@@ -88,6 +88,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     resetAllButton.disabled = !supported || !cacheSupported || blocked();
     for (const button of deleteButtons) button.disabled = !supported || blocked();
     modelRefresh.disabled = !cacheSupported || refreshingModel || deleting;
+    modelDelete.hidden = !modelFiles.length;
     modelDelete.disabled = !cacheSupported || blocked() || !modelFiles.length;
     reloadButton.disabled = deleting;
   }
@@ -145,9 +146,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       const total = modelFiles.reduce((sum, file) => sum + (file.size ?? 0), 0);
       modelSummary.textContent = `${modelFiles.length} cached file${modelFiles.length === 1 ? '' : 's'} · ${unknown ? 'at least ' : ''}${formatBytes(total)}`;
       modelUsage.textContent = `${unknown ? 'At least ' : ''}${formatBytes(total)}`;
-      showStatus(modelStatus, modelFiles.length
-        ? (unknown ? 'Some file sizes are unknown.' : '')
-        : 'No model files saved.');
+      showStatus(modelStatus, unknown ? 'Some file sizes are unknown.' : '');
     } catch (error) {
       modelFiles = [];
       modelSummary.textContent = '';
