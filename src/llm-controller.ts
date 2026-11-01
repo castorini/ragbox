@@ -115,8 +115,7 @@ export class LLMController extends ModelService {
       button.disabled = !canLoad;
       const action = this.loadAction();
       if (button === this.elements.loadButton && this.elements.loadButtonLabel) {
-        setText(this.elements.loadButtonLabel, action === 'Download model (~1.84 GB)' ? '~1.84 GB'
-          : action === 'Download missing files' ? 'Missing files' : action);
+        setText(this.elements.loadButtonLabel, action === 'Download model (~1.84 GB)' ? 'Download (~1.84 GB)' : action);
         if (this.elements.loadButtonIcon) this.elements.loadButtonIcon.hidden = !action.startsWith('Download');
         button.ariaLabel = action;
         button.title = action;

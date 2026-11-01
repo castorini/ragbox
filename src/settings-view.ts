@@ -3,11 +3,11 @@ import type { ResourceState, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
 import { renderIndexLoadBar } from './load-bar.ts';
 
-export function settingsCollectionDetail(corpus: Corpus, state: ResourceState) {
+export function settingsCollectionDetail(state: ResourceState) {
   switch (state.phase) {
     case 'ready': return 'Ready to search.';
     case 'saved': return 'Downloaded. Opens when selected.';
-    case 'missing': return corpus === 'nfcorpus' ? 'Set up this small collection once in this browser.' : 'One-time download saved in this browser.';
+    case 'missing': return 'One-time download saved in this browser.';
     case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
     default: return state.message;
   }
@@ -30,7 +30,7 @@ export function setupSettingsView(states: ResourceStates, chooser: { search(corp
     for (const { corpus, row, detail, search, progress } of rows) {
       const state = states.get(corpus);
       renderIndexLoadBar(progress, state);
-      const text = settingsCollectionDetail(corpus, state);
+      const text = settingsCollectionDetail(state);
       row.setAttribute('data-phase', state.phase);
       detail.textContent = text;
       detail.hidden = !text;

@@ -61,7 +61,7 @@ it('guides missing collections to their Settings section and selects a collectio
   expect(ui.card('msmarco').attributes['data-status']).toBe('unavailable');
   expect(ui.get('#msmarco-dashboard-status').textContent).toBe('Not downloaded');
   expect(ui.get('#msmarco-dashboard-setup').hidden).toBe(false);
-  expect(ui.get('#msmarco-dashboard-setup').textContent).toBe('Download MS MARCO index (3.35 GB)');
+  expect(ui.get('#msmarco-dashboard-setup').textContent).toBe('Download MS MARCO (3.35 GB)');
   const preventDefault = vi.fn();
   ui.get('#msmarco-dashboard-setup').onclick?.({ preventDefault });
   expect(preventDefault).toHaveBeenCalled();

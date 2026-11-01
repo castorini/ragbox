@@ -21,8 +21,8 @@ interface DashboardChooser {
 }
 
 const corpora = {
-  nfcorpus: { name: 'NFCorpus', missing: 'Not downloaded', setup: 'Download NFCorpus' },
-  msmarco: { name: 'MS MARCO', missing: 'Not downloaded', setup: 'Download MS MARCO index (3.35 GB)' },
+  nfcorpus: { name: 'NFCorpus', missing: 'Not downloaded', setup: 'Download NFCorpus (5.9 MB)' },
+  msmarco: { name: 'MS MARCO', missing: 'Not downloaded', setup: 'Download MS MARCO (3.35 GB)' },
 } as const;
 
 export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string): CardStatus {

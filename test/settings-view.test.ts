@@ -22,7 +22,7 @@ it('distinguishes a downloaded collection from an open collection and searches w
   const { elements, states, chooser } = harness();
   states.set('nfcorpus', 'missing', '');
   states.set('msmarco', 'saved', 'Saved index available', undefined, undefined, true);
-  expect(elements.get('#fts-status').textContent).toBe('Set up this small collection once in this browser.');
+  expect(elements.get('#fts-status').textContent).toBe('One-time download saved in this browser.');
   expect(elements.get('#fts-settings-search').hidden).toBe(true);
   expect(elements.get('#marco-status').textContent).toBe('Downloaded. Opens when selected.');
   expect(elements.get('#marco-settings-search')).toMatchObject({ hidden: false, disabled: false });
@@ -59,8 +59,8 @@ it('explains that unsupported AI answers do not prevent document search', () => 
 });
 
 it('uses plain-language details for opening, setup, and unavailable collections', () => {
-  expect(settingsCollectionDetail('nfcorpus', { phase: 'preparing', message: 'Building NFCorpus index…' })).toBe('Building NFCorpus index…');
-  expect(settingsCollectionDetail('msmarco', { phase: 'opening', message: 'Opening MS MARCO index…' })).toBe('Opening MS MARCO index…');
-  expect(settingsCollectionDetail('msmarco', { phase: 'missing', message: '' })).toBe('One-time download saved in this browser.');
-  expect(settingsCollectionDetail('nfcorpus', { phase: 'unsupported', message: '' })).toBe('Search needs a supported browser on HTTPS or localhost.');
+  expect(settingsCollectionDetail({ phase: 'preparing', message: 'Building NFCorpus index…' })).toBe('Building NFCorpus index…');
+  expect(settingsCollectionDetail({ phase: 'opening', message: 'Opening MS MARCO index…' })).toBe('Opening MS MARCO index…');
+  expect(settingsCollectionDetail({ phase: 'missing', message: '' })).toBe('One-time download saved in this browser.');
+  expect(settingsCollectionDetail({ phase: 'unsupported', message: '' })).toBe('Search needs a supported browser on HTTPS or localhost.');
 });
