@@ -146,7 +146,8 @@ describe('LLMController', () => {
     const { controller, elements, worker, currentWorker } = createHarness();
     await controller.initializeCapability();
     expect(elements.setup.hidden).toBe(false);
-    expect(elements.statusDetail.textContent).toBe('Not installed');
+    expect(elements.searchStatus.textContent).toBe('Not installed');
+    expect(elements.statusDetail).toMatchObject({ hidden: true, textContent: '' });
     expect(elements.loadButton.hidden).toBe(false);
     expect(elements.stopButton.hidden).toBe(true);
     await controller.load(true);

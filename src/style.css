@@ -264,7 +264,6 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource+.settings-resource{border-top:1px solid var(--line)}
 .settings-resource-info{flex:1;min-width:0}
 .settings-resource-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
-.settings-resource-heading h3{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px}
 #setup-view h3{font-size:15px;margin:0;font-weight:650}
 #model-search-status:empty,#model-installed-status:empty{display:none}
 #setup-view .settings-description{font-size:13px;line-height:1.5;margin:7px 0 0;color:#53665b}

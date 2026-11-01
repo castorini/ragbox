@@ -98,8 +98,9 @@ export class LLMController extends ModelService {
     const message = this.statusText();
     setText(this.elements.searchStatus, message);
     // Settings has no badge beside Model; the line under the description says it. Checking
-    // shows beside Model files, and unsupported devices get their own explanation.
-    const detail = this.state === 'checking' || this.state === 'unsupported' ? '' : message;
+    // shows beside Model files, unsupported devices get their own explanation, and the
+    // Download button already says the model isn't installed.
+    const detail = this.state === 'checking' || this.state === 'unsupported' || message === 'Not installed' ? '' : message;
     setText(this.elements.statusDetail, detail);
     this.elements.statusDetail.hidden = !detail;
     const cacheLabels: Record<ModelCacheAvailability, string> = {
