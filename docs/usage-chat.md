@@ -4,7 +4,7 @@ RAGbox supports keyword search with an optional local answer model. A collection
 
 ## Start with a collection
 
-The start page places a search box and starter questions above **Collections in this browser**. Each collection card shows its readiness and available setup action:
+The start page places a search box and starter questions above **Choose a collection**. Each collection card shows its readiness and available setup action:
 
 - **NFCorpus:** click **Prepare NFCorpus** to import the prepared dataset and build its index.
 - **MS MARCO:** click **Download MS MARCO index (3.35 GB)** and confirm the download.
