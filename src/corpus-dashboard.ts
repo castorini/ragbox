@@ -28,7 +28,7 @@ const corpora = {
 export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string): CardStatus {
   const info = corpora[corpus];
   switch (phase) {
-    case 'ready': return { light: 'available', label: 'Ready to search' };
+    case 'ready': return { light: 'available', label: 'Ready to chat' };
     case 'saved': return { light: 'available', label: 'Downloaded', detail: 'Opens automatically when you select it.' };
     case 'missing': return { light: 'unavailable', label: info.missing, setup: info.setup };
     case 'checking': return { light: 'pending', label: 'Checking…' };
