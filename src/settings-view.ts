@@ -5,7 +5,8 @@ import { renderIndexLoadBar, withoutCollectionName } from './load-bar.ts';
 
 export function settingsCollectionDetail(state: ResourceState) {
   switch (state.phase) {
-    case 'ready': return 'Ready to search.';
+    // A ready row offers Chat with this collection, which says it all.
+    case 'ready': return '';
     case 'saved': return 'Downloaded. Opens when selected.';
     case 'missing': return 'One-time download saved in this browser.';
     case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';

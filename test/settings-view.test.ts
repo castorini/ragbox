@@ -29,19 +29,19 @@ it('distinguishes a downloaded collection from an open collection and searches w
   elements.get('#marco-settings-search').onclick();
   expect(chooser.search).toHaveBeenCalledExactlyOnceWith('msmarco');
   states.set('msmarco', 'ready', 'Ready to search 8,841,823 passages');
-  expect(elements.get('#marco-status')).toMatchObject({ hidden: false, textContent: 'Ready to search.' });
+  expect(elements.get('#marco-status')).toMatchObject({ hidden: true, textContent: '' });
 });
 
 it('keeps setup progress and failure details scoped to the affected collection', () => {
   const { elements, states } = harness();
   states.set('nfcorpus', 'ready', '');
   states.set('msmarco', 'downloading', 'Downloading: 30%', undefined, 30, false);
-  expect(elements.get('#fts-status').textContent).toBe('Ready to search.');
+  expect(elements.get('#fts-status')).toMatchObject({ hidden: true, textContent: '' });
   expect(elements.get('#marco-settings-search').hidden).toBe(true);
   expect(elements.get('#marco-status')).toMatchObject({ hidden: false, textContent: 'Downloading: 30%' });
   states.set('msmarco', 'error', 'Not enough available browser storage', undefined, undefined, false);
   expect(elements.get('#marco-status').textContent).toContain('Not enough');
-  expect(elements.get('#fts-status').textContent).toBe('Ready to search.');
+  expect(elements.get('#fts-status')).toMatchObject({ hidden: true, textContent: '' });
   states.setBusy(true);
   elements.get('#fts-settings-search').onclick();
   expect(elements.get('#fts-settings-search').disabled).toBe(true);
