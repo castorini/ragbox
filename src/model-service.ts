@@ -176,12 +176,6 @@ export class ModelService {
     return this.state === 'error' || this.model.failure ? 'Retry loading' : 'Load saved model';
   }
 
-  // Badge text in Settings. While loading, the detail line and bar already say it all.
-  protected statusLabel() {
-    if (this.state === 'checking') return 'Checking…';
-    return this.state === 'loading' ? '' : this.statusText();
-  }
-
   protected downloadPercent() {
     const bytes = this.model.downloadedBytes;
     if (this.state !== 'loading' || this.model.stage !== 'downloading' || !bytes) return undefined;

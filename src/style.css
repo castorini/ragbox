@@ -266,11 +266,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
 .settings-resource-heading h3{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px}
 #setup-view h3{font-size:15px;margin:0;font-weight:650}
-.settings-state{display:inline-block;width:fit-content;border-radius:6px;background:#f0f1eb;color:#59695f;padding:3px 8px;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
-#model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}
-#model:is([data-phase=checking],[data-phase=loading]) .settings-state{background:#fff3d9;color:#856316}
-#model[data-phase=error] .settings-state{background:#fff0ec;color:#913e33}
-#llm-status:empty,#model-search-status:empty,#model-installed-status:empty{display:none}
+#model-search-status:empty,#model-installed-status:empty{display:none}
 #setup-view .settings-description{font-size:13px;line-height:1.5;margin:7px 0 0;color:#53665b}
 #setup-view .settings-detail{font-size:12px;line-height:1.5;margin:6px 0 0;color:var(--muted)}
 #setup-view .settings-resource[data-phase=error] .settings-detail{color:#913e33}
@@ -519,11 +515,10 @@ form.examples-open .example-queries{border-color:#76aa96}
 .chat-input-row .chat-send[data-mode=stop]::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent);border-right-color:#21635466;animation:answer-spin .9s linear infinite;pointer-events:none}
 /* Small spinner only while checking; loading steps show the long bar instead. */
 #model-search-status[data-phase=checking]::before,
-#model[data-phase=checking] #llm-status::before,
 .search-help[data-phase=checking]>span:first-child::before,
 .settings-resource[data-phase=checking] .settings-detail::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.8;animation:answer-spin .8s linear infinite}
 @media(prefers-reduced-motion:reduce){
-  .chat-turn[data-activity] .chat-turn-status,.chat-turn[data-activity] .chat-turn-status::before,.chat-turn[data-activity=thinking] .chat-thinking,.chat-turn[data-activity=thinking] .chat-thinking summary::after,.chat-turn[data-activity=writing] .llm-answer::after,.chat-input-row .chat-send[data-mode=stop]::after,#model-search-status::before,#llm-status::before,.search-help>span:first-child::before,.settings-state::before{animation:none}
+  .chat-turn[data-activity] .chat-turn-status,.chat-turn[data-activity] .chat-turn-status::before,.chat-turn[data-activity=thinking] .chat-thinking,.chat-turn[data-activity=thinking] .chat-thinking summary::after,.chat-turn[data-activity=writing] .llm-answer::after,.chat-input-row .chat-send[data-mode=stop]::after,#model-search-status::before,#llm-status::before,.search-help>span:first-child::before{animation:none}
   .chat-turn:not([data-activity=""]) .chat-turn-status{color:var(--accent);background:none}
   .chat-turn[data-activity=thinking] .chat-thinking summary::after{opacity:1}
 }

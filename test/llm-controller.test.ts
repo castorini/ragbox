@@ -109,7 +109,7 @@ function createHarness(capability: Capability = { supported: true }, cache: Mode
     loadButton: new FakeEventTarget(document),
     cancelLoadButton: new FakeEventTarget(document),
     stopButton: new FakeEventTarget(),
-    status: new FakeEventTarget(),
+    statusDetail: new FakeEventTarget(),
     progress: new FakeEventTarget(),
     answers, answerControls,
     searchStatus: new FakeEventTarget(), installedStatus: new FakeEventTarget(), announcement: new FakeEventTarget(),
@@ -146,7 +146,7 @@ describe('LLMController', () => {
     const { controller, elements, worker, currentWorker } = createHarness();
     await controller.initializeCapability();
     expect(elements.setup.hidden).toBe(false);
-    expect(elements.status.textContent).toBe('Not installed');
+    expect(elements.statusDetail.textContent).toBe('Not installed');
     expect(elements.loadButton.hidden).toBe(false);
     expect(elements.stopButton.hidden).toBe(true);
     await controller.load(true);
@@ -159,7 +159,7 @@ describe('LLMController', () => {
     expect(elements.loadButton.hidden).toBe(false);
     await controller.load();
     currentWorker().emit({ type: 'ready' });
-    expect(elements.status.textContent).toBe('');
+    expect(elements.statusDetail).toMatchObject({ hidden: true, textContent: '' });
     expect(elements.setup.hidden).toBe(true);
     expect(elements.loadButton.hidden).toBe(true);
     controller.generate({ corpus: 'nfcorpus', question: 'health', documents: [], citationTargets: new Map() });
@@ -198,7 +198,8 @@ describe('LLMController', () => {
     expect(harness.elements.loadButton.disabled).toBe(true);
     expect(harness.elements.setup.hidden).toBe(true);
     expect(harness.elements.stopButton.hidden).toBe(true);
-    expect(harness.elements.status.textContent).toMatch(/WebGPU|unavailable|unsupported/i);
+    expect(harness.elements.searchStatus.textContent).toMatch(/WebGPU|unavailable|unsupported/i);
+    expect(harness.elements.statusDetail.textContent).toBe('');
     expect(harness.elements.answerControls.msmarco.status.textContent).toContain('Document results are ready');
     expect(harness.answers.nfcorpus.textContent).toBe('');
   });
@@ -212,7 +213,7 @@ describe('LLMController', () => {
     await controller.load();
     expect(worker.messages).toContainEqual(expect.objectContaining({ type: 'load', loadId: 1 }));
     worker.emit({ type: 'progress', progress: { progress: 50, total: 100, file: 'model.onnx' } });
-    expect(elements.status.textContent).toBe('');
+    expect(elements.statusDetail.textContent).toContain('Downloading model');
     expect(elements.searchStatus.textContent).toContain('Downloading model');
     worker.emit({ type: 'ready' });
 
@@ -413,7 +414,7 @@ describe('LLMController', () => {
     await controller.load();
     worker.emit({ type: 'error', operation: 'load', message: 'download failed' });
 
-    expect(elements.status.textContent).toMatch(/could not load/i);
+    expect(elements.statusDetail.textContent).toMatch(/could not load/i);
     expect(elements.loadButton.disabled).toBe(false);
 
     await controller.load();

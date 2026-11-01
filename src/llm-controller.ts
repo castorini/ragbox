@@ -23,8 +23,7 @@ interface ControllerElements {
   settingsLink?: HTMLElement;
   repairLink?: HTMLElement;
   answerControls?: Partial<Record<Corpus, AnswerControls>>;
-  status: HTMLElement;
-  statusDetail?: HTMLElement;
+  statusDetail: HTMLElement;
   progress: HTMLProgressElement;
   searchProgress?: HTMLProgressElement;
   answers?: Partial<Record<Corpus, HTMLElement>>;
@@ -97,12 +96,12 @@ export class LLMController extends ModelService {
   updateControls(restoreFocus = true) {
     const focused = this.elements.loadButton.ownerDocument?.activeElement;
     const message = this.statusText();
-    setText(this.elements.status, this.statusLabel());
     setText(this.elements.searchStatus, message);
-    if (this.elements.statusDetail) {
-      setText(this.elements.statusDetail, this.state === 'loading' ? message : '');
-      this.elements.statusDetail.hidden = this.state !== 'loading';
-    }
+    // Settings has no badge beside Model; the line under the description says it. Checking
+    // shows beside Model files, and unsupported devices get their own explanation.
+    const detail = this.state === 'checking' || this.state === 'unsupported' ? '' : message;
+    setText(this.elements.statusDetail, detail);
+    this.elements.statusDetail.hidden = !detail;
     const cacheLabels: Record<ModelCacheAvailability, string> = {
       checking: '', missing: 'Not installed', incomplete: 'Incomplete install',
       installed: 'Installed · MiniCPM5-2B', corrupt: 'Invalid model files', unknown: 'Installed files unavailable',
@@ -216,7 +215,6 @@ export function setupLLM(onState?: (state: ControllerState, message: string, mod
     settingsLink: requiredElement<HTMLElement>('#model-setup-link'),
     repairLink: requiredElement<HTMLElement>('#model-repair-link'),
     modelCard: requiredElement<HTMLElement>('#model'),
-    status: requiredElement<HTMLElement>('#llm-status'),
     statusDetail: requiredElement<HTMLElement>('#llm-status-detail'),
     progress: requiredElement<HTMLProgressElement>('#llm-progress'),
     searchProgress: requiredElement<HTMLProgressElement>('#model-search-progress'),
