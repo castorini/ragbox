@@ -367,3 +367,13 @@ it('keeps reset all disabled when model cache management is unavailable', async 
   expect(ui.confirm).not.toHaveBeenCalled();
   expect(ui.shutdown).not.toHaveBeenCalled();
 });
+
+it('hides Delete index data until an index is downloaded', async () => {
+  const ui = harness();
+  await ready(ui);
+  expect(ui.elements.get('#storage-reset').hidden).toBe(false);
+  ui.states.set('nfcorpus', 'missing', '');
+  expect(ui.elements.get('#storage-reset').hidden).toBe(true);
+  ui.states.set('msmarco', 'saved', '');
+  expect(ui.elements.get('#storage-reset').hidden).toBe(false);
+});

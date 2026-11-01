@@ -76,6 +76,9 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   }
   function updateControls() {
     refreshButton.disabled = !supported || refreshing || deleting;
+    // The empty NFCorpus database exists from the start, so offer Delete index data only
+    // once an index has been downloaded (or is downloading, failed, or still being checked).
+    resetButton.hidden = (['nfcorpus', 'msmarco'] as const).every(name => ['missing', 'unsupported'].includes(states.get(name).phase));
     resetButton.disabled = !supported || blocked() || !files.some(file => file.owned);
     resetAllButton.disabled = !supported || !cacheSupported || blocked();
     for (const button of deleteButtons) button.disabled = !supported || blocked();
