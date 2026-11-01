@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { ResourceStates } from '../src/resource-state.ts';
-import { settingsCollectionStatus, setupSettingsView } from '../src/settings-view.ts';
+import { settingsCollectionDetail, setupSettingsView } from '../src/settings-view.ts';
 import { FakeElements } from './fake-elements.ts';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -22,29 +22,26 @@ it('distinguishes a downloaded collection from an open collection and searches w
   const { elements, states, chooser } = harness();
   states.set('nfcorpus', 'missing', '');
   states.set('msmarco', 'saved', 'Saved index available', undefined, undefined, true);
-  expect(elements.get('#fts-settings-state').textContent).toBe('Not set up');
+  expect(elements.get('#fts-status').textContent).toBe('Set up this small collection once in this browser.');
   expect(elements.get('#fts-settings-search').hidden).toBe(true);
-  expect(elements.get('#marco-settings-state').textContent).toBe('Downloaded');
-  expect(elements.get('#marco-status').textContent).toBe('Opens when selected.');
+  expect(elements.get('#marco-status').textContent).toBe('Downloaded. Opens when selected.');
   expect(elements.get('#marco-settings-search')).toMatchObject({ hidden: false, disabled: false });
   elements.get('#marco-settings-search').onclick();
   expect(chooser.search).toHaveBeenCalledExactlyOnceWith('msmarco');
   states.set('msmarco', 'ready', 'Ready to search 8,841,823 passages');
-  expect(elements.get('#marco-settings-state').textContent).toBe('Ready to search');
-  expect(elements.get('#marco-status').hidden).toBe(true);
+  expect(elements.get('#marco-status')).toMatchObject({ hidden: false, textContent: 'Ready to search.' });
 });
 
 it('keeps setup progress and failure details scoped to the affected collection', () => {
   const { elements, states } = harness();
   states.set('nfcorpus', 'ready', '');
   states.set('msmarco', 'downloading', 'Downloading: 30%', undefined, 30, false);
-  expect(elements.get('#fts-settings-state').textContent).toBe('Ready to search');
-  expect(elements.get('#fts-status').hidden).toBe(true);
+  expect(elements.get('#fts-status').textContent).toBe('Ready to search.');
   expect(elements.get('#marco-settings-search').hidden).toBe(true);
   expect(elements.get('#marco-status')).toMatchObject({ hidden: false, textContent: 'Downloading: 30%' });
   states.set('msmarco', 'error', 'Not enough available browser storage', undefined, undefined, false);
   expect(elements.get('#marco-status').textContent).toContain('Not enough');
-  expect(elements.get('#fts-settings-state').textContent).toBe('Ready to search');
+  expect(elements.get('#fts-status').textContent).toBe('Ready to search.');
   states.setBusy(true);
   elements.get('#fts-settings-search').onclick();
   expect(elements.get('#fts-settings-search').disabled).toBe(true);
@@ -61,10 +58,9 @@ it('explains that unsupported AI answers do not prevent document search', () => 
   expect(elements.get('#llm-settings-detail').hidden).toBe(true);
 });
 
-it('uses plain-language labels for opening, setup, and unavailable collections', () => {
-  expect(settingsCollectionStatus('nfcorpus', { phase: 'preparing', message: 'Building NFCorpus index…' }))
-    .toEqual({ label: 'Setting up…', detail: 'Building NFCorpus index…' });
-  expect(settingsCollectionStatus('msmarco', { phase: 'opening', message: 'Opening MS MARCO index…' }).label).toBe('Opening…');
-  expect(settingsCollectionStatus('msmarco', { phase: 'missing', message: '' }).label).toBe('Not set up');
-  expect(settingsCollectionStatus('nfcorpus', { phase: 'unsupported', message: '' }).label).toBe('Unavailable');
+it('uses plain-language details for opening, setup, and unavailable collections', () => {
+  expect(settingsCollectionDetail('nfcorpus', { phase: 'preparing', message: 'Building NFCorpus index…' })).toBe('Building NFCorpus index…');
+  expect(settingsCollectionDetail('msmarco', { phase: 'opening', message: 'Opening MS MARCO index…' })).toBe('Opening MS MARCO index…');
+  expect(settingsCollectionDetail('msmarco', { phase: 'missing', message: '' })).toBe('One-time download saved in this browser.');
+  expect(settingsCollectionDetail('nfcorpus', { phase: 'unsupported', message: '' })).toBe('Search needs a supported browser on HTTPS or localhost.');
 });

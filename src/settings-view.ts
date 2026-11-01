@@ -3,20 +3,13 @@ import type { ResourceState, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
 import { renderIndexLoadBar } from './load-bar.ts';
 
-export function settingsCollectionStatus(corpus: Corpus, state: ResourceState) {
+export function settingsCollectionDetail(corpus: Corpus, state: ResourceState) {
   switch (state.phase) {
-    case 'ready': return { label: 'Ready to search', detail: '' };
-    case 'saved': return { label: 'Downloaded', detail: 'Opens when selected.' };
-    case 'missing': return {
-      label: 'Not set up',
-      detail: corpus === 'nfcorpus' ? 'Set up this small collection once in this browser.' : 'One-time download saved in this browser.',
-    };
-    case 'checking': return { label: 'Checking…', detail: '' };
-    case 'opening': return { label: 'Opening…', detail: state.message };
-    case 'preparing': return { label: 'Setting up…', detail: state.message };
-    case 'downloading': return { label: 'Downloading…', detail: state.message };
-    case 'unsupported': return { label: 'Unavailable', detail: 'Search needs a supported browser on HTTPS or localhost.' };
-    default: return { label: 'Needs attention', detail: state.message };
+    case 'ready': return 'Ready to search.';
+    case 'saved': return 'Downloaded. Opens when selected.';
+    case 'missing': return corpus === 'nfcorpus' ? 'Set up this small collection once in this browser.' : 'One-time download saved in this browser.';
+    case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
+    default: return state.message;
   }
 }
 
@@ -24,25 +17,23 @@ export function setupSettingsView(states: ResourceStates, chooser: { search(corp
   const rows = (['nfcorpus', 'msmarco'] as const).map(corpus => {
     const prefix = corpus === 'nfcorpus' ? 'fts' : 'marco';
     const row = requiredElement<HTMLElement>(`#setup-${corpus}`);
-    const badge = requiredElement<HTMLElement>(`#${prefix}-settings-state`);
     const detail = requiredElement<HTMLElement>(`#${prefix}-status`);
     const search = requiredElement<HTMLButtonElement>(`#${prefix}-settings-search`);
     const progress = requiredElement<HTMLProgressElement>(`#${prefix}-progress`);
     search.onclick = () => {
       if (!search.hidden && !search.disabled) chooser.search(corpus);
     };
-    return { corpus, row, badge, detail, search, progress };
+    return { corpus, row, detail, search, progress };
   });
   const modelDetail = requiredElement<HTMLElement>('#llm-settings-detail');
   const unsubscribe = states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy, state.resources.model.phase === 'unsupported'], () => {
-    for (const { corpus, row, badge, detail, search, progress } of rows) {
+    for (const { corpus, row, detail, search, progress } of rows) {
       const state = states.get(corpus);
       renderIndexLoadBar(progress, state);
-      const status = settingsCollectionStatus(corpus, state);
+      const text = settingsCollectionDetail(corpus, state);
       row.setAttribute('data-phase', state.phase);
-      badge.textContent = status.label;
-      detail.textContent = status.detail;
-      detail.hidden = !status.detail;
+      detail.textContent = text;
+      detail.hidden = !text;
       search.hidden = !['saved', 'ready'].includes(state.phase);
       search.disabled = search.hidden || states.busy;
     }

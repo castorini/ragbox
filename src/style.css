@@ -266,9 +266,9 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
 #setup-view h3{font-size:15px;margin:0;font-weight:650}
 .settings-state{display:inline-block;width:fit-content;border-radius:6px;background:#f0f1eb;color:#59695f;padding:3px 8px;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
-.settings-resource[data-phase=ready] .settings-state,.settings-resource[data-phase=saved] .settings-state,#model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}
-.settings-resource:is([data-phase=checking],[data-phase=preparing],[data-phase=opening],[data-phase=downloading]) .settings-state,#model:is([data-phase=checking],[data-phase=loading]) .settings-state{background:#fff3d9;color:#856316}
-.settings-resource[data-phase=error] .settings-state,#model[data-phase=error] .settings-state{background:#fff0ec;color:#913e33}
+#model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}
+#model:is([data-phase=checking],[data-phase=loading]) .settings-state{background:#fff3d9;color:#856316}
+#model[data-phase=error] .settings-state{background:#fff0ec;color:#913e33}
 #llm-status:empty,#model-search-status:empty{display:none}
 #setup-view .settings-description{font-size:13px;line-height:1.5;margin:7px 0 0;color:#53665b}
 #setup-view .settings-detail{font-size:12px;line-height:1.5;margin:6px 0 0;color:var(--muted)}
@@ -520,7 +520,7 @@ form.examples-open .example-queries{border-color:#76aa96}
 #model-search-status:is([data-phase=checking],[data-phase=loading])::before,
 #model:is([data-phase=checking],[data-phase=loading]) #llm-status::before,
 .search-help:is([data-phase=checking],[data-phase=opening],[data-phase=preparing],[data-phase=downloading])>span:first-child::before,
-.settings-resource:is([data-phase=checking],[data-phase=opening],[data-phase=preparing],[data-phase=downloading]) .settings-state::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.8;animation:answer-spin .8s linear infinite}
+.settings-resource:is([data-phase=checking],[data-phase=opening],[data-phase=preparing],[data-phase=downloading]) .settings-detail::before{content:'';display:inline-block;width:10px;height:10px;margin-right:7px;vertical-align:-1px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;opacity:.8;animation:answer-spin .8s linear infinite}
 @media(prefers-reduced-motion:reduce){
   .chat-turn[data-activity] .chat-turn-status,.chat-turn[data-activity] .chat-turn-status::before,.chat-turn[data-activity=thinking] .chat-thinking,.chat-turn[data-activity=thinking] .chat-thinking summary::after,.chat-turn[data-activity=writing] .llm-answer::after,.chat-input-row .chat-send[data-mode=stop]::after,#model-search-status::before,#llm-status::before,.search-help>span:first-child::before,.settings-state::before{animation:none}
   .chat-turn:not([data-activity=""]) .chat-turn-status{color:var(--accent);background:none}
