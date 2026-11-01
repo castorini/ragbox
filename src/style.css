@@ -264,6 +264,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource+.settings-resource{border-top:1px solid var(--line)}
 .settings-resource-info{flex:1;min-width:0}
 .settings-resource-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.settings-resource-heading h3{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px}
 #setup-view h3{font-size:15px;margin:0;font-weight:650}
 .settings-state{display:inline-block;width:fit-content;border-radius:6px;background:#f0f1eb;color:#59695f;padding:3px 8px;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
 #model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}

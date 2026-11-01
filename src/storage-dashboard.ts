@@ -53,6 +53,11 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   recovery.hidden = true;
   const resetButton = requiredElement<HTMLButtonElement>('#storage-reset');
   const resetAllButton = requiredElement<HTMLButtonElement>('#storage-reset-all');
+  // Each index shows its saved size beside its name, like Model files.
+  const collectionUsage = {
+    nfcorpus: { element: requiredElement<HTMLElement>('#nfcorpus-storage-usage'), prefix: 'analytics.duckdb' },
+    msmarco: { element: requiredElement<HTMLElement>('#msmarco-storage-usage'), prefix: 'msmarco-prebuilt.duckdb' },
+  } as const;
   const modelRows = requiredElement<HTMLTableSectionElement>('#model-cache-files');
   const modelStatus = requiredElement<HTMLElement>('#model-cache-status');
   const modelSummary = requiredElement<HTMLElement>('#model-cache-summary');
@@ -73,6 +78,14 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   function blocked() {
     return !initialized || deleting || stopped || refreshing || refreshingModel || states.busy ||
       (['nfcorpus', 'msmarco', 'model'] as const).some(name => activePhases.has(states.get(name).phase));
+  }
+  function renderCollectionUsage() {
+    for (const corpus of ['nfcorpus', 'msmarco'] as const) {
+      const { element, prefix } = collectionUsage[corpus];
+      const size = files.filter(file => file.owned && file.path.startsWith(prefix)).reduce((total, file) => total + file.size, 0);
+      element.hidden = !size || !['ready', 'saved'].includes(states.get(corpus).phase);
+      element.textContent = element.hidden ? '' : formatBytes(size);
+    }
   }
   function updateControls() {
     refreshButton.disabled = !supported || refreshing || deleting;
@@ -230,6 +243,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       const total = formatBytes(owned.reduce((total, file) => total + file.size, 0));
       summary.textContent = `${owned.length} app file${owned.length === 1 ? '' : 's'} · ${total}`;
       usage.textContent = total;
+      renderCollectionUsage();
       showStatus(status, files.length ? '' : 'No files saved.');
     } catch (error) {
       files = [];
@@ -237,6 +251,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
       deleteButtons.length = 0;
       summary.textContent = '';
       usage.textContent = 'Unavailable';
+      renderCollectionUsage();
       showStatus(status, `Could not read browser files: ${errorMessage(error)}`);
     } finally {
       refreshing = false;
@@ -246,6 +261,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   let collectionsUpdating = false;
   const unsubscribe = states.watch(state => [state.busy, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase], () => {
     updateControls();
+    renderCollectionUsage();
     const updating = (['nfcorpus', 'msmarco'] as const).some(name =>
       ['preparing', 'downloading', 'opening'].includes(states.get(name).phase));
     const finished = collectionsUpdating && !updating;
