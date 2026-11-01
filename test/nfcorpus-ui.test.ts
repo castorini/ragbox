@@ -102,6 +102,31 @@ it('prepares through the shared method without submitting and attaches stopped a
 
 afterEach(() => vi.unstubAllGlobals());
 
+it('cancels the NFCorpus download and offers it again', async () => {
+  const { conn } = createConnection([]);
+  conn.query.mockImplementation(async sql => {
+    if (sql.includes('information_schema')) return resultSet([{ n: 0 }]);
+    return resultSet([]);
+  });
+  vi.stubGlobal('fetch', vi.fn((_url: string, { signal }: RequestInit) => new Promise((_resolve, reject) => {
+    signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+  })));
+  const states: string[] = [];
+  const controller = setupNFCorpus({} as Parameters<typeof setupNFCorpus>[0], conn as unknown as Parameters<typeof setupNFCorpus>[1],
+    task => task(), createLLM(), phase => { states.push(phase); });
+  await controller.reopenSaved();
+  const preparing = controller.prepare();
+  await vi.waitFor(() => expect(elements.get('#fts-cancel-download').hidden).toBe(false));
+  expect(elements.get('#fts-index').hidden).toBe(true);
+  expect(states.at(-1)).toBe('downloading');
+  elements.get('#fts-cancel-download').onclick();
+  await preparing;
+  expect(states.at(-1)).toBe('missing');
+  expect(elements.get('#fts-status').textContent).toBe('Download cancelled. Retry downloading the index.');
+  expect(elements.get('#fts-cancel-download').hidden).toBe(true);
+  expect(elements.get('#fts-index')).toMatchObject({ hidden: false, disabled: false });
+});
+
 describe('NFCorpus shared LLM integration', () => {
   it('keeps preparation disabled during the saved-index check, then offers it on first visit', async () => {
     const { conn } = createConnection([]);

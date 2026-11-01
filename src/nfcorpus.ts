@@ -1,5 +1,5 @@
 import type { AsyncDuckDB, AsyncDuckDBConnection } from '@duckdb/duckdb-wasm';
-import { errorMessage, requiredElement, rowsAs } from './boundaries.ts';
+import { errorMessage, errorName, requiredElement, rowsAs } from './boundaries.ts';
 import type { LLMController } from './llm-controller.ts';
 import type { EvidenceDocument, RunTask } from './types.ts';
 import { ResourceStates, type ResourcePhase } from './resource-state.ts';
@@ -24,12 +24,14 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   const results = document.querySelector<HTMLOListElement>('#fts-results');
   const setup = requiredElement<HTMLElement>('#fts-setup');
   const indexButton = requiredElement<HTMLButtonElement>('#fts-index');
+  const cancelDownload = requiredElement<HTMLButtonElement>('#fts-cancel-download');
   const searchButton = document.querySelector<HTMLButtonElement>('#fts-search');
   let ready = false;
   let searchSQL = SEARCH_SQL;
   let loaded = false;
   let queued = false;
   let checking = true;
+  let downloadController: AbortController | undefined;
   function report(phase: ResourcePhase, message: string) {
     status.textContent = message;
     status.closest?.('.settings-resource')?.setAttribute('data-phase', phase);
@@ -37,8 +39,11 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   }
   function updateControls() {
     setup.hidden = ready;
-    indexButton.hidden = ready;
+    indexButton.hidden = ready || !!downloadController;
     indexButton.disabled = gate.busy || queued || checking;
+    // Like the other downloads, cancel shows only while bytes are downloading.
+    cancelDownload.hidden = !downloadController;
+    cancelDownload.disabled = !downloadController;
     if (searchButton) searchButton.disabled = gate.busy || !ready;
   }
   async function readSchema() { searchSQL = await nfcorpusSearchSQL(conn); }
@@ -81,12 +86,25 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
         llm.showRetrievalMessage('nfcorpus', '');
         await loadExtension();
         if (!await exists()) {
-          report('preparing', 'Downloading NFCorpus documents…');
-          const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`);
-          if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
-            throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
+          const controller = new AbortController();
+          downloadController = controller;
+          updateControls();
+          report('downloading', 'Downloading NFCorpus documents…');
+          let contents: string;
+          try {
+            const response = await fetch(`${import.meta.env.BASE_URL}data/nfcorpus.jsonl`, { signal: controller.signal });
+            if (!response.ok || response.headers.get('content-type')?.includes('text/html')) {
+              throw new Error('Dataset missing. Run npm run prepare:nfcorpus -- /path/to/corpus.jsonl first.');
+            }
+            contents = await response.text();
+          } catch (error) {
+            if (errorName(error) !== 'AbortError') throw error;
+            report('missing', 'Download cancelled. Retry downloading the index.');
+            return;
+          } finally {
+            downloadController = undefined;
+            updateControls();
           }
-          const contents = await response.text();
           const rows = contents.trim().split(/\r?\n/).map(line => JSON.parse(line) as { id: string });
           if (rows.length !== 3633 || new Set(rows.map(row => row.id)).size !== 3633) {
             throw new Error('Expected 3,633 unique NFCorpus documents.');
@@ -116,6 +134,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
     }
   }
   indexButton.onclick = () => prepare();
+  cancelDownload.onclick = () => downloadController?.abort();
 
   const form = document.querySelector<HTMLFormElement>('#fts-form');
   if (form) form.onsubmit = event => {
@@ -204,6 +223,7 @@ export function setupNFCorpus(db: Pick<AsyncDuckDB, 'registerFileText' | 'dropFi
   onState?.('checking', 'Checking NFCorpus index…');
   return {
     prepare,
+    cancelDownload() { downloadController?.abort(); },
     async retrieve(query: string) {
       if (!ready || gate.busy || queued || checking) throw new Error('NFCorpus is not ready to search.');
       const result = await action(() => retrieveNFCorpus(conn, query), true);

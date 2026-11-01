@@ -7,7 +7,7 @@ import { setupNFCorpus } from './nfcorpus.ts';
 import { setupMSMarco } from './msmarco.ts';
 import { setupLLM } from './llm-controller.ts';
 import { errorMessage, requiredElement } from './boundaries.ts';
-import type { RunTask } from './types.ts';
+import type { Corpus, RunTask } from './types.ts';
 import { ResourceStates, collectionReady } from './resource-state.ts';
 import { LoadCoordinator } from './load-coordinator.ts';
 import { setupStorageDashboard } from './storage-dashboard.ts';
@@ -53,7 +53,7 @@ const setupActions = {
   prepare: () => nfcorpus?.prepare(),
   download: () => marco?.download(),
   openSaved: () => marco?.openSaved(),
-  cancelDownload: () => marco?.cancelDownload(),
+  cancelDownload: (corpus: Corpus) => corpus === 'nfcorpus' ? nfcorpus?.cancelDownload() : marco?.cancelDownload(),
 };
 const guidance = setupSearchGuidance(states, setupActions);
 const dashboard = setupCorpusDashboard(states, chooser, setupActions);

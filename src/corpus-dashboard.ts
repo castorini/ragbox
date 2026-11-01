@@ -35,8 +35,8 @@ export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string
     // The detail line and bar show loading progress, so no label repeats it, and the
     // card heading already names the collection.
     case 'opening':
-    case 'preparing':
-    case 'downloading': return { light: 'pending', label: '', detail: withoutCollectionName(message) };
+    case 'preparing': return { light: 'pending', label: '', detail: withoutCollectionName(message) };
+    case 'downloading': return { light: 'pending', label: '', detail: withoutCollectionName(message), setup: 'Cancel download' };
     case 'unsupported': return { light: 'unavailable', label: 'Not supported', detail: 'Use desktop Chrome on localhost or HTTPS.' };
     default: return { light: 'unavailable', label: 'Needs attention', detail: message, setup: 'Fix in Settings' };
   }
@@ -55,7 +55,9 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
     setup.onclick = event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
-      if (!actions || states.get(corpus).phase === 'error') { chooser.openSetup(corpus); return; }
+      const { phase } = states.get(corpus);
+      if (actions && phase === 'downloading') { actions.cancelDownload(corpus); return; }
+      if (!actions || phase === 'error') { chooser.openSetup(corpus); return; }
       chooser.choose(corpus);
       if (corpus === 'nfcorpus') void actions.prepare();
       else void actions.download();
@@ -79,7 +81,7 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
       label.textContent = status.label;
       detail.textContent = status.detail ?? defaultDetail;
       setup.hidden = !status.setup;
-      setup.disabled = states.busy;
+      setup.disabled = states.busy && phase !== 'downloading';
       setup.textContent = status.setup ?? '';
       use.setAttribute('aria-pressed', String(isSelected));
       selectedBadge.hidden = !isSelected;

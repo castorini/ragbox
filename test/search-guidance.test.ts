@@ -93,7 +93,7 @@ it('runs shared setup actions, keeps queries, and displays the same download pro
   expect(get('#marco-search-progress')).toMatchObject({ hidden: false, value: 30 });
   expect(get('#marco-search-cancel').hidden).toBe(false);
   get('#marco-search-cancel').onclick?.();
-  expect(actions.cancelDownload).toHaveBeenCalledOnce();
+  expect(actions.cancelDownload).toHaveBeenCalledExactlyOnceWith('msmarco');
   states.set('msmarco', 'saved', 'Saved index available');
   expect(get('#marco-open').hidden).toBe(false);
   get('#marco-open').onclick?.();

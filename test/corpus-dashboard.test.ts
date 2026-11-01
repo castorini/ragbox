@@ -83,7 +83,7 @@ it('shows live progress while downloading and restores the default description a
   ui.states.set('msmarco', 'downloading', 'Downloading MS MARCO index: 1.00 / 3.35 GB (30%)');
   expect(ui.card('msmarco').attributes['data-status']).toBe('pending');
   expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Downloading index: 1.00 / 3.35 GB (30%)');
-  expect(ui.get('#msmarco-dashboard-setup').hidden).toBe(true);
+  expect(ui.get('#msmarco-dashboard-setup')).toMatchObject({ hidden: false, textContent: 'Cancel download' });
   ui.states.set('msmarco', 'ready', 'Ready');
   expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Default detail');
 });
@@ -99,4 +99,15 @@ it('prepares and downloads directly from Search through shared actions', () => {
   expect(actions.download).toHaveBeenCalledOnce();
   expect(ui.chooser.choose.mock.calls).toEqual([['nfcorpus'], ['msmarco']]);
   expect(ui.chooser.openSetup).not.toHaveBeenCalled();
+});
+
+it('cancels a download from its card', () => {
+  const actions = { prepare: vi.fn(), download: vi.fn(), openSaved: vi.fn(), cancelDownload: vi.fn() };
+  const ui = harness(actions);
+  ui.states.set('nfcorpus', 'downloading', 'Downloading NFCorpus documents…');
+  ui.states.setBusy(true);
+  expect(ui.get('#nfcorpus-dashboard-setup')).toMatchObject({ hidden: false, disabled: false, textContent: 'Cancel download' });
+  ui.get('#nfcorpus-dashboard-setup').onclick?.({ preventDefault() {} });
+  expect(actions.cancelDownload).toHaveBeenCalledExactlyOnceWith('nfcorpus');
+  expect(actions.prepare).not.toHaveBeenCalled();
 });

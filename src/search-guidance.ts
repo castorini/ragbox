@@ -1,6 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import { ResourceStates, type ResourceName, type ResourceState } from './resource-state.ts';
 import { renderIndexLoadBar } from './load-bar.ts';
+import type { Corpus } from './types.ts';
 
 function guidance(name: ResourceName, state: ResourceState, busy: boolean): string {
   const label = name === 'nfcorpus' ? 'NFCorpus' : 'MS MARCO';
@@ -24,7 +25,7 @@ export interface SetupActions {
   prepare(): unknown;
   download(): unknown;
   openSaved(): unknown;
-  cancelDownload(): unknown;
+  cancelDownload(corpus: Corpus): unknown;
 }
 
 export function setupSearchGuidance(states: ResourceStates, actions?: SetupActions) {
@@ -55,10 +56,12 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
   const cancel = requiredElement<HTMLButtonElement>('#marco-search-cancel');
   const progress = requiredElement<HTMLProgressElement>('#marco-search-progress');
   const nfProgress = requiredElement<HTMLProgressElement>('#fts-search-progress');
+  const nfCancel = requiredElement<HTMLButtonElement>('#fts-search-cancel');
   prepare.onclick = () => { void actions.prepare(); };
   download.onclick = () => { void actions.download(); };
   open.onclick = () => { void actions.openSaved(); };
-  cancel.onclick = () => { actions.cancelDownload(); };
+  cancel.onclick = () => { actions.cancelDownload('msmarco'); };
+  nfCancel.onclick = () => { actions.cancelDownload('nfcorpus'); };
   unsubscribers.push(states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy], () => {
     const nf = states.get('nfcorpus');
     const marco = states.get('msmarco');
@@ -70,6 +73,7 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
     open.textContent = marco.phase === 'error' ? 'Retry opening collection' : 'Open downloaded collection';
     open.disabled = states.busy || open.hidden;
     cancel.hidden = marco.phase !== 'downloading';
+    nfCancel.hidden = nf.phase !== 'downloading';
     renderIndexLoadBar(progress, marco);
     renderIndexLoadBar(nfProgress, nf);
   }));
