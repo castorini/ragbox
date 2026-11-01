@@ -269,7 +269,7 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 #model[data-phase=ready] .settings-state,#model[data-phase=generating] .settings-state{background:#e6f2e9;color:#23794a}
 #model:is([data-phase=checking],[data-phase=loading]) .settings-state{background:#fff3d9;color:#856316}
 #model[data-phase=error] .settings-state{background:#fff0ec;color:#913e33}
-#llm-status:empty,#model-search-status:empty{display:none}
+#llm-status:empty,#model-search-status:empty,#model-installed-status:empty{display:none}
 #setup-view .settings-description{font-size:13px;line-height:1.5;margin:7px 0 0;color:#53665b}
 #setup-view .settings-detail{font-size:12px;line-height:1.5;margin:6px 0 0;color:var(--muted)}
 #setup-view .settings-resource[data-phase=error] .settings-detail{color:#913e33}

@@ -87,7 +87,7 @@
       <div class="storage-overview">
         <div class="storage-overview-row"><div><h3>Indexes and app files <span id="storage-usage" class="storage-usage">Checking…</span></h3></div><button id="storage-reset" class="danger settings-delete-button" type="button" aria-label="Delete index data" title="Delete index data" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete index data</span></button></div>
       </div>
-      <p id="storage-status" role="status">Checking browser files…</p>
+      <p id="storage-status" role="status" hidden></p>
       <details id="collection-management" tabindex="-1" class="storage-management"><summary>Advanced file management</summary>
         <div class="storage-header"><h3>Saved files</h3><div class="storage-header-tools"><span id="storage-summary"></span><button id="storage-refresh" class="refresh-icon-button" type="button" aria-label="Refresh index files" title="Refresh index files"><i data-lucide="refresh-cw" width="20" height="20" stroke-width="1.8" aria-hidden="true"></i></button></div></div>
         <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">File</th><th scope="col">Size</th></tr></thead><tbody id="storage-files"></tbody></table></div>
@@ -106,10 +106,10 @@
       <div class="storage-overview">
         <div class="storage-overview-row"><div><h3>Model files <span id="model-storage-usage" class="storage-usage">Checking…</span></h3></div><button id="model-cache-delete" class="danger settings-delete-button" type="button" aria-label="Delete model" title="Delete model" disabled><i data-lucide="trash-2" aria-hidden="true"></i><span>Delete model</span></button></div>
       </div>
-      <p id="model-cache-status" role="status">Checking saved model files…</p>
+      <p id="model-cache-status" role="status" hidden></p>
       <details id="model-management" tabindex="-1" class="model-cache-details storage-management"><summary>Advanced file management</summary><div id="model-storage" tabindex="-1">
           <div class="model-cache-header"><h3>MiniCPM5-2B</h3><div class="storage-header-tools"><span id="model-cache-summary"></span><button id="model-cache-refresh" class="refresh-icon-button" type="button" aria-label="Refresh model files" title="Refresh model files"><i data-lucide="refresh-cw" width="20" height="20" stroke-width="1.8" aria-hidden="true"></i></button></div></div>
-          <p id="model-installed-status" class="installed-status">Checking installed files…</p>
+          <p id="model-installed-status" class="installed-status"></p>
           <p class="model-hint">Some saved model files are invalid. <a id="model-storage-repair" href="?view=setup#model">Go to Model to repair the download</a>.</p>
           <div class="storage-table-wrap"><table class="storage-table"><thead><tr><th scope="col">Model file</th><th scope="col">Size</th><th scope="col">Cache</th></tr></thead><tbody id="model-cache-files"></tbody></table></div>
       </div></details>

@@ -117,7 +117,9 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!cacheSupported || refreshingModel || deleting) return;
     refreshingModel = true;
     updateControls();
-    showStatus(modelStatus, 'Reading model files…');
+    // The size beside "Model files" says Checking…; the status line doesn't repeat it.
+    modelUsage.textContent = 'Checking…';
+    showStatus(modelStatus, '');
     try {
       modelFiles = await listModelCacheFiles(caches);
       modelRows.replaceChildren();
@@ -179,7 +181,8 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     if (!supported || refreshing || deleting) return;
     refreshing = true;
     updateControls();
-    showStatus(status, 'Reading collection files…');
+    usage.textContent = 'Checking…';
+    showStatus(status, '');
     try {
       const root = await navigator.storage.getDirectory();
       files = await listStoredFiles(root);

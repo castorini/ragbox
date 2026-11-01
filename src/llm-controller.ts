@@ -104,7 +104,7 @@ export class LLMController extends ModelService {
       this.elements.statusDetail.hidden = this.state !== 'loading';
     }
     const cacheLabels: Record<ModelCacheAvailability, string> = {
-      checking: 'Checking installed files…', missing: 'Not installed', incomplete: 'Incomplete install',
+      checking: '', missing: 'Not installed', incomplete: 'Incomplete install',
       installed: 'Installed · MiniCPM5-2B', corrupt: 'Invalid model files', unknown: 'Installed files unavailable',
     };
     setText(this.elements.installedStatus, cacheLabels[this.model.cache]);
