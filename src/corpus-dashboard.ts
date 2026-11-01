@@ -2,6 +2,7 @@ import { requiredElement } from './boundaries.ts';
 import type { ResourcePhase, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
 import type { SetupActions } from './search-guidance.ts';
+import { renderIndexLoadBar } from './load-bar.ts';
 
 type Light = 'available' | 'unavailable' | 'pending';
 
@@ -47,6 +48,7 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
     const setup = requiredElement<HTMLButtonElement>(`#${corpus}-dashboard-setup`);
     const use = requiredElement<HTMLButtonElement>(`#${corpus}-dashboard-use`);
     const selectedBadge = requiredElement<HTMLElement>(`#${corpus}-dashboard-selected`);
+    const progress = requiredElement<HTMLProgressElement>(`#${corpus}-dashboard-progress`);
     const defaultDetail = detail.textContent;
     setup.onclick = event => {
       if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
@@ -60,13 +62,14 @@ export function setupCorpusDashboard(states: ResourceStates, chooser: DashboardC
       chooser.choose(corpus);
       if (!chooser.subscribe) render();
     };
-    return { corpus, card, label, detail, setup, use, selectedBadge, defaultDetail };
+    return { corpus, card, label, detail, setup, use, selectedBadge, progress, defaultDetail };
   });
 
   function render() {
     const selected = chooser.selected();
-    for (const { corpus, card, label, detail, setup, use, selectedBadge, defaultDetail } of cards) {
+    for (const { corpus, card, label, detail, setup, use, selectedBadge, progress, defaultDetail } of cards) {
       const { phase, message } = states.get(corpus);
+      renderIndexLoadBar(progress, states.get(corpus));
       const status = cardStatus(corpus, phase, message);
       const isSelected = corpus === selected;
       card.setAttribute('data-status', status.light);

@@ -83,6 +83,11 @@ it('runs shared setup actions, keeps queries, and displays the same download pro
   states.set('nfcorpus', 'preparing', 'Building NFCorpus index…');
   expect(get('#fts-help-text').textContent).toBe('Building NFCorpus index…');
   expect(get('#fts-query').disabled).toBe(false);
+  expect(get('#fts-search-progress').hidden).toBe(false);
+  expect(get('#fts-search-progress').removeAttribute).toHaveBeenLastCalledWith('value');
+  states.set('msmarco', 'opening', 'Opening MS MARCO index…');
+  expect(get('#marco-search-progress').hidden).toBe(false);
+  expect(get('#marco-search-progress').removeAttribute).toHaveBeenLastCalledWith('value');
   states.set('msmarco', 'downloading', 'Downloading MS MARCO index: 1.00 / 3.35 GB (30%)', undefined, 30);
   expect(get('#marco-help-text').textContent).toBe('Downloading MS MARCO index: 1.00 / 3.35 GB (30%)');
   expect(get('#marco-search-progress')).toMatchObject({ hidden: false, value: 30 });

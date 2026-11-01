@@ -624,7 +624,9 @@ it('shows model download progress in the shared format and announces stages rath
   expect(elements.announcement.textContent).toBe('Downloading model…');
   worker.emit({ type: 'progress', loadId, progress: { stage: 'initializing', downloadedBytes: 0.92e9 } });
   expect(elements.searchStatus.textContent).toBe('Loading model…');
-  expect(elements.progress.hidden).toBe(true);
+  // Loading has no measurable progress, so the same bar shows a sliding stripe.
+  expect(elements.progress.hidden).toBe(false);
+  expect(elements.progress.value).toBeUndefined();
 });
 
 it('blocks a waiting answer after cache failure without downloading automatically', async () => {

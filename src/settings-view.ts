@@ -1,6 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import type { ResourceState, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
+import { renderIndexLoadBar } from './load-bar.ts';
 
 export function settingsCollectionStatus(corpus: Corpus, state: ResourceState) {
   switch (state.phase) {
@@ -26,15 +27,17 @@ export function setupSettingsView(states: ResourceStates, chooser: { search(corp
     const badge = requiredElement<HTMLElement>(`#${prefix}-settings-state`);
     const detail = requiredElement<HTMLElement>(`#${prefix}-status`);
     const search = requiredElement<HTMLButtonElement>(`#${prefix}-settings-search`);
+    const progress = requiredElement<HTMLProgressElement>(`#${prefix}-progress`);
     search.onclick = () => {
       if (!search.hidden && !search.disabled) chooser.search(corpus);
     };
-    return { corpus, row, badge, detail, search };
+    return { corpus, row, badge, detail, search, progress };
   });
   const modelDetail = requiredElement<HTMLElement>('#llm-settings-detail');
   const unsubscribe = states.watch(state => [state.resources.nfcorpus, state.resources.msmarco, state.busy, state.resources.model.phase === 'unsupported'], () => {
-    for (const { corpus, row, badge, detail, search } of rows) {
+    for (const { corpus, row, badge, detail, search, progress } of rows) {
       const state = states.get(corpus);
+      renderIndexLoadBar(progress, state);
       const status = settingsCollectionStatus(corpus, state);
       row.setAttribute('data-phase', state.phase);
       badge.textContent = status.label;

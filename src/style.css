@@ -210,10 +210,19 @@ a.corpus-action{text-decoration:none}a.corpus-action:hover{text-decoration:under
 #model-search-status{color:var(--accent);font-weight:600;overflow-wrap:anywhere}
 .model-note button,.inline-setup-actions button,.answer-actions button{min-height:44px;font-size:13px;padding:8px 12px}
 .inline-setup-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
-.inline-setup-actions:has(button:not([hidden])){margin-top:10px}
-.inline-setup-actions:not(:has(button:not([hidden]))){display:none}
-/* Every model and index download uses the same bar. */
-#llm-progress,#marco-progress,#marco-search-progress,#model-search-progress{width:100%;height:8px;margin:0;accent-color:var(--accent)}
+.inline-setup-actions:has(button:not([hidden]),progress:not([hidden])){margin-top:10px}
+.inline-setup-actions:not(:has(button:not([hidden]),progress:not([hidden]))){display:none}
+/* Every model and index load uses the same long bar: filled to a measured percentage, or a sliding stripe. */
+.load-bar{-webkit-appearance:none;appearance:none;display:block;width:100%;height:6px;margin:8px 0 0;border:0;border-radius:999px;background:#e3e9e1;overflow:hidden;color:var(--accent)}
+.load-bar[hidden]{display:none}
+.load-bar::-webkit-progress-bar{background:#e3e9e1;border-radius:999px}
+.load-bar::-webkit-progress-value{background:var(--accent);border-radius:999px;transition:width .2s ease}
+.load-bar::-moz-progress-bar{background:var(--accent);border-radius:999px}
+.load-bar:indeterminate{background:linear-gradient(90deg,transparent 0 40%,var(--accent) 40% 60%,transparent 60% 100%) #e3e9e1;background-size:250% 100%;animation:load-bar-slide 1.3s linear infinite}
+.load-bar:indeterminate::-webkit-progress-bar{background:transparent}
+.load-bar:indeterminate::-moz-progress-bar{background:transparent}
+@keyframes load-bar-slide{from{background-position:100% 0}to{background-position:0 0}}
+@media(prefers-reduced-motion:reduce){.load-bar:indeterminate{animation:none;background-position:50% 0}}
 .model-note progress{flex-basis:100%}
 .unavailable input{background:#fff;color:#243733}
 .answer-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -482,7 +491,7 @@ form.examples-open .example-queries{border-color:#76aa96}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices #model-search-status{color:inherit;font-weight:400}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.search-help) a{color:inherit;text-decoration:underline}
 #search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices :is(.model-note,.inline-setup-actions) button{min-height:32px;padding:4px 12px;background:#fff;border-color:#d9c08c;color:#5a431a}
-#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .inline-setup-actions:has(button:not([hidden])){margin-top:6px}
+#search-view:not(:has(#chat-empty:not([hidden]))) .chat-notices .inline-setup-actions:has(button:not([hidden]),progress:not([hidden])){margin-top:6px}
 #search-view:not(:has(#chat-empty:not([hidden]))) #chat-form>.chat-input-row{position:relative;z-index:1}
 
 /* In-progress animations. Chat replies set data-activity; resources expose data-phase. */

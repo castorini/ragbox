@@ -30,7 +30,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
   const fetchButton = requiredElement<HTMLButtonElement>('#marco-fetch');
   const reopenButton = requiredElement<HTMLButtonElement>('#marco-reopen');
   const searchButton = document.querySelector<HTMLButtonElement>('#marco-search');
-  const progress = requiredElement<HTMLProgressElement>('#marco-progress');
   const cancelDownload = requiredElement<HTMLButtonElement>('#marco-cancel-download');
   const setup = requiredElement<HTMLElement>('#marco-setup');
   const downloadUrl = import.meta.env.VITE_MSMARCO_INDEX_URL ||
@@ -128,19 +127,16 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       downloadController = controller;
       cancelDownload.hidden = false;
       cancelDownload.disabled = false;
-      progress.hidden = false;
-      progress.value = 0;
       let lastUpdate = 0;
       try {
-        report('downloading', 'Downloading MS MARCO index…');
+        report('downloading', 'Downloading MS MARCO index…', 0);
         await downloadPrebuilt({ url: downloadUrl, bytes: downloadBytes,
           root, name: PREBUILT_NAME, signal: controller.signal,
           onProgress(received, total) {
             const now = performance.now();
             if (now - lastUpdate < 200 && received !== total) return;
             lastUpdate = now;
-            progress.value = received / total * 100;
-            report('downloading', downloadProgressText('MS MARCO index', received, total), progress.value);
+            report('downloading', downloadProgressText('MS MARCO index', received, total), received / total * 100);
           },
         });
         hasSaved = true;
@@ -157,7 +153,6 @@ export function setupMSMarco(run: RunTask = task => task(), llm?: SearchLLM, onS
       } finally {
         cancelDownload.disabled = true;
         cancelDownload.hidden = true;
-        progress.hidden = true;
         downloadController = undefined;
       }
     }, false);

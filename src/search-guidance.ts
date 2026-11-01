@@ -1,5 +1,6 @@
 import { requiredElement } from './boundaries.ts';
 import { ResourceStates, type ResourceName, type ResourceState } from './resource-state.ts';
+import { renderIndexLoadBar } from './load-bar.ts';
 
 function guidance(name: ResourceName, state: ResourceState, busy: boolean): string {
   const label = name === 'nfcorpus' ? 'NFCorpus' : 'MS MARCO';
@@ -53,6 +54,7 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
   const open = requiredElement<HTMLButtonElement>('#marco-open');
   const cancel = requiredElement<HTMLButtonElement>('#marco-search-cancel');
   const progress = requiredElement<HTMLProgressElement>('#marco-search-progress');
+  const nfProgress = requiredElement<HTMLProgressElement>('#fts-search-progress');
   prepare.onclick = () => { void actions.prepare(); };
   download.onclick = () => { void actions.download(); };
   open.onclick = () => { void actions.openSaved(); };
@@ -68,9 +70,8 @@ export function setupSearchGuidance(states: ResourceStates, actions?: SetupActio
     open.textContent = marco.phase === 'error' ? 'Retry opening collection' : 'Open downloaded collection';
     open.disabled = states.busy || open.hidden;
     cancel.hidden = marco.phase !== 'downloading';
-    progress.hidden = marco.phase !== 'downloading';
-    if (marco.progress === undefined) progress.removeAttribute?.('value');
-    else progress.value = marco.progress;
+    renderIndexLoadBar(progress, marco);
+    renderIndexLoadBar(nfProgress, nf);
   }));
   return { dispose() { for (const unsubscribe of unsubscribers) unsubscribe(); } };
 }

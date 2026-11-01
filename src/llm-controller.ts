@@ -4,6 +4,7 @@ import { ModelService, citationTargetMap } from './model-service.ts';
 import type { CitationTargets, Capability, ControllerState } from './model-service.ts';
 import type { LoadCoordinator } from './load-coordinator.ts';
 import { formatBytes } from './format.ts';
+import { renderLoadBar } from './load-bar.ts';
 export { detectWebGPU, citedIds } from './model-service.ts';
 export type { Capability, ControllerState, GenerateOptions } from './model-service.ts';
 const CITATION = /\[([A-Za-z0-9_.:-]+)\]/g;
@@ -121,7 +122,7 @@ export class LLMController extends ModelService {
         button.title = action;
       } else button.textContent = action;
     }
-    // Like index downloads, cancel and the bar show only while bytes are downloading, never while loading.
+    // Like index downloads, cancel shows only while bytes are downloading.
     const downloading = this.state === 'loading' && this.model.stage === 'downloading';
     for (const button of [this.elements.cancelLoadButton, this.elements.searchCancelButton]) {
       if (!button) continue;
@@ -129,9 +130,7 @@ export class LLMController extends ModelService {
       button.disabled = !downloading;
     }
     for (const progress of [this.elements.progress, this.elements.searchProgress]) {
-      if (!progress) continue;
-      progress.hidden = !downloading;
-      progress.value = this.downloadPercent() ?? 0;
+      if (progress) renderLoadBar(progress, this.state === 'loading', this.downloadPercent());
     }
     if (this.elements.setup) this.elements.setup.hidden = !canLoad;
     if (this.elements.settingsLink) this.elements.settingsLink.hidden = this.ready || this.state === 'loading' || this.state === 'checking';
