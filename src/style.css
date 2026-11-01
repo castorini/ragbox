@@ -283,9 +283,9 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource-actions>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .settings-resource:target,#model:target{outline:3px solid #76aa964d;outline-offset:6px;border-radius:8px}
 
-#llm-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-#llm-controls:has(button:not([hidden])){margin-top:14px}
-#llm-controls progress{flex-basis:100%;margin:0}
+/* The model's Download and Cancel sit on the right, like each index's. */
+#model>.model-resource{padding-top:0}
+#llm-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .storage-overview{margin-top:14px;border-top:1px solid var(--line)}
 .settings-resource+.storage-overview{margin-top:0}
 .storage-overview-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 0}

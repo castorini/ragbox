@@ -377,3 +377,13 @@ it('hides Delete index data until an index is downloaded', async () => {
   ui.states.set('msmarco', 'saved', '');
   expect(ui.elements.get('#storage-reset').hidden).toBe(false);
 });
+
+it('shows Start over only once an index or model files are saved', async () => {
+  const ui = harness();
+  await ready(ui);
+  expect(ui.elements.get('#storage-reset-section').hidden).toBe(false);
+  ui.states.set('nfcorpus', 'missing', '');
+  expect(ui.elements.get('#storage-reset-section').hidden).toBe(true);
+  ui.states.set('model', 'idle', '', { stage: 'idle', cache: 'installed', downloadedBytes: 0 });
+  expect(ui.elements.get('#storage-reset-section').hidden).toBe(false);
+});

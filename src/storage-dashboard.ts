@@ -53,6 +53,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
   recovery.hidden = true;
   const resetButton = requiredElement<HTMLButtonElement>('#storage-reset');
   const resetAllButton = requiredElement<HTMLButtonElement>('#storage-reset-all');
+  const resetAllSection = requiredElement<HTMLElement>('#storage-reset-section');
   const modelRows = requiredElement<HTMLTableSectionElement>('#model-cache-files');
   const modelStatus = requiredElement<HTMLElement>('#model-cache-status');
   const modelSummary = requiredElement<HTMLElement>('#model-cache-summary');
@@ -80,6 +81,10 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     // once an index has been downloaded (or is downloading, failed, or still being checked).
     resetButton.hidden = (['nfcorpus', 'msmarco'] as const).every(name => ['missing', 'unsupported'].includes(states.get(name).phase));
     resetButton.disabled = !supported || blocked() || !files.some(file => file.owned);
+    // Start over appears only once an index or model files are known to be saved.
+    const indexSaved = (['nfcorpus', 'msmarco'] as const).some(name => !['checking', 'missing', 'unsupported'].includes(states.get(name).phase));
+    const modelSaved = ['installed', 'incomplete', 'corrupt', 'unknown'].includes(states.get('model').model?.cache ?? 'missing');
+    resetAllSection.hidden = !indexSaved && !modelSaved;
     resetAllButton.disabled = !supported || !cacheSupported || blocked();
     for (const button of deleteButtons) button.disabled = !supported || blocked();
     modelRefresh.disabled = !cacheSupported || refreshingModel || deleting;
@@ -247,7 +252,7 @@ export function setupStorageDashboard(states: ResourceStates, shutdown: () => Pr
     }
   }
   let collectionsUpdating = false;
-  const unsubscribe = states.watch(state => [state.busy, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase], () => {
+  const unsubscribe = states.watch(state => [state.busy, state.resources.nfcorpus.phase, state.resources.msmarco.phase, state.resources.model.phase, state.resources.model.model?.cache], () => {
     updateControls();
     const updating = (['nfcorpus', 'msmarco'] as const).some(name =>
       ['preparing', 'downloading', 'opening'].includes(states.get(name).phase));
