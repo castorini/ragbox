@@ -276,9 +276,9 @@ button.corpus-action{position:relative;z-index:1;min-height:44px;font-size:13px;
 .settings-resource-actions{flex:none;max-width:100%}
 .settings-resource[data-phase=unsupported] .settings-resource-actions{display:none}
 #setup-view button{min-height:44px;margin:0;font-size:13px}
-#setup-view .settings-download-button,#setup-view .settings-delete-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
+#setup-view .settings-download-button,#setup-view .settings-delete-button,#setup-view .settings-chat-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap}
 #setup-view .settings-download-button>span{display:inline-flex;align-items:center}
-#setup-view .settings-download-button svg,#setup-view .settings-delete-button svg{display:block;width:18px;height:18px;flex:none}
+#setup-view .settings-download-button svg,#setup-view .settings-delete-button svg,#setup-view .settings-chat-button svg{display:block;width:18px;height:18px;flex:none}
 .settings-resource-actions>div{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .settings-resource:target,#model:target{outline:3px solid #76aa964d;outline-offset:6px;border-radius:8px}
 
