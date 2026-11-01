@@ -551,6 +551,8 @@ form.examples-open .example-queries{border-color:#76aa96}
 #search-view:has(#chat-empty:not([hidden])) .tour-replay{top:16px}
 /* The collection cards already offer each setup action on the start page; keep only the message. */
 #search-view:has(#chat-empty:not([hidden])) .search-help .inline-setup-actions>button{display:none}
+/* The cards also show checking and loading progress there, so the notice doesn't repeat it. */
+#search-view:has(#chat-empty:not([hidden])) .search-help:is([data-phase=checking],[data-phase=saved],[data-phase=opening],[data-phase=preparing],[data-phase=downloading]){display:none}
 #search-view:has(#chat-empty:not([hidden])){gap:14px}
 
 /* Saved index files: the MS MARCO Delete button sits beside its file name (no Action column). */

@@ -42,7 +42,7 @@ it('maps each resource phase to a green, red, or pending light', () => {
   expect(cardStatus('msmarco', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not downloaded' });
   expect(cardStatus('nfcorpus', 'missing', '')).toMatchObject({ light: 'unavailable', label: 'Not downloaded' });
   expect(cardStatus('msmarco', 'downloading', 'Downloading MS MARCO index: 1.00 / 3.35 GB'))
-    .toMatchObject({ light: 'pending', detail: 'Downloading MS MARCO index: 1.00 / 3.35 GB' });
+    .toMatchObject({ light: 'pending', detail: 'Downloading index: 1.00 / 3.35 GB' });
   expect(cardStatus('nfcorpus', 'error', 'Boom')).toMatchObject({ light: 'unavailable', setup: 'Fix in Settings' });
 });
 
@@ -82,7 +82,7 @@ it('shows live progress while downloading and restores the default description a
   const ui = harness();
   ui.states.set('msmarco', 'downloading', 'Downloading MS MARCO index: 1.00 / 3.35 GB (30%)');
   expect(ui.card('msmarco').attributes['data-status']).toBe('pending');
-  expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Downloading MS MARCO index: 1.00 / 3.35 GB (30%)');
+  expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Downloading index: 1.00 / 3.35 GB (30%)');
   expect(ui.get('#msmarco-dashboard-setup').hidden).toBe(true);
   ui.states.set('msmarco', 'ready', 'Ready');
   expect(ui.get('#msmarco-dashboard-detail').textContent).toBe('Default detail');

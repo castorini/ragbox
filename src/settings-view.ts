@@ -1,7 +1,7 @@
 import { requiredElement } from './boundaries.ts';
 import type { ResourceState, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
-import { renderIndexLoadBar } from './load-bar.ts';
+import { renderIndexLoadBar, withoutCollectionName } from './load-bar.ts';
 
 export function settingsCollectionDetail(state: ResourceState) {
   switch (state.phase) {
@@ -9,6 +9,10 @@ export function settingsCollectionDetail(state: ResourceState) {
     case 'saved': return 'Downloaded. Opens when selected.';
     case 'missing': return 'One-time download saved in this browser.';
     case 'unsupported': return 'Search needs a supported browser on HTTPS or localhost.';
+    case 'checking':
+    case 'opening':
+    case 'preparing':
+    case 'downloading': return withoutCollectionName(state.message);
     default: return state.message;
   }
 }

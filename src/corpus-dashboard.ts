@@ -2,7 +2,7 @@ import { requiredElement } from './boundaries.ts';
 import type { ResourcePhase, ResourceStates } from './resource-state.ts';
 import type { Corpus } from './types.ts';
 import type { SetupActions } from './search-guidance.ts';
-import { renderIndexLoadBar } from './load-bar.ts';
+import { renderIndexLoadBar, withoutCollectionName } from './load-bar.ts';
 
 type Light = 'available' | 'unavailable' | 'pending';
 
@@ -32,10 +32,11 @@ export function cardStatus(corpus: Corpus, phase: ResourcePhase, message: string
     case 'saved': return { light: 'available', label: 'Downloaded', detail: 'Opens automatically when you select it.' };
     case 'missing': return { light: 'unavailable', label: info.missing, setup: info.setup };
     case 'checking': return { light: 'pending', label: 'Checking…' };
-    // The detail line and bar show loading progress, so no label repeats it.
+    // The detail line and bar show loading progress, so no label repeats it, and the
+    // card heading already names the collection.
     case 'opening':
     case 'preparing':
-    case 'downloading': return { light: 'pending', label: '', detail: message };
+    case 'downloading': return { light: 'pending', label: '', detail: withoutCollectionName(message) };
     case 'unsupported': return { light: 'unavailable', label: 'Not supported', detail: 'Use desktop Chrome on localhost or HTTPS.' };
     default: return { light: 'unavailable', label: 'Needs attention', detail: message, setup: 'Fix in Settings' };
   }

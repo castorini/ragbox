@@ -12,3 +12,9 @@ const INDEX_LOADING = new Set<ResourceState['phase']>(['opening', 'preparing', '
 export function renderIndexLoadBar(bar: HTMLProgressElement, state: ResourceState) {
   renderLoadBar(bar, INDEX_LOADING.has(state.phase), state.phase === 'downloading' ? state.progress : undefined);
 }
+
+// Under a heading that already names the collection, progress lines drop the name:
+// "Downloading MS MARCO index: 1.00 / 3.35 GB" reads "Downloading index: 1.00 / 3.35 GB".
+export function withoutCollectionName(message: string) {
+  return message.replace(/ (?:NFCorpus|MS MARCO)(?=[ :…])/, '');
+}

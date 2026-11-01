@@ -59,8 +59,8 @@ it('explains that unsupported AI answers do not prevent document search', () => 
 });
 
 it('uses plain-language details for opening, setup, and unavailable collections', () => {
-  expect(settingsCollectionDetail({ phase: 'preparing', message: 'Building NFCorpus index…' })).toBe('Building NFCorpus index…');
-  expect(settingsCollectionDetail({ phase: 'opening', message: 'Opening MS MARCO index…' })).toBe('Opening MS MARCO index…');
+  expect(settingsCollectionDetail({ phase: 'preparing', message: 'Building NFCorpus index…' })).toBe('Building index…');
+  expect(settingsCollectionDetail({ phase: 'opening', message: 'Opening MS MARCO index…' })).toBe('Opening index…');
   expect(settingsCollectionDetail({ phase: 'missing', message: '' })).toBe('One-time download saved in this browser.');
   expect(settingsCollectionDetail({ phase: 'unsupported', message: '' })).toBe('Search needs a supported browser on HTTPS or localhost.');
 });
